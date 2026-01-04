@@ -1,10 +1,10 @@
 // Section D - Patient Information
 
 use crate::ctx::Ctx;
-use crate::model::base::{DbBmc};
+use crate::model::base::DbBmc;
+use crate::model::store::dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
-use crate::model::store::dbx;
 use modql::field::Fields;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};

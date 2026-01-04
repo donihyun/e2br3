@@ -3,9 +3,9 @@
 use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
 use crate::model::base_uuid;
+use crate::model::store::dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
-use crate::model::store::dbx;
 use modql::field::Fields;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -212,7 +212,10 @@ impl DrugInformationBmc {
 		mm: &ModelManager,
 		case_id: Uuid,
 	) -> Result<Vec<DrugInformation>> {
-		let sql = format!("SELECT * FROM {} WHERE case_id = $1 ORDER BY sequence_number", Self::TABLE);
+		let sql = format!(
+			"SELECT * FROM {} WHERE case_id = $1 ORDER BY sequence_number",
+			Self::TABLE
+		);
 		let drugs = sqlx::query_as::<_, DrugInformation>(&sql)
 			.bind(case_id)
 			.fetch_all(mm.dbx().db())

@@ -1,10 +1,10 @@
 // Audit Logs and Case Versions
 
 use crate::ctx::Ctx;
-use crate::model::base::{DbBmc};
+use crate::model::base::DbBmc;
+use crate::model::store::dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
-use crate::model::store::dbx;
 use modql::filter::{FilterNodes, ListOptions, OpValsString};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -19,7 +19,7 @@ pub struct CaseVersion {
 	pub id: Uuid,
 	pub case_id: Uuid,
 	pub version: i32,
-	pub snapshot: JsonValue,  // Full case data snapshot
+	pub snapshot: JsonValue, // Full case data snapshot
 	pub changed_by: Uuid,
 	pub change_reason: Option<String>,
 	pub created_at: OffsetDateTime,
@@ -40,11 +40,11 @@ pub struct AuditLog {
 	pub id: i64,
 	pub table_name: String,
 	pub record_id: Uuid,
-	pub action: String,  // CREATE, UPDATE, DELETE, SUBMIT, NULLIFY
+	pub action: String, // CREATE, UPDATE, DELETE, SUBMIT, NULLIFY
 	pub user_id: Uuid,
 	pub old_values: Option<JsonValue>,
 	pub new_values: Option<JsonValue>,
-	pub ip_address: Option<String>,  // Stored as TEXT in DB
+	pub ip_address: Option<String>, // Stored as TEXT in DB
 	pub user_agent: Option<String>,
 	pub created_at: OffsetDateTime,
 }
@@ -56,7 +56,7 @@ pub struct AuditLogForCreate {
 	pub action: String,
 	pub old_values: Option<JsonValue>,
 	pub new_values: Option<JsonValue>,
-	pub ip_address: Option<String>,  // Stored as TEXT in DB
+	pub ip_address: Option<String>, // Stored as TEXT in DB
 	pub user_agent: Option<String>,
 }
 
@@ -79,7 +79,7 @@ impl CaseVersionBmc {
 		mm: &ModelManager,
 		version_c: CaseVersionForCreate,
 	) -> Result<Uuid> {
-		let user_id = ctx.user_id();
+		let user_id = ctx.user_uuid();
 		let sql = "INSERT INTO case_versions (case_id, version, snapshot, change_reason, changed_by) VALUES ($1, $2, $3, $4, $5) RETURNING id";
 
 		let (id,) = sqlx::query_as::<_, (Uuid,)>(sql)
@@ -100,7 +100,10 @@ impl CaseVersionBmc {
 		mm: &ModelManager,
 		case_id: Uuid,
 	) -> Result<Vec<CaseVersion>> {
-		let sql = format!("SELECT * FROM {} WHERE case_id = $1 ORDER BY version DESC", Self::TABLE);
+		let sql = format!(
+			"SELECT * FROM {} WHERE case_id = $1 ORDER BY version DESC",
+			Self::TABLE
+		);
 		let versions = sqlx::query_as::<_, CaseVersion>(&sql)
 			.bind(case_id)
 			.fetch_all(mm.dbx().db())
@@ -121,7 +124,7 @@ impl AuditLogBmc {
 		mm: &ModelManager,
 		audit_c: AuditLogForCreate,
 	) -> Result<i64> {
-		let user_id = ctx.user_id();
+		let user_id = ctx.user_uuid();
 		let sql = "INSERT INTO audit_logs (table_name, record_id, action, user_id, old_values, new_values, ip_address, user_agent) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id";
 
 		let (id,) = sqlx::query_as::<_, (i64,)>(sql)

@@ -3,11 +3,11 @@
 use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
 use crate::model::base_uuid;
+use crate::model::store::dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
-use crate::model::store::dbx;
 use modql::field::Fields;
-use modql::filter::{FilterNodes};
+use modql::filter::{FilterNodes, OpValsBool, OpValsUuid};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::types::time::{Date, OffsetDateTime};
@@ -87,8 +87,8 @@ pub struct ReactionForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct ReactionFilter {
-	pub case_id: Option<sqlx::types::Uuid>,
-	pub serious: Option<bool>,
+	pub case_id: Option<OpValsUuid>,
+	pub serious: Option<OpValsBool>,
 }
 
 // -- BMC
@@ -125,7 +125,10 @@ impl ReactionBmc {
 		mm: &ModelManager,
 		case_id: Uuid,
 	) -> Result<Vec<Reaction>> {
-		let sql = format!("SELECT * FROM {} WHERE case_id = $1 ORDER BY sequence_number", Self::TABLE);
+		let sql = format!(
+			"SELECT * FROM {} WHERE case_id = $1 ORDER BY sequence_number",
+			Self::TABLE
+		);
 		let reactions = sqlx::query_as::<_, Reaction>(&sql)
 			.bind(case_id)
 			.fetch_all(mm.dbx().db())

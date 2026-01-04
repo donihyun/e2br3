@@ -1,6 +1,6 @@
 // Section C - Safety Report Identification
 
-use crate::model::base::{DbBmc};
+use crate::model::base::DbBmc;
 use modql::field::Fields;
 use serde::{Deserialize, Serialize};
 use sqlx::types::time::{Date, OffsetDateTime};

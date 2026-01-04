@@ -6,7 +6,6 @@
 
 use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
-use crate::model::store::dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::HasSeaFields;
@@ -26,8 +25,6 @@ where
 	MC: DbBmc,
 	E: HasSeaFields,
 {
-	let dbx = mm.dbx();
-
 	// -- Build the SQL query
 	let fields = data.not_none_sea_fields();
 	let (columns, sea_values) = fields.for_sea_insert();
@@ -41,10 +38,8 @@ where
 
 	// -- Execute the query
 	let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
-	let (id,) = sqlx::query_as_with::<_, (Uuid,), _>(&sql, values)
-		.fetch_one(dbx.db())
-		.await
-		.map_err(|ex| dbx::Error::from(ex))?;
+	let sqlx_query = sqlx::query_as_with::<_, (Uuid,), _>(&sql, values);
+	let (id,) = mm.dbx().fetch_one(sqlx_query).await?;
 
 	Ok(id)
 }
@@ -58,8 +53,6 @@ where
 	MC: DbBmc,
 	E: for<'r> FromRow<'r, PgRow> + Unpin + Send + HasSeaFields,
 {
-	let dbx = mm.dbx();
-
 	// -- Build the SQL query
 	let mut query = Query::select();
 	query
@@ -69,14 +62,13 @@ where
 
 	// -- Execute the query
 	let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
-	let entity = sqlx::query_as_with::<_, E, _>(&sql, values)
-		.fetch_optional(dbx.db())
-		.await
-		.map_err(|ex| dbx::Error::from(ex))?
-		.ok_or(crate::model::Error::EntityNotFound {
+	let sqlx_query = sqlx::query_as_with::<_, E, _>(&sql, values);
+	let entity = mm.dbx().fetch_optional(sqlx_query).await?.ok_or(
+		crate::model::Error::EntityUuidNotFound {
 			entity: MC::TABLE,
-			id: 0, // Note: EntityNotFound uses i64, but we're using UUID
-		})?;
+			id,
+		},
+	)?;
 
 	Ok(entity)
 }
@@ -95,8 +87,6 @@ where
 	MC: DbBmc,
 	E: HasSeaFields,
 {
-	let dbx = mm.dbx();
-
 	// -- Build the SQL query
 	let fields = data.not_none_sea_fields();
 	let fields = fields.for_sea_update();
@@ -109,17 +99,14 @@ where
 
 	// -- Execute the query
 	let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
-	let count = sqlx::query_with(&sql, values)
-		.execute(dbx.db())
-		.await
-		.map_err(|ex| dbx::Error::from(ex))?
-		.rows_affected();
+	let sqlx_query = sqlx::query_with(&sql, values);
+	let count = mm.dbx().execute(sqlx_query).await?;
 
 	// -- Check result
 	if count == 0 {
-		Err(crate::model::Error::EntityNotFound {
+		Err(crate::model::Error::EntityUuidNotFound {
 			entity: MC::TABLE,
-			id: 0,
+			id,
 		})
 	} else {
 		Ok(())
@@ -134,8 +121,6 @@ pub async fn delete<MC>(_ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()>
 where
 	MC: DbBmc,
 {
-	let dbx = mm.dbx();
-
 	// -- Build the SQL query
 	let mut query = Query::delete();
 	query
@@ -144,17 +129,14 @@ where
 
 	// -- Execute the query
 	let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
-	let count = sqlx::query_with(&sql, values)
-		.execute(dbx.db())
-		.await
-		.map_err(|ex| dbx::Error::from(ex))?
-		.rows_affected();
+	let sqlx_query = sqlx::query_with(&sql, values);
+	let count = mm.dbx().execute(sqlx_query).await?;
 
 	// -- Check result
 	if count == 0 {
-		Err(crate::model::Error::EntityNotFound {
+		Err(crate::model::Error::EntityUuidNotFound {
 			entity: MC::TABLE,
-			id: 0,
+			id,
 		})
 	} else {
 		Ok(())
@@ -176,8 +158,6 @@ where
 	F: Into<modql::filter::FilterGroups>,
 	E: for<'r> FromRow<'r, PgRow> + Unpin + Send + HasSeaFields,
 {
-	let dbx = mm.dbx();
-
 	// -- Build the SQL query
 	let mut query = Query::select();
 	query.from(MC::table_ref()).columns(E::sea_column_refs());
@@ -195,10 +175,8 @@ where
 
 	// -- Execute the query
 	let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
-	let entities = sqlx::query_as_with::<_, E, _>(&sql, values)
-		.fetch_all(dbx.db())
-		.await
-		.map_err(|ex| dbx::Error::from(ex))?;
+	let sqlx_query = sqlx::query_as_with::<_, E, _>(&sql, values);
+	let entities = mm.dbx().fetch_all(sqlx_query).await?;
 
 	Ok(entities)
 }

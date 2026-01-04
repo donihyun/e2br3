@@ -3,7 +3,9 @@ use crate::model::base::{self, DbBmc};
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
-use modql::filter::{FilterNodes, ListOptions, OpValsInt64, OpValsString};
+use modql::filter::{
+	FilterNodes, ListOptions, OpValsBool, OpValsInt64, OpValsString,
+};
 use serde::{Deserialize, Serialize};
 use sqlx::types::time::OffsetDateTime;
 use sqlx::FromRow;
@@ -60,7 +62,7 @@ pub struct OrganizationForUpdate {
 pub struct OrganizationFilter {
 	pub id: Option<OpValsInt64>,
 	pub name: Option<OpValsString>,
-	pub active: Option<OpValsString>,
+	pub active: Option<OpValsBool>,
 }
 
 // -- OrganizationBmc

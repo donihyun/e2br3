@@ -1,10 +1,10 @@
 // Section N - Batch/Message Headers
 
 use crate::ctx::Ctx;
-use crate::model::base::{DbBmc};
+use crate::model::base::DbBmc;
+use crate::model::store::dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
-use crate::model::store::dbx;
 use modql::field::Fields;
 use serde::{Deserialize, Serialize};
 use sqlx::types::time::OffsetDateTime;
@@ -25,13 +25,13 @@ pub struct MessageHeader {
 	pub batch_sender_identifier: Option<String>,
 
 	// Message identification
-	pub message_type: String,              // ichicsr
-	pub message_format_version: String,    // 2.1
-	pub message_format_release: String,    // 2.0
+	pub message_type: String,           // ichicsr
+	pub message_format_version: String, // 2.1
+	pub message_format_release: String, // 2.0
 	pub message_number: String,
 	pub message_sender_identifier: String,
 	pub message_receiver_identifier: String,
-	pub message_date_format: String,       // 204 (CCYYMMDDHHMMSS)
+	pub message_date_format: String, // 204 (CCYYMMDDHHMMSS)
 	pub message_date: String,
 
 	// Timestamps

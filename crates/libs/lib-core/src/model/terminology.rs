@@ -1,12 +1,12 @@
 // Controlled Terminologies - MedDRA, WHODrug, ISO Countries, E2B Code Lists
 
 use crate::ctx::Ctx;
-use crate::model::base::{DbBmc};
+use crate::model::base::DbBmc;
+use crate::model::store::dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
-use crate::model::store::dbx;
 use modql::field::Fields;
-use modql::filter::{FilterNodes, OpValsString};
+use modql::filter::{FilterNodes, OpValsBool, OpValsString};
 use serde::{Deserialize, Serialize};
 use sqlx::types::time::OffsetDateTime;
 use sqlx::FromRow;
@@ -18,7 +18,7 @@ pub struct MeddraTerm {
 	pub id: i64,
 	pub code: String,
 	pub term: String,
-	pub level: String,  // LLT, PT, HLT, HLGT, SOC
+	pub level: String, // LLT, PT, HLT, HLGT, SOC
 	pub version: String,
 	pub language: String,
 	pub active: bool,
@@ -75,7 +75,7 @@ pub struct WhodrugProductFilter {
 
 #[derive(Debug, Clone, Fields, FromRow, Serialize)]
 pub struct IsoCountry {
-	pub code: String,  // Primary key - ISO 3166-1 alpha-2
+	pub code: String, // Primary key - ISO 3166-1 alpha-2
 	pub name: String,
 	pub active: bool,
 }
@@ -111,7 +111,7 @@ pub struct E2bCodeListForCreate {
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct E2bCodeListFilter {
 	pub list_name: Option<OpValsString>,
-	pub active: Option<bool>,
+	pub active: Option<OpValsBool>,
 }
 
 // -- BMCs
@@ -149,15 +149,15 @@ impl MeddraTermBmc {
 				.bind(ver)
 				.bind(limit)
 				.fetch_all(mm.dbx().db())
-			.await
-			.map_err(|e| dbx::Error::from(e))?
+				.await
+				.map_err(|e| dbx::Error::from(e))?
 		} else {
 			sqlx::query_as::<_, MeddraTerm>(&sql)
 				.bind(&search_pattern)
 				.bind(limit)
 				.fetch_all(mm.dbx().db())
-			.await
-			.map_err(|e| dbx::Error::from(e))?
+				.await
+				.map_err(|e| dbx::Error::from(e))?
 		};
 
 		Ok(terms)
@@ -200,7 +200,10 @@ impl DbBmc for IsoCountryBmc {
 
 impl IsoCountryBmc {
 	pub async fn list_all(_ctx: &Ctx, mm: &ModelManager) -> Result<Vec<IsoCountry>> {
-		let sql = format!("SELECT * FROM {} WHERE active = true ORDER BY name", Self::TABLE);
+		let sql = format!(
+			"SELECT * FROM {} WHERE active = true ORDER BY name",
+			Self::TABLE
+		);
 		let countries = sqlx::query_as::<_, IsoCountry>(&sql)
 			.fetch_all(mm.dbx().db())
 			.await
