@@ -9,6 +9,7 @@ use serde_json::Value;
 use serde_with::{serde_as, DisplayFromStr};
 use std::sync::Arc;
 use tracing::{debug, warn};
+use uuid::Uuid;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -18,13 +19,16 @@ pub type Result<T> = core::result::Result<T, Error>;
 pub enum Error {
 	// -- Login
 	LoginFailUsernameNotFound,
+	LoginFailEmailNotFound,
 	LoginFailUserHasNoPwd {
-		user_id: i64,
+		user_id: Uuid,
 	},
 	LoginFailPwdNotMatching {
-		user_id: i64,
+		user_id: Uuid,
 	},
-
+	LoginFailUserCtxCreate {
+		user_id: Uuid,
+	},
 	// -- CtxExtError
 	#[from]
 	CtxExt(middleware::mw_auth::CtxExtError),
@@ -146,9 +150,13 @@ impl Error {
 		match self {
 			// -- Login
 			LoginFailUsernameNotFound
+			| LoginFailEmailNotFound
 			| LoginFailUserHasNoPwd { .. }
 			| LoginFailPwdNotMatching { .. } => {
 				(StatusCode::FORBIDDEN, ClientError::LOGIN_FAIL)
+			}
+			| LoginFailUserCtxCreate { .. } => {
+				(StatusCode::INTERNAL_SERVER_ERROR, ClientError::SERVICE_ERROR)
 			}
 
 			// -- Auth
@@ -209,11 +217,9 @@ pub enum ClientError {
 	LOGIN_FAIL,
 	NO_AUTH,
 	ENTITY_NOT_FOUND { entity: &'static str, id: i64 },
-
 	RPC_REQUEST_INVALID(String),
 	RPC_REQUEST_METHOD_UNKNOWN(String),
 	RPC_PARAMS_INVALID(String),
-
 	SERVICE_ERROR,
 }
 // endregion: --- Client Error

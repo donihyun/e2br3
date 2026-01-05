@@ -8,9 +8,9 @@
 //! - The `ModelManager` holds the internal states/resources
 //!   needed by ModelControllers to access data.
 //!   (e.g., db_pool, S3 client, redis client).
-//! - Model Controllers (e.g., `ConvBmc`, `AgentBmc`) implement
+//! - Model Controllers (e.g., `CaseBmc`, `UserBmc`) implement
 //!   CRUD and other data access methods on a given "entity"
-//!   (e.g., `Conv`, `Agent`).
+//!   (e.g., `Case`, `User`).
 //!   (`Bmc` is short for Backend Model Controller).
 //! - In frameworks like Axum, Tauri, `ModelManager` are typically used as App State.
 //! - ModelManager are designed to be passed as an argument
@@ -25,16 +25,9 @@ mod base_uuid; // UUID-based CRUD operations for E2B models
 mod error;
 mod store;
 
-// Original chat modules (keep for backward compatibility)
-pub mod agent;
-pub mod conv;
-pub mod conv_msg;
-pub mod conv_user;
-pub mod user;
-
 // E2B(R3) SafetyDB Core Models
 pub mod case;
-pub mod e2br3_user; // E2B users table (UUID-based)
+pub mod user; // E2B users table (UUID-based)
 pub mod organization; // Organizations table // Core cases table
 
 // E2B(R3) Section C - Safety Report Identification
