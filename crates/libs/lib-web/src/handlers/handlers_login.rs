@@ -6,6 +6,7 @@ use lib_auth::pwd::{self, ContentToHash, SchemeStatus};
 use lib_core::ctx::Ctx;
 use lib_core::model::user::{UserBmc, UserForLogin};
 use lib_core::model::ModelManager;
+use crate::middleware::mw_auth::CtxExtError;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tower_cookies::Cookies;
@@ -30,6 +31,8 @@ pub async fn api_login_handler(
 		.await?
 		.ok_or(Error::LoginFailEmailNotFound)?;
 	let user_id = user.id;
+	let user_ctx = Ctx::new_with_ids(user.audit_id, user.id)
+		.map_err(|ex| Error::CtxExt(CtxExtError::CtxCreateFail(ex.to_string())))?;
 
 	// -- Validate the password.
 	let Some(pwd) = user.pwd else {
@@ -49,7 +52,7 @@ pub async fn api_login_handler(
 	// -- Update password scheme if needed
 	if let SchemeStatus::Outdated = scheme_status {
 		debug!("pwd encrypt scheme outdated, upgrading.");
-		UserBmc::update_pwd(&root_ctx, &mm, user.id, &pwd_clear).await?;
+		UserBmc::update_pwd(&user_ctx, &mm, user.id, &pwd_clear).await?;
 	}
 
 	// -- Set web token.
