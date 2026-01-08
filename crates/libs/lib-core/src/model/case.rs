@@ -4,7 +4,7 @@ use crate::model::base_uuid;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
-use modql::filter::{FilterNodes, ListOptions, OpValsInt64, OpValsString};
+use modql::filter::{FilterNodes, ListOptions, OpValsString, OpValsValue};
 use serde::{Deserialize, Serialize};
 use sqlx::types::time::OffsetDateTime;
 use sqlx::types::Uuid;
@@ -15,7 +15,7 @@ use sqlx::FromRow;
 #[derive(Debug, Clone, Fields, FromRow, Serialize)]
 pub struct Case {
 	pub id: Uuid,
-	pub organization_id: i64,
+	pub organization_id: Uuid,
 
 	// E2B fields
 	pub safety_report_id: String,
@@ -35,7 +35,7 @@ pub struct Case {
 
 #[derive(Fields, Deserialize)]
 pub struct CaseForCreate {
-	pub organization_id: i64,
+	pub organization_id: Uuid,
 	pub safety_report_id: String,
 	pub status: Option<String>,
 }
@@ -51,7 +51,7 @@ pub struct CaseForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct CaseFilter {
-	pub organization_id: Option<OpValsInt64>,
+	pub organization_id: Option<OpValsValue>,
 	pub safety_report_id: Option<OpValsString>,
 	pub status: Option<OpValsString>,
 }

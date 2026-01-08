@@ -1,6 +1,10 @@
 // Section C - Safety Report Identification
 
+use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
+use crate::model::store::dbx;
+use crate::model::ModelManager;
+use crate::model::Result;
 use modql::field::Fields;
 use serde::{Deserialize, Serialize};
 use sqlx::types::time::{Date, OffsetDateTime};
@@ -242,6 +246,105 @@ pub struct StudyRegistrationNumberForCreate {
 pub struct SafetyReportIdentificationBmc;
 impl DbBmc for SafetyReportIdentificationBmc {
 	const TABLE: &'static str = "safety_report_identification";
+}
+
+impl SafetyReportIdentificationBmc {
+	pub async fn create(
+		_ctx: &Ctx,
+		mm: &ModelManager,
+		data: SafetyReportIdentificationForCreate,
+	) -> Result<Uuid> {
+		let sql = format!(
+			"INSERT INTO {} (case_id, transmission_date, report_type, date_first_received_from_source, date_of_most_recent_information, fulfil_expedited_criteria, created_at, updated_at)
+			 VALUES ($1, $2, $3, $4, $5, $6, now(), now())
+			 RETURNING id",
+			Self::TABLE
+		);
+		let id: Uuid = sqlx::query_scalar(&sql)
+			.bind(data.case_id)
+			.bind(data.transmission_date)
+			.bind(data.report_type)
+			.bind(data.date_first_received_from_source)
+			.bind(data.date_of_most_recent_information)
+			.bind(data.fulfil_expedited_criteria)
+			.fetch_one(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		Ok(id)
+	}
+
+	pub async fn get_by_case(
+		_ctx: &Ctx,
+		mm: &ModelManager,
+		case_id: Uuid,
+	) -> Result<SafetyReportIdentification> {
+		let sql = format!("SELECT * FROM {} WHERE case_id = $1", Self::TABLE);
+		let report = sqlx::query_as::<_, SafetyReportIdentification>(&sql)
+			.bind(case_id)
+			.fetch_optional(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		report.ok_or(crate::model::Error::EntityUuidNotFound {
+			entity: Self::TABLE,
+			id: case_id,
+		})
+	}
+
+	pub async fn update_by_case(
+		_ctx: &Ctx,
+		mm: &ModelManager,
+		case_id: Uuid,
+		data: SafetyReportIdentificationForUpdate,
+	) -> Result<()> {
+		let sql = format!(
+			"UPDATE {}
+			 SET transmission_date = COALESCE($2, transmission_date),
+			     report_type = COALESCE($3, report_type),
+			     worldwide_unique_id = COALESCE($4, worldwide_unique_id),
+			     nullification_reason = COALESCE($5, nullification_reason),
+			     receiver_organization = COALESCE($6, receiver_organization),
+			     updated_at = now()
+			 WHERE case_id = $1",
+			Self::TABLE
+		);
+		let result = sqlx::query(&sql)
+			.bind(case_id)
+			.bind(data.transmission_date)
+			.bind(data.report_type)
+			.bind(data.worldwide_unique_id)
+			.bind(data.nullification_reason)
+			.bind(data.receiver_organization)
+			.execute(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		if result.rows_affected() == 0 {
+			return Err(crate::model::Error::EntityUuidNotFound {
+				entity: Self::TABLE,
+				id: case_id,
+			});
+		}
+		Ok(())
+	}
+
+	pub async fn delete_by_case(
+		_ctx: &Ctx,
+		mm: &ModelManager,
+		case_id: Uuid,
+	) -> Result<()> {
+		let sql = format!("DELETE FROM {} WHERE case_id = $1", Self::TABLE);
+		let result = sqlx::query(&sql)
+			.bind(case_id)
+			.execute(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		if result.rows_affected() == 0 {
+			return Err(crate::model::Error::EntityUuidNotFound {
+				entity: Self::TABLE,
+				id: case_id,
+			});
+		}
+		Ok(())
+	}
 }
 
 pub struct SenderInformationBmc;

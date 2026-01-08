@@ -6,6 +6,7 @@ use crate::model::store::dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
+use modql::filter::{FilterNodes, OpValsString};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::types::time::{Date, OffsetDateTime};
@@ -67,6 +68,14 @@ pub struct PatientInformationForUpdate {
 	pub height_cm: Option<Decimal>,
 	pub sex: Option<String>,
 	pub medical_history_text: Option<String>,
+}
+
+#[derive(FilterNodes, Deserialize, Default)]
+pub struct PatientInformationFilter {
+	pub patient_initials: Option<OpValsString>,
+	pub patient_given_name: Option<OpValsString>,
+	pub patient_family_name: Option<OpValsString>,
+	pub sex: Option<OpValsString>,
 }
 
 // -- MedicalHistoryEpisode
@@ -225,18 +234,209 @@ impl DbBmc for PatientInformationBmc {
 }
 
 impl PatientInformationBmc {
+	pub async fn create(
+		_ctx: &Ctx,
+		mm: &ModelManager,
+		data: PatientInformationForCreate,
+	) -> Result<Uuid> {
+		let sql = format!(
+			"INSERT INTO {} (case_id, patient_initials, sex, created_at, updated_at)
+			 VALUES ($1, $2, $3, now(), now())
+			 RETURNING id",
+			Self::TABLE
+		);
+		let id: Uuid = sqlx::query_scalar(&sql)
+			.bind(data.case_id)
+			.bind(data.patient_initials)
+			.bind(data.sex)
+			.fetch_one(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		Ok(id)
+	}
+
+	pub async fn get(
+		_ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+	) -> Result<PatientInformation> {
+		let sql = format!("SELECT * FROM {} WHERE id = $1", Self::TABLE);
+		let patient = sqlx::query_as::<_, PatientInformation>(&sql)
+			.bind(id)
+			.fetch_optional(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?
+			.ok_or(crate::model::Error::EntityNotFound {
+				entity: Self::TABLE,
+				id: 0, // UUID doesn't map to i64, using 0 as placeholder
+			})?;
+		Ok(patient)
+	}
+
+	pub async fn list(
+		_ctx: &Ctx,
+		mm: &ModelManager,
+		_filters: Option<Vec<PatientInformationFilter>>,
+		_list_options: Option<modql::filter::ListOptions>,
+	) -> Result<Vec<PatientInformation>> {
+		// For now, simple implementation without filter support
+		let sql = format!("SELECT * FROM {} ORDER BY created_at DESC LIMIT 100", Self::TABLE);
+		let patients = sqlx::query_as::<_, PatientInformation>(&sql)
+			.fetch_all(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		Ok(patients)
+	}
+
+	pub async fn update(
+		_ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+		data: PatientInformationForUpdate,
+	) -> Result<()> {
+		let sql = format!(
+			"UPDATE {}
+			 SET patient_initials = COALESCE($2, patient_initials),
+			     patient_given_name = COALESCE($3, patient_given_name),
+			     patient_family_name = COALESCE($4, patient_family_name),
+			     birth_date = COALESCE($5, birth_date),
+			     age_at_time_of_onset = COALESCE($6, age_at_time_of_onset),
+			     age_unit = COALESCE($7, age_unit),
+			     weight_kg = COALESCE($8, weight_kg),
+			     height_cm = COALESCE($9, height_cm),
+			     sex = COALESCE($10, sex),
+			     medical_history_text = COALESCE($11, medical_history_text),
+			     updated_at = now()
+			 WHERE id = $1",
+			Self::TABLE
+		);
+		let result = sqlx::query(&sql)
+			.bind(id)
+			.bind(data.patient_initials)
+			.bind(data.patient_given_name)
+			.bind(data.patient_family_name)
+			.bind(data.birth_date)
+			.bind(data.age_at_time_of_onset)
+			.bind(data.age_unit)
+			.bind(data.weight_kg)
+			.bind(data.height_cm)
+			.bind(data.sex)
+			.bind(data.medical_history_text)
+			.execute(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+
+		if result.rows_affected() == 0 {
+			return Err(crate::model::Error::EntityNotFound {
+				entity: Self::TABLE,
+				id: 0,
+			});
+		}
+		Ok(())
+	}
+
+	pub async fn delete(
+		_ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+	) -> Result<()> {
+		let sql = format!("DELETE FROM {} WHERE id = $1", Self::TABLE);
+		let result = sqlx::query(&sql)
+			.bind(id)
+			.execute(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+
+		if result.rows_affected() == 0 {
+			return Err(crate::model::Error::EntityNotFound {
+				entity: Self::TABLE,
+				id: 0,
+			});
+		}
+		Ok(())
+	}
+
 	pub async fn get_by_case(
 		_ctx: &Ctx,
 		mm: &ModelManager,
 		case_id: Uuid,
-	) -> Result<Option<PatientInformation>> {
+	) -> Result<PatientInformation> {
 		let sql = format!("SELECT * FROM {} WHERE case_id = $1", Self::TABLE);
 		let patient = sqlx::query_as::<_, PatientInformation>(&sql)
 			.bind(case_id)
 			.fetch_optional(mm.dbx().db())
 			.await
 			.map_err(|e| dbx::Error::from(e))?;
-		Ok(patient)
+		patient.ok_or(crate::model::Error::EntityUuidNotFound {
+			entity: Self::TABLE,
+			id: case_id,
+		})
+	}
+
+	pub async fn update_by_case(
+		_ctx: &Ctx,
+		mm: &ModelManager,
+		case_id: Uuid,
+		data: PatientInformationForUpdate,
+	) -> Result<()> {
+		let sql = format!(
+			"UPDATE {}
+			 SET patient_initials = COALESCE($2, patient_initials),
+			     patient_given_name = COALESCE($3, patient_given_name),
+			     patient_family_name = COALESCE($4, patient_family_name),
+			     birth_date = COALESCE($5, birth_date),
+			     age_at_time_of_onset = COALESCE($6, age_at_time_of_onset),
+			     age_unit = COALESCE($7, age_unit),
+			     weight_kg = COALESCE($8, weight_kg),
+			     height_cm = COALESCE($9, height_cm),
+			     sex = COALESCE($10, sex),
+			     medical_history_text = COALESCE($11, medical_history_text),
+			     updated_at = now()
+			 WHERE case_id = $1",
+			Self::TABLE
+		);
+		let result = sqlx::query(&sql)
+			.bind(case_id)
+			.bind(data.patient_initials)
+			.bind(data.patient_given_name)
+			.bind(data.patient_family_name)
+			.bind(data.birth_date)
+			.bind(data.age_at_time_of_onset)
+			.bind(data.age_unit)
+			.bind(data.weight_kg)
+			.bind(data.height_cm)
+			.bind(data.sex)
+			.bind(data.medical_history_text)
+			.execute(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		if result.rows_affected() == 0 {
+			return Err(crate::model::Error::EntityUuidNotFound {
+				entity: Self::TABLE,
+				id: case_id,
+			});
+		}
+		Ok(())
+	}
+
+	pub async fn delete_by_case(
+		_ctx: &Ctx,
+		mm: &ModelManager,
+		case_id: Uuid,
+	) -> Result<()> {
+		let sql = format!("DELETE FROM {} WHERE case_id = $1", Self::TABLE);
+		let result = sqlx::query(&sql)
+			.bind(case_id)
+			.execute(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		if result.rows_affected() == 0 {
+			return Err(crate::model::Error::EntityUuidNotFound {
+				entity: Self::TABLE,
+				id: case_id,
+			});
+		}
+		Ok(())
 	}
 }
 

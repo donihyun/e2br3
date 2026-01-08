@@ -2,7 +2,6 @@
 
 use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
-use crate::model::base_uuid;
 use crate::model::store::dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
@@ -200,11 +199,77 @@ impl DbBmc for DrugInformationBmc {
 
 impl DrugInformationBmc {
 	pub async fn create(
-		ctx: &Ctx,
+		_ctx: &Ctx,
 		mm: &ModelManager,
 		drug_c: DrugInformationForCreate,
 	) -> Result<Uuid> {
-		base_uuid::create::<Self, _>(ctx, mm, drug_c).await
+		let sql = format!(
+			"INSERT INTO {} (case_id, sequence_number, drug_characterization, medicinal_product, created_at, updated_at)
+			 VALUES ($1, $2, $3, $4, now(), now())
+			 RETURNING id",
+			Self::TABLE
+		);
+		let id: Uuid = sqlx::query_scalar(&sql)
+			.bind(drug_c.case_id)
+			.bind(drug_c.sequence_number)
+			.bind(drug_c.drug_characterization)
+			.bind(drug_c.medicinal_product)
+			.fetch_one(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		Ok(id)
+	}
+
+	pub async fn get(_ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<DrugInformation> {
+		let sql = format!("SELECT * FROM {} WHERE id = $1", Self::TABLE);
+		let drug = sqlx::query_as::<_, DrugInformation>(&sql)
+			.bind(id)
+			.fetch_optional(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?
+			.ok_or(crate::model::Error::EntityUuidNotFound {
+				entity: Self::TABLE,
+				id,
+			})?;
+		Ok(drug)
+	}
+
+	pub async fn update(
+		_ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+		drug_u: DrugInformationForUpdate,
+	) -> Result<()> {
+		let sql = format!(
+			"UPDATE {}
+			 SET medicinal_product = COALESCE($2, medicinal_product),
+			     drug_characterization = COALESCE($3, drug_characterization),
+			     brand_name = COALESCE($4, brand_name),
+			     manufacturer_name = COALESCE($5, manufacturer_name),
+			     batch_lot_number = COALESCE($6, batch_lot_number),
+			     action_taken = COALESCE($7, action_taken),
+			     updated_at = now()
+			 WHERE id = $1",
+			Self::TABLE
+		);
+		let result = sqlx::query(&sql)
+			.bind(id)
+			.bind(drug_u.medicinal_product)
+			.bind(drug_u.drug_characterization)
+			.bind(drug_u.brand_name)
+			.bind(drug_u.manufacturer_name)
+			.bind(drug_u.batch_lot_number)
+			.bind(drug_u.action_taken)
+			.execute(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		if result.rows_affected() == 0 {
+			return Err(crate::model::Error::EntityUuidNotFound {
+				entity: Self::TABLE,
+				id,
+			});
+		}
+		Ok(())
 	}
 
 	pub async fn list_by_case(
@@ -222,6 +287,110 @@ impl DrugInformationBmc {
 			.await
 			.map_err(|e| dbx::Error::from(e))?;
 		Ok(drugs)
+	}
+
+	pub async fn get_in_case(
+		_ctx: &Ctx,
+		mm: &ModelManager,
+		case_id: Uuid,
+		id: Uuid,
+	) -> Result<DrugInformation> {
+		let sql = format!(
+			"SELECT * FROM {} WHERE id = $1 AND case_id = $2",
+			Self::TABLE
+		);
+		let drug = sqlx::query_as::<_, DrugInformation>(&sql)
+			.bind(id)
+			.bind(case_id)
+			.fetch_optional(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?
+			.ok_or(crate::model::Error::EntityUuidNotFound {
+				entity: Self::TABLE,
+				id,
+			})?;
+		Ok(drug)
+	}
+
+	pub async fn update_in_case(
+		_ctx: &Ctx,
+		mm: &ModelManager,
+		case_id: Uuid,
+		id: Uuid,
+		drug_u: DrugInformationForUpdate,
+	) -> Result<()> {
+		let sql = format!(
+			"UPDATE {}
+			 SET medicinal_product = COALESCE($3, medicinal_product),
+			     drug_characterization = COALESCE($4, drug_characterization),
+			     brand_name = COALESCE($5, brand_name),
+			     manufacturer_name = COALESCE($6, manufacturer_name),
+			     batch_lot_number = COALESCE($7, batch_lot_number),
+			     action_taken = COALESCE($8, action_taken),
+			     updated_at = now()
+			 WHERE id = $1 AND case_id = $2",
+			Self::TABLE
+		);
+		let result = sqlx::query(&sql)
+			.bind(id)
+			.bind(case_id)
+			.bind(drug_u.medicinal_product)
+			.bind(drug_u.drug_characterization)
+			.bind(drug_u.brand_name)
+			.bind(drug_u.manufacturer_name)
+			.bind(drug_u.batch_lot_number)
+			.bind(drug_u.action_taken)
+			.execute(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		if result.rows_affected() == 0 {
+			return Err(crate::model::Error::EntityUuidNotFound {
+				entity: Self::TABLE,
+				id,
+			});
+		}
+		Ok(())
+	}
+
+	pub async fn delete(_ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
+		let sql = format!("DELETE FROM {} WHERE id = $1", Self::TABLE);
+		let result = sqlx::query(&sql)
+			.bind(id)
+			.execute(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		if result.rows_affected() == 0 {
+			return Err(crate::model::Error::EntityUuidNotFound {
+				entity: Self::TABLE,
+				id,
+			});
+		}
+		Ok(())
+	}
+
+	pub async fn delete_in_case(
+		_ctx: &Ctx,
+		mm: &ModelManager,
+		case_id: Uuid,
+		id: Uuid,
+	) -> Result<()> {
+		let sql = format!(
+			"DELETE FROM {} WHERE id = $1 AND case_id = $2",
+			Self::TABLE
+		);
+		let result = sqlx::query(&sql)
+			.bind(id)
+			.bind(case_id)
+			.execute(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		if result.rows_affected() == 0 {
+			return Err(crate::model::Error::EntityUuidNotFound {
+				entity: Self::TABLE,
+				id,
+			});
+		}
+		Ok(())
 	}
 }
 

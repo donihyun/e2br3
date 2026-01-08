@@ -17,54 +17,311 @@ macro_rules! generate_common_rest_fns {
     ) => {
         paste! {
             pub async fn [<create_ $suffix>](
-                ctx: Ctx,
-                mm: ModelManager,
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
                 Json(params): Json<ParamsForCreate<$for_create>>,
-            ) -> Result<impl IntoResponse> {
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
+                let ctx = ctx_w.0;
                 let ParamsForCreate { data } = params;
                 let id = $bmc::create(&ctx, &mm, data).await?;
                 let entity = $bmc::get(&ctx, &mm, id).await?;
-                Ok($crate::rest_result::created(entity))
+                Ok((axum::http::StatusCode::CREATED, Json(DataRestResult { data: entity })))
             }
 
             pub async fn [<get_ $suffix>](
-                ctx: Ctx,
-                mm: ModelManager,
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
                 Path(id): Path<Uuid>,
-            ) -> Result<impl IntoResponse> {
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
+                let ctx = ctx_w.0;
                 let entity = $bmc::get(&ctx, &mm, id).await?;
-                Ok($crate::rest_result::ok(entity))
+                Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entity })))
             }
 
             // Note: for now just add `s` after the suffix.
             pub async fn [<list_ $suffix s>](
-                ctx: Ctx,
-                mm: ModelManager,
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
                 Query(params): Query<ParamsList<$filter>>,
-            ) -> Result<impl IntoResponse> {
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<Vec<$entity>>>)> {
+                let ctx = ctx_w.0;
                 let entities = $bmc::list(&ctx, &mm, params.filters, params.list_options).await?;
-                Ok($crate::rest_result::ok(entities))
+                Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entities })))
             }
 
             pub async fn [<update_ $suffix>](
-                ctx: Ctx,
-                mm: ModelManager,
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
                 Path(id): Path<Uuid>,
                 Json(params): Json<ParamsForUpdate<$for_update>>,
-            ) -> Result<impl IntoResponse> {
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
+                let ctx = ctx_w.0;
                 let ParamsForUpdate { data } = params;
                 $bmc::update(&ctx, &mm, id, data).await?;
                 let entity = $bmc::get(&ctx, &mm, id).await?;
-                Ok($crate::rest_result::ok(entity))
+                Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entity })))
             }
 
             pub async fn [<delete_ $suffix>](
-                ctx: Ctx,
-                mm: ModelManager,
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
                 Path(id): Path<Uuid>,
-            ) -> Result<impl IntoResponse> {
+            ) -> Result<axum::http::StatusCode> {
+                let ctx = ctx_w.0;
                 $bmc::delete(&ctx, &mm, id).await?;
-                Ok($crate::rest_result::no_content())
+                Ok(axum::http::StatusCode::NO_CONTENT)
+            }
+        }
+    };
+
+    // Variant without ForUpdate (immutable entities)
+    (
+        Bmc: $bmc:ident,
+        Entity: $entity:ty,
+        ForCreate: $for_create:ty,
+        Filter: $filter:ty,
+        Suffix: $suffix:ident
+    ) => {
+        paste! {
+            pub async fn [<create_ $suffix>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Json(params): Json<ParamsForCreate<$for_create>>,
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
+                let ctx = ctx_w.0;
+                let ParamsForCreate { data } = params;
+                let id = $bmc::create(&ctx, &mm, data).await?;
+                let entity = $bmc::get(&ctx, &mm, id).await?;
+                Ok((axum::http::StatusCode::CREATED, Json(DataRestResult { data: entity })))
+            }
+
+            pub async fn [<get_ $suffix>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Path(id): Path<Uuid>,
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
+                let ctx = ctx_w.0;
+                let entity = $bmc::get(&ctx, &mm, id).await?;
+                Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entity })))
+            }
+
+            pub async fn [<list_ $suffix s>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Query(params): Query<ParamsList<$filter>>,
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<Vec<$entity>>>)> {
+                let ctx = ctx_w.0;
+                let entities = $bmc::list(&ctx, &mm, params.filters, params.list_options).await?;
+                Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entities })))
+            }
+
+            pub async fn [<delete_ $suffix>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Path(id): Path<Uuid>,
+            ) -> Result<axum::http::StatusCode> {
+                let ctx = ctx_w.0;
+                $bmc::delete(&ctx, &mm, id).await?;
+                Ok(axum::http::StatusCode::NO_CONTENT)
+            }
+        }
+    };
+
+    // Variant without Filter (no list filtering)
+    (
+        Bmc: $bmc:ident,
+        Entity: $entity:ty,
+        ForCreate: $for_create:ty,
+        ForUpdate: $for_update:ty,
+        Suffix: $suffix:ident
+    ) => {
+        paste! {
+            pub async fn [<create_ $suffix>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Json(params): Json<ParamsForCreate<$for_create>>,
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
+                let ctx = ctx_w.0;
+                let ParamsForCreate { data } = params;
+                let id = $bmc::create(&ctx, &mm, data).await?;
+                let entity = $bmc::get(&ctx, &mm, id).await?;
+                Ok((axum::http::StatusCode::CREATED, Json(DataRestResult { data: entity })))
+            }
+
+            pub async fn [<get_ $suffix>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Path(id): Path<Uuid>,
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
+                let ctx = ctx_w.0;
+                let entity = $bmc::get(&ctx, &mm, id).await?;
+                Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entity })))
+            }
+
+            pub async fn [<list_ $suffix s>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<Vec<$entity>>>)> {
+                let ctx = ctx_w.0;
+                let entities = $bmc::list(&ctx, &mm, None, None).await?;
+                Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entities })))
+            }
+
+            pub async fn [<update_ $suffix>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Path(id): Path<Uuid>,
+                Json(params): Json<ParamsForUpdate<$for_update>>,
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
+                let ctx = ctx_w.0;
+                let ParamsForUpdate { data } = params;
+                $bmc::update(&ctx, &mm, id, data).await?;
+                let entity = $bmc::get(&ctx, &mm, id).await?;
+                Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entity })))
+            }
+
+            pub async fn [<delete_ $suffix>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Path(id): Path<Uuid>,
+            ) -> Result<axum::http::StatusCode> {
+                let ctx = ctx_w.0;
+                $bmc::delete(&ctx, &mm, id).await?;
+                Ok(axum::http::StatusCode::NO_CONTENT)
+            }
+        }
+    };
+}
+
+/// Generate CRUD REST handlers scoped to a case_id (nested resources).
+#[macro_export]
+macro_rules! generate_case_rest_fns {
+    (
+        Bmc: $bmc:ident,
+        Entity: $entity:ty,
+        ForCreate: $for_create:ty,
+        ForUpdate: $for_update:ty,
+        Suffix: $suffix:ident
+    ) => {
+        paste! {
+            pub async fn [<create_ $suffix>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Path(case_id): Path<Uuid>,
+                Json(params): Json<ParamsForCreate<$for_create>>,
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
+                let ctx = ctx_w.0;
+                let ParamsForCreate { data } = params;
+                let mut data = data;
+                data.case_id = case_id;
+                let id = $bmc::create(&ctx, &mm, data).await?;
+                let entity = $bmc::get_in_case(&ctx, &mm, case_id, id).await?;
+                Ok((axum::http::StatusCode::CREATED, Json(DataRestResult { data: entity })))
+            }
+
+            pub async fn [<get_ $suffix>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Path((case_id, id)): Path<(Uuid, Uuid)>,
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
+                let ctx = ctx_w.0;
+                let entity = $bmc::get_in_case(&ctx, &mm, case_id, id).await?;
+                Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entity })))
+            }
+
+            pub async fn [<list_ $suffix s>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Path(case_id): Path<Uuid>,
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<Vec<$entity>>>)> {
+                let ctx = ctx_w.0;
+                let entities = $bmc::list_by_case(&ctx, &mm, case_id).await?;
+                Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entities })))
+            }
+
+            pub async fn [<update_ $suffix>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Path((case_id, id)): Path<(Uuid, Uuid)>,
+                Json(params): Json<ParamsForUpdate<$for_update>>,
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
+                let ctx = ctx_w.0;
+                let ParamsForUpdate { data } = params;
+                $bmc::update_in_case(&ctx, &mm, case_id, id, data).await?;
+                let entity = $bmc::get_in_case(&ctx, &mm, case_id, id).await?;
+                Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entity })))
+            }
+
+            pub async fn [<delete_ $suffix>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Path((case_id, id)): Path<(Uuid, Uuid)>,
+            ) -> Result<axum::http::StatusCode> {
+                let ctx = ctx_w.0;
+                $bmc::delete_in_case(&ctx, &mm, case_id, id).await?;
+                Ok(axum::http::StatusCode::NO_CONTENT)
+            }
+        }
+    };
+}
+
+/// Generate CRUD REST handlers for a single resource per case (no list).
+#[macro_export]
+macro_rules! generate_case_single_rest_fns {
+    (
+        Bmc: $bmc:ident,
+        Entity: $entity:ty,
+        ForCreate: $for_create:ty,
+        ForUpdate: $for_update:ty,
+        Suffix: $suffix:ident
+    ) => {
+        paste! {
+            pub async fn [<create_ $suffix>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Path(case_id): Path<Uuid>,
+                Json(params): Json<ParamsForCreate<$for_create>>,
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
+                let ctx = ctx_w.0;
+                let ParamsForCreate { data } = params;
+                let mut data = data;
+                data.case_id = case_id;
+                let _id = $bmc::create(&ctx, &mm, data).await?;
+                let entity = $bmc::get_by_case(&ctx, &mm, case_id).await?;
+                Ok((axum::http::StatusCode::CREATED, Json(DataRestResult { data: entity })))
+            }
+
+            pub async fn [<get_ $suffix>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Path(case_id): Path<Uuid>,
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
+                let ctx = ctx_w.0;
+                let entity = $bmc::get_by_case(&ctx, &mm, case_id).await?;
+                Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entity })))
+            }
+
+            pub async fn [<update_ $suffix>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Path(case_id): Path<Uuid>,
+                Json(params): Json<ParamsForUpdate<$for_update>>,
+            ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
+                let ctx = ctx_w.0;
+                let ParamsForUpdate { data } = params;
+                $bmc::update_by_case(&ctx, &mm, case_id, data).await?;
+                let entity = $bmc::get_by_case(&ctx, &mm, case_id).await?;
+                Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entity })))
+            }
+
+            pub async fn [<delete_ $suffix>](
+                State(mm): State<ModelManager>,
+                ctx_w: lib_web::middleware::mw_auth::CtxW,
+                Path(case_id): Path<Uuid>,
+            ) -> Result<axum::http::StatusCode> {
+                let ctx = ctx_w.0;
+                $bmc::delete_by_case(&ctx, &mm, case_id).await?;
+                Ok(axum::http::StatusCode::NO_CONTENT)
             }
         }
     };

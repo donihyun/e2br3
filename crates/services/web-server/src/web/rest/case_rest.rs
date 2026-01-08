@@ -1,0 +1,17 @@
+use lib_core::model::case::{CaseBmc, CaseFilter, CaseForCreate, CaseForUpdate};
+use lib_rest_core::prelude::*;
+
+// This macro generates all 5 CRUD functions:
+// - create_case
+// - get_case
+// - list_cases
+// - update_case
+// - delete_case
+generate_common_rest_fns! {
+	Bmc: CaseBmc,
+	Entity: lib_core::model::case::Case,
+	ForCreate: CaseForCreate,
+	ForUpdate: CaseForUpdate,
+	Filter: CaseFilter,
+	Suffix: case
+}

@@ -1,6 +1,5 @@
 // Section H - Narrative and Other Information
 
-use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
 use crate::model::store::dbx;
 use crate::model::ModelManager;
@@ -98,18 +97,93 @@ impl DbBmc for NarrativeInformationBmc {
 }
 
 impl NarrativeInformationBmc {
+	pub async fn create(
+		_mm_ctx: &crate::ctx::Ctx,
+		mm: &ModelManager,
+		data: NarrativeInformationForCreate,
+	) -> Result<Uuid> {
+		let sql = format!(
+			"INSERT INTO {} (case_id, case_narrative, created_at, updated_at)
+			 VALUES ($1, $2, now(), now())
+			 RETURNING id",
+			Self::TABLE
+		);
+		let id: Uuid = sqlx::query_scalar(&sql)
+			.bind(data.case_id)
+			.bind(data.case_narrative)
+			.fetch_one(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		Ok(id)
+	}
+
 	pub async fn get_by_case(
-		_ctx: &Ctx,
+		_ctx: &crate::ctx::Ctx,
 		mm: &ModelManager,
 		case_id: Uuid,
-	) -> Result<Option<NarrativeInformation>> {
+	) -> Result<NarrativeInformation> {
 		let sql = format!("SELECT * FROM {} WHERE case_id = $1", Self::TABLE);
 		let narrative = sqlx::query_as::<_, NarrativeInformation>(&sql)
 			.bind(case_id)
 			.fetch_optional(mm.dbx().db())
 			.await
 			.map_err(|e| dbx::Error::from(e))?;
-		Ok(narrative)
+		narrative.ok_or(crate::model::Error::EntityUuidNotFound {
+			entity: Self::TABLE,
+			id: case_id,
+		})
+	}
+
+	pub async fn update_by_case(
+		_ctx: &crate::ctx::Ctx,
+		mm: &ModelManager,
+		case_id: Uuid,
+		data: NarrativeInformationForUpdate,
+	) -> Result<()> {
+		let sql = format!(
+			"UPDATE {}
+			 SET case_narrative = COALESCE($2, case_narrative),
+			     reporter_comments = COALESCE($3, reporter_comments),
+			     sender_comments = COALESCE($4, sender_comments),
+			     updated_at = now()
+			 WHERE case_id = $1",
+			Self::TABLE
+		);
+		let result = sqlx::query(&sql)
+			.bind(case_id)
+			.bind(data.case_narrative)
+			.bind(data.reporter_comments)
+			.bind(data.sender_comments)
+			.execute(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		if result.rows_affected() == 0 {
+			return Err(crate::model::Error::EntityUuidNotFound {
+				entity: Self::TABLE,
+				id: case_id,
+			});
+		}
+		Ok(())
+	}
+
+	pub async fn delete_by_case(
+		_ctx: &crate::ctx::Ctx,
+		mm: &ModelManager,
+		case_id: Uuid,
+	) -> Result<()> {
+		let sql = format!("DELETE FROM {} WHERE case_id = $1", Self::TABLE);
+		let result = sqlx::query(&sql)
+			.bind(case_id)
+			.execute(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		if result.rows_affected() == 0 {
+			return Err(crate::model::Error::EntityUuidNotFound {
+				entity: Self::TABLE,
+				id: case_id,
+			});
+		}
+		Ok(())
 	}
 }
 

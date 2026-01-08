@@ -1,6 +1,5 @@
 // Section N - Batch/Message Headers
 
-use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
 use crate::model::store::dbx;
 use crate::model::ModelManager;
@@ -64,17 +63,101 @@ impl DbBmc for MessageHeaderBmc {
 }
 
 impl MessageHeaderBmc {
+	pub async fn create(
+		_ctx: &crate::ctx::Ctx,
+		mm: &ModelManager,
+		data: MessageHeaderForCreate,
+	) -> Result<Uuid> {
+		let sql = format!(
+			"INSERT INTO {} (case_id, message_type, message_format_version, message_format_release, message_date_format, message_number, message_sender_identifier, message_receiver_identifier, message_date, created_at, updated_at)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
+			 RETURNING id",
+			Self::TABLE
+		);
+		let id: Uuid = sqlx::query_scalar(&sql)
+			.bind(data.case_id)
+			.bind("ichicsr")
+			.bind("2.1")
+			.bind("2.0")
+			.bind("204")
+			.bind(data.message_number)
+			.bind(data.message_sender_identifier)
+			.bind(data.message_receiver_identifier)
+			.bind(data.message_date)
+			.fetch_one(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		Ok(id)
+	}
+
 	pub async fn get_by_case(
-		_ctx: &Ctx,
+		_ctx: &crate::ctx::Ctx,
 		mm: &ModelManager,
 		case_id: Uuid,
-	) -> Result<Option<MessageHeader>> {
+	) -> Result<MessageHeader> {
 		let sql = format!("SELECT * FROM {} WHERE case_id = $1", Self::TABLE);
 		let header = sqlx::query_as::<_, MessageHeader>(&sql)
 			.bind(case_id)
 			.fetch_optional(mm.dbx().db())
 			.await
 			.map_err(|e| dbx::Error::from(e))?;
-		Ok(header)
+		header.ok_or(crate::model::Error::EntityUuidNotFound {
+			entity: Self::TABLE,
+			id: case_id,
+		})
+	}
+
+	pub async fn update_by_case(
+		_ctx: &crate::ctx::Ctx,
+		mm: &ModelManager,
+		case_id: Uuid,
+		data: MessageHeaderForUpdate,
+	) -> Result<()> {
+		let sql = format!(
+			"UPDATE {}
+			 SET batch_number = COALESCE($2, batch_number),
+			     message_number = COALESCE($3, message_number),
+			     message_sender_identifier = COALESCE($4, message_sender_identifier),
+			     message_receiver_identifier = COALESCE($5, message_receiver_identifier),
+			     updated_at = now()
+			 WHERE case_id = $1",
+			Self::TABLE
+		);
+		let result = sqlx::query(&sql)
+			.bind(case_id)
+			.bind(data.batch_number)
+			.bind(data.message_number)
+			.bind(data.message_sender_identifier)
+			.bind(data.message_receiver_identifier)
+			.execute(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		if result.rows_affected() == 0 {
+			return Err(crate::model::Error::EntityUuidNotFound {
+				entity: Self::TABLE,
+				id: case_id,
+			});
+		}
+		Ok(())
+	}
+
+	pub async fn delete_by_case(
+		_ctx: &crate::ctx::Ctx,
+		mm: &ModelManager,
+		case_id: Uuid,
+	) -> Result<()> {
+		let sql = format!("DELETE FROM {} WHERE case_id = $1", Self::TABLE);
+		let result = sqlx::query(&sql)
+			.bind(case_id)
+			.execute(mm.dbx().db())
+			.await
+			.map_err(|e| dbx::Error::from(e))?;
+		if result.rows_affected() == 0 {
+			return Err(crate::model::Error::EntityUuidNotFound {
+				entity: Self::TABLE,
+				id: case_id,
+			});
+		}
+		Ok(())
 	}
 }

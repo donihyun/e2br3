@@ -1,7 +1,7 @@
 -- Seed data for E2B(R3) schema (dev only).
 DO $$
 DECLARE
-    v_org_id BIGINT := 1000;
+    v_org_id UUID := '00000000-0000-0000-0000-000000000001';
     v_user_id UUID := '11111111-1111-1111-1111-111111111111';
     v_case_id UUID := '22222222-2222-2222-2222-222222222222';
     v_case_version_id UUID := '22222222-2222-2222-2222-222222222223';

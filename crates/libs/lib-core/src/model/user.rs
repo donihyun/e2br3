@@ -4,7 +4,7 @@ use crate::model::base_uuid;
 use crate::model::{Error, ModelManager, Result};
 use lib_auth::pwd::{self, ContentToHash};
 use modql::field::{Fields, HasSeaFields, SeaField, SeaFields};
-use modql::filter::{FilterNodes, ListOptions, OpValsInt64, OpValsString};
+use modql::filter::{FilterNodes, ListOptions, OpValsString, OpValsValue};
 use sea_query::{Expr, Iden, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
@@ -19,7 +19,7 @@ use sqlx::FromRow;
 pub struct User {
 	pub id: Uuid,
 	pub audit_id: i64, // For audit trail compatibility (cid/mid/owner_id)
-	pub organization_id: i64,
+	pub organization_id: Uuid,
 	pub email: String,
 	pub username: String,
 
@@ -46,7 +46,7 @@ pub struct User {
 
 #[derive(Deserialize)]
 pub struct UserForCreate {
-	pub organization_id: i64,
+	pub organization_id: Uuid,
 	pub email: String,
 	pub username: String,
 	pub pwd_clear: String,
@@ -57,7 +57,7 @@ pub struct UserForCreate {
 
 #[derive(Fields)]
 pub struct UserForInsert {
-	pub organization_id: i64,
+	pub organization_id: Uuid,
 	pub email: String,
 	pub username: String,
 	pub role: Option<String>,
@@ -69,7 +69,7 @@ pub struct UserForInsert {
 pub struct UserForLogin {
 	pub id: Uuid,
 	pub audit_id: i64,
-	pub organization_id: i64,
+	pub organization_id: Uuid,
 	pub email: String,
 	pub username: String,
 
@@ -83,7 +83,7 @@ pub struct UserForLogin {
 pub struct UserForAuth {
 	pub id: Uuid,
 	pub audit_id: i64,
-	pub organization_id: i64,
+	pub organization_id: Uuid,
 	pub email: String,
 	pub username: String,
 
@@ -103,7 +103,7 @@ pub struct UserForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct UserFilter {
-	pub organization_id: Option<OpValsInt64>,
+	pub organization_id: Option<OpValsValue>,
 	pub email: Option<OpValsString>,
 	pub username: Option<OpValsString>,
 	pub role: Option<OpValsString>,

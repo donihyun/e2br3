@@ -12,7 +12,7 @@ use lib_web::middleware::mw_req_stamp::mw_req_stamp_resolver;
 use lib_web::middleware::mw_res_map::mw_reponse_map;
 use lib_web::routes::routes_static;
 
-use crate::web::routes_login;
+use crate::web::{routes_login, routes_rest};
 
 use axum::{middleware, Router};
 use lib_core::_dev_utils;
@@ -38,16 +38,12 @@ async fn main() -> Result<()> {
 	let mm = ModelManager::new().await?;
 
 	// -- Define Routes
-	// TODO: Add REST API routes here
-	// Example:
-	// let routes_rest = Router::new()
-	//     .route("/api/agents", get(list_agents).post(create_agent))
-	//     .route("/api/agents/:id", get(get_agent).put(update_agent).delete(delete_agent))
-	//     .route_layer(middleware::from_fn(mw_ctx_require));
-
+	let routes_rest = routes_rest::routes(mm.clone())
+		.route_layer(middleware::from_fn(mw_ctx_require)); 
+	let routes_login = routes_login::routes(mm.clone());
 	let routes_all = Router::new()
-		.merge(routes_login::routes(mm.clone()))
-		// .nest("/api", routes_rest)  // TODO: Uncomment when REST routes are ready
+		.nest("/auth/v1", routes_login)
+		.nest("/api", routes_rest)
 		.layer(middleware::map_response(mw_reponse_map))
 		.layer(middleware::from_fn_with_state(mm.clone(), mw_ctx_resolver))
 		.layer(CookieManagerLayer::new())

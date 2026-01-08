@@ -4,6 +4,9 @@
 use derive_more::From;
 use serde::Serialize;
 use serde_with::{serde_as, DisplayFromStr};
+use axum::response::{IntoResponse, Response};
+use axum::http::StatusCode;
+use std::sync::Arc;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -18,6 +21,20 @@ pub enum Error {
 	#[from]
 	SerdeJson(#[serde_as(as = "DisplayFromStr")] serde_json::Error),
 }
+
+// region:    --- Axum IntoResponse
+impl IntoResponse for Error {
+	fn into_response(self) -> Response {
+		// Create a placeholder Axum response.
+		let mut response = StatusCode::INTERNAL_SERVER_ERROR.into_response();
+
+		// Insert the Error into the response.
+		response.extensions_mut().insert(Arc::new(self));
+
+		response
+	}
+}
+// endregion: --- Axum IntoResponse
 
 // region:    --- Error Boilerplate
 impl core::fmt::Display for Error {
