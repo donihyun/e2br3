@@ -104,8 +104,8 @@ impl ReactionBmc {
 		reaction_c: ReactionForCreate,
 	) -> Result<Uuid> {
 		let sql = format!(
-			"INSERT INTO {} (case_id, sequence_number, primary_source_reaction, created_at, updated_at)
-			 VALUES ($1, $2, $3, now(), now())
+			"INSERT INTO {} (case_id, sequence_number, primary_source_reaction, criteria_death, criteria_life_threatening, criteria_hospitalization, criteria_disabling, criteria_congenital_anomaly, criteria_other_medically_important, created_at, updated_at)
+			 VALUES ($1, $2, $3, false, false, false, false, false, false, now(), now())
 			 RETURNING id",
 			Self::TABLE
 		);

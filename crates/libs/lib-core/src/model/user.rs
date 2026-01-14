@@ -162,7 +162,7 @@ impl UserBmc {
 
 		mm.dbx().begin_txn().await?;
 
-		let user_id = base_uuid::create::<Self, _>(ctx, &mm, user_fi)
+		let user_id = match base_uuid::create::<Self, _>(ctx, &mm, user_fi)
 			.await
 			.map_err(|model_error| {
 				Error::resolve_unique_violation(
@@ -175,10 +175,20 @@ impl UserBmc {
 						}
 					}),
 				)
-			})?;
+			}) {
+			Ok(user_id) => user_id,
+			Err(err) => {
+				mm.dbx().rollback_txn().await?;
+				return Err(err);
+			}
+		};
 
 		// -- Update the password
-		Self::update_pwd(ctx, &mm, user_id, &pwd_clear).await?;
+		if let Err(err) = Self::update_pwd(ctx, &mm, user_id, &pwd_clear).await
+		{
+			mm.dbx().rollback_txn().await?;
+			return Err(err);
+		}
 
 		// Commit the transaction
 		mm.dbx().commit_txn().await?;
@@ -274,3 +284,5 @@ impl UserBmc {
 		Ok(())
 	}
 }
+
+// Tests moved to crates/libs/lib-core/tests/model_crud.rs

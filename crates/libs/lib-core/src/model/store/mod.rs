@@ -5,6 +5,7 @@ pub(in crate::model) mod dbx;
 use crate::core_config;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
+use std::env;
 
 // endregion: --- Modules
 
@@ -16,6 +17,17 @@ pub async fn new_db_pool() -> sqlx::Result<Db> {
 
 	PgPoolOptions::new()
 		.max_connections(max_connections)
+		.after_connect(|conn, _meta| {
+			Box::pin(async move {
+				if let Ok(user_id) = env::var("E2BR3_TEST_CURRENT_USER_ID") {
+					sqlx::query("SELECT set_config('app.current_user_id', $1, false)")
+						.bind(user_id)
+						.execute(conn)
+						.await?;
+				}
+				Ok(())
+			})
+		})
 		.connect(&core_config().DB_URL)
 		.await
 }

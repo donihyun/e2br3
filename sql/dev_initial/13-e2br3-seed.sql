@@ -29,7 +29,9 @@ DECLARE
     v_case_summary_id UUID := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbd';
     v_literature_ref_id UUID := 'cccccccc-cccc-cccc-cccc-cccccccccccc';
 BEGIN
-    INSERT INTO organizations (id, name, type, address, city, state, postcode, country_code, contact_email, contact_phone, active, cid, ctime, mid, mtime)
+    PERFORM set_config('app.current_user_id', v_user_id::text, true);
+
+    INSERT INTO organizations (id, name, org_type, address, city, state, postcode, country_code, contact_email, contact_phone, active, cid, ctime, mid, mtime)
     VALUES (v_org_id, 'Demo Organization', 'internal', '123 Demo St', 'Metropolis', 'CA', '12345', 'US', 'demo@example.com', '555-1234', true, 0, NOW(), 0, NOW())
     ON CONFLICT (id) DO NOTHING;
 

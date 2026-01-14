@@ -62,6 +62,10 @@ pub struct CaseBmc;
 
 impl DbBmc for CaseBmc {
 	const TABLE: &'static str = "cases";
+
+	fn has_timestamps() -> bool {
+		false
+	}
 }
 
 impl CaseBmc {

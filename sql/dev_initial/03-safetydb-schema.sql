@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS organizations (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       name VARCHAR(500) NOT NULL,
-      type VARCHAR(100),  
+      org_type VARCHAR(100),  
       address TEXT,
       city VARCHAR(200),
       state VARCHAR(100),
