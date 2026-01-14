@@ -30,6 +30,12 @@ async fn test_patient_information_crud() -> Result<()> {
 	let patient = PatientInformationBmc::get_by_case(&ctx, &mm, case_id).await?;
 	assert_eq!(patient.id, patient_id);
 
+	let patient_by_id = PatientInformationBmc::get(&ctx, &mm, patient_id).await?;
+	assert_eq!(patient_by_id.id, patient_id);
+
+	let patients = PatientInformationBmc::list(&ctx, &mm, None, None).await?;
+	assert!(patients.iter().any(|p| p.id == patient_id));
+
 	let patient_u = PatientInformationForUpdate {
 		patient_initials: Some("UP".to_string()),
 		patient_given_name: None,

@@ -38,9 +38,12 @@ async fn test_test_result_crud() -> Result<()> {
 		normal_high_value: None,
 		comments: None,
 	};
-	TestResultBmc::update(&ctx, &mm, test_id, test_u).await?;
-	let test = TestResultBmc::get(&ctx, &mm, test_id).await?;
+	TestResultBmc::update_in_case(&ctx, &mm, case_id, test_id, test_u).await?;
+	let test = TestResultBmc::get_in_case(&ctx, &mm, case_id, test_id).await?;
 	assert_eq!(test.test_name, "Updated Test");
+
+	let tests = TestResultBmc::list_by_case(&ctx, &mm, case_id).await?;
+	assert!(tests.iter().any(|t| t.id == test_id));
 
 	TestResultBmc::delete(&ctx, &mm, test_id).await?;
 	CaseBmc::delete(&ctx, &mm, case_id).await?;

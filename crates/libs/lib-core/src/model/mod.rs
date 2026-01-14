@@ -21,7 +21,6 @@
 
 mod acs;
 mod base;
-mod base_uuid; // UUID-based CRUD operations for E2B models
 mod error;
 mod store;
 

@@ -1,6 +1,6 @@
 use crate::ctx::Ctx;
 use crate::model::base::{prep_fields_for_update, DbBmc};
-use crate::model::base_uuid;
+use crate::model::base::base_uuid;
 use crate::model::{Error, ModelManager, Result};
 use lib_auth::pwd::{self, ContentToHash};
 use modql::field::{Fields, HasSeaFields, SeaField, SeaFields};

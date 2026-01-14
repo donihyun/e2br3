@@ -38,9 +38,13 @@ async fn test_drug_information_crud() -> Result<()> {
 		batch_lot_number: None,
 		action_taken: Some("1".to_string()),
 	};
-	DrugInformationBmc::update(&ctx, &mm, drug_id, drug_u).await?;
-	let drug = DrugInformationBmc::get(&ctx, &mm, drug_id).await?;
+	DrugInformationBmc::update_in_case(&ctx, &mm, case_id, drug_id, drug_u)
+		.await?;
+	let drug = DrugInformationBmc::get_in_case(&ctx, &mm, case_id, drug_id).await?;
 	assert_eq!(drug.medicinal_product, "Updated Drug");
+
+	let drugs = DrugInformationBmc::list_by_case(&ctx, &mm, case_id).await?;
+	assert!(drugs.iter().any(|d| d.id == drug_id));
 
 	DrugInformationBmc::delete(&ctx, &mm, drug_id).await?;
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
