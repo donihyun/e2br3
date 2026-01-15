@@ -52,8 +52,11 @@ CREATE TABLE reactions (
     -- E.i.9 - Identification of Country Where Reaction/Event Occurred
     country_code VARCHAR(2),  -- ISO 3166-1 alpha-2
 
+    -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_reaction_sequence UNIQUE (case_id, sequence_number)
 );

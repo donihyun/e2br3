@@ -53,3 +53,28 @@ pub async fn create_case_fixture(
 
 	Ok(case_id)
 }
+
+pub async fn delete_case_fixture(mm: &ModelManager, case_id: Uuid) -> Result<()> {
+	sqlx::query("DELETE FROM cases WHERE id = $1")
+		.bind(case_id)
+		.execute(mm.dbx().db())
+		.await?;
+	Ok(())
+}
+
+pub async fn audit_log_count(
+	mm: &ModelManager,
+	table_name: &str,
+	record_id: Uuid,
+	action: &str,
+) -> Result<i64> {
+	let count: i64 = sqlx::query_scalar(
+		"SELECT COUNT(*) FROM audit_logs WHERE table_name = $1 AND record_id = $2 AND action = $3",
+	)
+	.bind(table_name)
+	.bind(record_id)
+	.bind(action)
+	.fetch_one(mm.dbx().db())
+	.await?;
+	Ok(count)
+}

@@ -1,6 +1,6 @@
 use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
-use crate::model::base_uuid;
+use crate::model::base::base_uuid;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -44,7 +44,6 @@ pub struct CaseForCreate {
 pub struct CaseForUpdate {
 	pub safety_report_id: Option<String>,
 	pub status: Option<String>,
-	pub updated_by: Option<Uuid>,
 	pub submitted_by: Option<Uuid>,
 	pub submitted_at: Option<OffsetDateTime>,
 }
@@ -62,10 +61,6 @@ pub struct CaseBmc;
 
 impl DbBmc for CaseBmc {
 	const TABLE: &'static str = "cases";
-
-	fn has_timestamps() -> bool {
-		false
-	}
 }
 
 impl CaseBmc {

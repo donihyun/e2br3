@@ -39,9 +39,13 @@ async fn test_reaction_crud() -> Result<()> {
 		end_date: None,
 		outcome: None,
 	};
-	ReactionBmc::update(&ctx, &mm, reaction_id, reaction_u).await?;
-	let reaction = ReactionBmc::get(&ctx, &mm, reaction_id).await?;
+	ReactionBmc::update_in_case(&ctx, &mm, case_id, reaction_id, reaction_u)
+		.await?;
+	let reaction = ReactionBmc::get_in_case(&ctx, &mm, case_id, reaction_id).await?;
 	assert_eq!(reaction.primary_source_reaction, "Updated Headache");
+
+	let reactions = ReactionBmc::list_by_case(&ctx, &mm, case_id).await?;
+	assert!(reactions.iter().any(|r| r.id == reaction_id));
 
 	ReactionBmc::delete(&ctx, &mm, reaction_id).await?;
 	CaseBmc::delete(&ctx, &mm, case_id).await?;

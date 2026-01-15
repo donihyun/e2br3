@@ -41,8 +41,11 @@ CREATE TABLE test_results (
     -- F.r.7 - More Information Available
     more_info_available BOOLEAN,
 
+    -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_test_result_sequence UNIQUE (case_id, sequence_number)
 );

@@ -34,6 +34,9 @@ async fn test_user_create_ok() -> Result<()> {
 	assert_eq!(user.username, fx_username);
 	assert!(user.pwd.is_some());
 
+	let users = UserBmc::list(&ctx, &mm, None, None).await?;
+	assert!(users.iter().any(|u| u.id == user_id));
+
 	UserBmc::delete(&ctx, &mm, user_id).await?;
 
 	Ok(())

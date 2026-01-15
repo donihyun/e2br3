@@ -29,15 +29,21 @@ DECLARE
     v_case_summary_id UUID := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbd';
     v_literature_ref_id UUID := 'cccccccc-cccc-cccc-cccc-cccccccccccc';
 BEGIN
+    -- Use system user for initial inserts (demo user doesn't exist yet)
+    PERFORM set_config('app.current_user_id', '00000000-0000-0000-0000-000000000001', true);
+
+    -- Insert demo organization (created by system user)
+    INSERT INTO organizations (id, name, org_type, address, city, state, postcode, country_code, contact_email, contact_phone, active, created_by, created_at, updated_at)
+    VALUES (v_org_id, 'Demo Organization', 'internal', '123 Demo St', 'Metropolis', 'CA', '12345', 'US', 'demo@example.com', '555-1234', true, '00000000-0000-0000-0000-000000000001'::UUID, NOW(), NOW())
+    ON CONFLICT (id) DO NOTHING;
+
+    -- Insert demo user
+    INSERT INTO users (id, organization_id, email, username, role, active, created_by, created_at, updated_at)
+    VALUES (v_user_id, v_org_id, 'demo.user@example.com', 'demo_user', 'admin', true, '00000000-0000-0000-0000-000000000001'::UUID, NOW(), NOW())
+    ON CONFLICT (id) DO NOTHING;
+
+    -- Switch context to demo user for remaining demo data
     PERFORM set_config('app.current_user_id', v_user_id::text, true);
-
-    INSERT INTO organizations (id, name, org_type, address, city, state, postcode, country_code, contact_email, contact_phone, active, cid, ctime, mid, mtime)
-    VALUES (v_org_id, 'Demo Organization', 'internal', '123 Demo St', 'Metropolis', 'CA', '12345', 'US', 'demo@example.com', '555-1234', true, 0, NOW(), 0, NOW())
-    ON CONFLICT (id) DO NOTHING;
-
-    INSERT INTO users (id, organization_id, email, username, role, active, cid, ctime, mid, mtime)
-    VALUES (v_user_id, v_org_id, 'demo.user@example.com', 'demo_user', 'admin', true, 0, NOW(), 0, NOW())
-    ON CONFLICT (id) DO NOTHING;
 
     INSERT INTO cases (id, organization_id, safety_report_id, version, status, created_by, updated_by, submitted_by, submitted_at, created_at, updated_at)
     VALUES (v_case_id, v_org_id, 'SR-001', 1, 'draft', v_user_id, v_user_id, v_user_id, NOW(), NOW(), NOW())
@@ -47,96 +53,96 @@ BEGIN
     VALUES (v_case_version_id, v_case_id, 1, '{}'::JSONB, v_user_id, 'Initial import', NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO message_headers (id, case_id, batch_number, batch_sender_identifier, message_type, message_format_version, message_format_release, message_number, message_sender_identifier, message_receiver_identifier, message_date_format, message_date, created_at, updated_at)
-    VALUES (v_message_header_id, v_case_id, 'B-001', 'SENDER-1', 'ichicsr', '2.1', '2.0', 'MSG-001', 'ORG-SENDER', 'ORG-RECEIVER', '204', '20240101120000', NOW(), NOW())
+    INSERT INTO message_headers (id, case_id, batch_number, batch_sender_identifier, message_type, message_format_version, message_format_release, message_number, message_sender_identifier, message_receiver_identifier, message_date_format, message_date, created_by, created_at, updated_at)
+    VALUES (v_message_header_id, v_case_id, 'B-001', 'SENDER-1', 'ichicsr', '2.1', '2.0', 'MSG-001', 'ORG-SENDER', 'ORG-RECEIVER', '204', '20240101120000', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO safety_report_identification (id, case_id, transmission_date, report_type, date_first_received_from_source, date_of_most_recent_information, fulfil_expedited_criteria, receiver_organization, created_at, updated_at)
-    VALUES (v_safety_ident_id, v_case_id, CURRENT_DATE, '1', CURRENT_DATE, CURRENT_DATE, TRUE, 'Demo Receiver', NOW(), NOW())
+    INSERT INTO safety_report_identification (id, case_id, transmission_date, report_type, date_first_received_from_source, date_of_most_recent_information, fulfil_expedited_criteria, receiver_organization, created_by, created_at, updated_at)
+    VALUES (v_safety_ident_id, v_case_id, CURRENT_DATE, '1', CURRENT_DATE, CURRENT_DATE, TRUE, 'Demo Receiver', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO sender_information (id, case_id, sender_type, organization_name, created_at, updated_at)
-    VALUES (v_sender_info_id, v_case_id, '1', 'Demo Sender Org', NOW(), NOW())
+    INSERT INTO sender_information (id, case_id, sender_type, organization_name, created_by, created_at, updated_at)
+    VALUES (v_sender_info_id, v_case_id, '1', 'Demo Sender Org', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO literature_references (id, case_id, reference_text, sequence_number, created_at)
-    VALUES (v_literature_ref_id, v_case_id, 'Sample literature reference', 1, NOW())
+    INSERT INTO literature_references (id, case_id, reference_text, sequence_number, created_by, created_at, updated_at)
+    VALUES (v_literature_ref_id, v_case_id, 'Sample literature reference', 1, v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO study_information (id, case_id, study_name, sponsor_study_number, study_type_reaction, created_at, updated_at)
-    VALUES (v_study_info_id, v_case_id, 'Study A', 'SSN-1', '01', NOW(), NOW())
+    INSERT INTO study_information (id, case_id, study_name, sponsor_study_number, study_type_reaction, created_by, created_at, updated_at)
+    VALUES (v_study_info_id, v_case_id, 'Study A', 'SSN-1', '01', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO study_registration_numbers (id, study_information_id, registration_number, country_code, sequence_number)
-    VALUES (v_study_reg_id, v_study_info_id, 'REG-001', 'US', 1)
+    INSERT INTO study_registration_numbers (id, study_information_id, registration_number, country_code, sequence_number, created_by, created_at, updated_at)
+    VALUES (v_study_reg_id, v_study_info_id, 'REG-001', 'US', 1, v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO primary_sources (id, case_id, sequence_number, reporter_given_name, reporter_family_name, country_code, qualification, primary_source_regulatory, created_at, updated_at)
-    VALUES (v_primary_source_id, v_case_id, 1, 'Jane', 'Doe', 'US', '1', '1', NOW(), NOW())
+    INSERT INTO primary_sources (id, case_id, sequence_number, reporter_given_name, reporter_family_name, country_code, qualification, primary_source_regulatory, created_by, created_at, updated_at)
+    VALUES (v_primary_source_id, v_case_id, 1, 'Jane', 'Doe', 'US', '1', '1', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO patient_information (id, case_id, patient_initials, sex, created_at, updated_at)
-    VALUES (v_patient_id, v_case_id, 'JD', '1', NOW(), NOW())
+    INSERT INTO patient_information (id, case_id, patient_initials, sex, created_by, created_at, updated_at)
+    VALUES (v_patient_id, v_case_id, 'JD', '1', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO medical_history_episodes (id, patient_id, sequence_number, meddra_version, meddra_code, start_date, created_at)
-    VALUES (v_med_history_id, v_patient_id, 1, '26.0', '12345678', CURRENT_DATE - 365, NOW())
+    INSERT INTO medical_history_episodes (id, patient_id, sequence_number, meddra_version, meddra_code, start_date, created_by, created_at, updated_at)
+    VALUES (v_med_history_id, v_patient_id, 1, '26.0', '12345678', CURRENT_DATE - 365, v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO past_drug_history (id, patient_id, sequence_number, drug_name, start_date, end_date, created_at)
-    VALUES (v_past_drug_id, v_patient_id, 1, 'Historical Drug', CURRENT_DATE - 400, CURRENT_DATE - 350, NOW())
+    INSERT INTO past_drug_history (id, patient_id, sequence_number, drug_name, start_date, end_date, created_by, created_at, updated_at)
+    VALUES (v_past_drug_id, v_patient_id, 1, 'Historical Drug', CURRENT_DATE - 400, CURRENT_DATE - 350, v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO patient_death_information (id, patient_id, date_of_death, autopsy_performed, created_at, updated_at)
-    VALUES (v_death_info_id, v_patient_id, CURRENT_DATE - 1, FALSE, NOW(), NOW())
+    INSERT INTO patient_death_information (id, patient_id, date_of_death, autopsy_performed, created_by, created_at, updated_at)
+    VALUES (v_death_info_id, v_patient_id, CURRENT_DATE - 1, FALSE, v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO reported_causes_of_death (id, death_info_id, sequence_number, meddra_version, meddra_code)
-    VALUES (v_reported_death_id, v_death_info_id, 1, '26.0', '87654321')
+    INSERT INTO reported_causes_of_death (id, death_info_id, sequence_number, meddra_version, meddra_code, created_by, created_at, updated_at)
+    VALUES (v_reported_death_id, v_death_info_id, 1, '26.0', '87654321', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO autopsy_causes_of_death (id, death_info_id, sequence_number, meddra_version, meddra_code)
-    VALUES (v_autopsy_death_id, v_death_info_id, 1, '26.0', '87654322')
+    INSERT INTO autopsy_causes_of_death (id, death_info_id, sequence_number, meddra_version, meddra_code, created_by, created_at, updated_at)
+    VALUES (v_autopsy_death_id, v_death_info_id, 1, '26.0', '87654322', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO parent_information (id, patient_id, parent_identification, sex, created_at, updated_at)
-    VALUES (v_parent_info_id, v_patient_id, 'Parent-1', '2', NOW(), NOW())
+    INSERT INTO parent_information (id, patient_id, parent_identification, sex, created_by, created_at, updated_at)
+    VALUES (v_parent_info_id, v_patient_id, 'Parent-1', '2', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO reactions (id, case_id, sequence_number, primary_source_reaction, serious, outcome, created_at, updated_at)
-    VALUES (v_reaction_id, v_case_id, 1, 'Headache', FALSE, '0', NOW(), NOW())
+    INSERT INTO reactions (id, case_id, sequence_number, primary_source_reaction, serious, outcome, created_by, created_at, updated_at)
+    VALUES (v_reaction_id, v_case_id, 1, 'Headache', FALSE, '0', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO test_results (id, case_id, sequence_number, test_date, test_name, created_at, updated_at)
-    VALUES (v_test_result_id, v_case_id, 1, CURRENT_DATE, 'Blood Test', NOW(), NOW())
+    INSERT INTO test_results (id, case_id, sequence_number, test_date, test_name, created_by, created_at, updated_at)
+    VALUES (v_test_result_id, v_case_id, 1, CURRENT_DATE, 'Blood Test', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO drug_information (id, case_id, sequence_number, drug_characterization, medicinal_product, action_taken, created_at, updated_at)
-    VALUES (v_drug_info_id, v_case_id, 1, '1', 'Demo Drug', '1', NOW(), NOW())
+    INSERT INTO drug_information (id, case_id, sequence_number, drug_characterization, medicinal_product, action_taken, created_by, created_at, updated_at)
+    VALUES (v_drug_info_id, v_case_id, 1, '1', 'Demo Drug', '1', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO drug_active_substances (id, drug_id, sequence_number, substance_name, strength_value, strength_unit)
-    VALUES (v_drug_substance_id, v_drug_info_id, 1, 'Substance A', 10.0, 'mg')
+    INSERT INTO drug_active_substances (id, drug_id, sequence_number, substance_name, strength_value, strength_unit, created_by, created_at, updated_at)
+    VALUES (v_drug_substance_id, v_drug_info_id, 1, 'Substance A', 10.0, 'mg', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO dosage_information (id, drug_id, sequence_number, dose_value, dose_unit, frequency_value, frequency_unit, created_at, updated_at)
-    VALUES (v_dosage_info_id, v_drug_info_id, 1, 1.0, 'tab', 1.0, 'day', NOW(), NOW())
+    INSERT INTO dosage_information (id, drug_id, sequence_number, dose_value, dose_unit, frequency_value, frequency_unit, created_by, created_at, updated_at)
+    VALUES (v_dosage_info_id, v_drug_info_id, 1, 1.0, 'tab', 1.0, 'day', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO drug_indications (id, drug_id, sequence_number, indication_text, indication_meddra_version, indication_meddra_code)
-    VALUES (v_drug_indication_id, v_drug_info_id, 1, 'Indication text', '26.0', '135790')
+    INSERT INTO drug_indications (id, drug_id, sequence_number, indication_text, indication_meddra_version, indication_meddra_code, created_by, created_at, updated_at)
+    VALUES (v_drug_indication_id, v_drug_info_id, 1, 'Indication text', '26.0', '135790', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO narrative_information (id, case_id, case_narrative, reporter_comments, sender_comments, created_at, updated_at)
-    VALUES (v_narrative_id, v_case_id, 'Case narrative text', 'Reporter comment', 'Sender comment', NOW(), NOW())
+    INSERT INTO narrative_information (id, case_id, case_narrative, reporter_comments, sender_comments, created_by, created_at, updated_at)
+    VALUES (v_narrative_id, v_case_id, 'Case narrative text', 'Reporter comment', 'Sender comment', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO sender_diagnoses (id, narrative_id, sequence_number, diagnosis_meddra_version, diagnosis_meddra_code)
-    VALUES (v_sender_diag_id, v_narrative_id, 1, '26.0', '246810')
+    INSERT INTO sender_diagnoses (id, narrative_id, sequence_number, diagnosis_meddra_version, diagnosis_meddra_code, created_by, created_at, updated_at)
+    VALUES (v_sender_diag_id, v_narrative_id, 1, '26.0', '246810', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO case_summary_information (id, narrative_id, sequence_number, summary_type, language_code, summary_text)
-    VALUES (v_case_summary_id, v_narrative_id, 1, '01', 'en', 'Case summary text')
+    INSERT INTO case_summary_information (id, narrative_id, sequence_number, summary_type, language_code, summary_text, created_by, created_at, updated_at)
+    VALUES (v_case_summary_id, v_narrative_id, 1, '01', 'en', 'Case summary text', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 END;
 $$;

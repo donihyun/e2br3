@@ -21,7 +21,6 @@
 
 mod acs;
 mod base;
-mod base_uuid; // UUID-based CRUD operations for E2B models
 mod error;
 mod store;
 
@@ -81,7 +80,7 @@ impl ModelManager {
 		let db_pool = new_db_pool()
 			.await
 			.map_err(|ex| Error::CantCreateModelManagerProvider(ex.to_string()))?;
-		let dbx = Dbx::new(db_pool, false)?;
+		let dbx = Dbx::new(db_pool, true)?;
 		Ok(ModelManager { dbx })
 	}
 

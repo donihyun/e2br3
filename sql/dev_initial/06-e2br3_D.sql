@@ -41,8 +41,11 @@ CREATE TABLE patient_information (
     -- D.7.2 - Text for Relevant Medical History
     medical_history_text TEXT,  -- Max 10000 chars
 
+    -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_patient_per_case UNIQUE (case_id)
 );
@@ -74,7 +77,11 @@ CREATE TABLE medical_history_episodes (
     -- D.7.1.r.5 - Comments
     comments TEXT,
 
+    -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_med_history_sequence UNIQUE (patient_id, sequence_number)
 );
@@ -113,7 +120,11 @@ CREATE TABLE past_drug_history (
 
     -- D.8.r.7 - Reaction(s) (MedDRA coded - repeating, handled separately if needed)
 
+    -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_past_drug_sequence UNIQUE (patient_id, sequence_number)
 );
@@ -136,8 +147,11 @@ CREATE TABLE patient_death_information (
 
     -- D.9.4 - Autopsy Determined Cause of Death (handled in repeating table)
 
+    -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_death_per_patient UNIQUE (patient_id)
 );
@@ -150,6 +164,12 @@ CREATE TABLE reported_causes_of_death (
     meddra_version VARCHAR(10),
     meddra_code VARCHAR(20),
 
+    -- Audit fields (standardized UUID-based)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+
     CONSTRAINT unique_reported_death_cause UNIQUE (death_info_id, sequence_number)
 );
 
@@ -160,6 +180,12 @@ CREATE TABLE autopsy_causes_of_death (
     sequence_number INTEGER NOT NULL,
     meddra_version VARCHAR(10),
     meddra_code VARCHAR(20),
+
+    -- Audit fields (standardized UUID-based)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_autopsy_death_cause UNIQUE (death_info_id, sequence_number)
 );
@@ -195,8 +221,11 @@ CREATE TABLE parent_information (
 
     -- D.10.7 - Parent Medical History (repeating - uses medical_history_episodes table with parent_id FK)
 
+    -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_parent_per_patient UNIQUE (patient_id)
 );

@@ -1,6 +1,6 @@
 use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
-use crate::model::base_uuid;
+use crate::model::base::base_uuid;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -29,11 +29,11 @@ pub struct Organization {
 	pub contact_phone: Option<String>,
 	pub active: bool,
 
-	// Timestamps
-	pub cid: i64,
-	pub ctime: OffsetDateTime,
-	pub mid: i64,
-	pub mtime: OffsetDateTime,
+	// Audit fields (standardized UUID-based)
+	pub created_at: OffsetDateTime,
+	pub updated_at: OffsetDateTime,
+	pub created_by: Uuid,
+	pub updated_by: Option<Uuid>,
 }
 
 #[derive(Fields, Deserialize)]

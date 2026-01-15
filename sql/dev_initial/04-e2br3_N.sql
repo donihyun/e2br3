@@ -22,8 +22,11 @@ CREATE TABLE if NOT EXISTS message_headers (
     message_date_format VARCHAR(10) NOT NULL,        -- 204 (CCYYMMDDHHMMSS)
     message_date VARCHAR(14) NOT NULL,
 
+    -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_message_per_case UNIQUE (case_id)
 );
