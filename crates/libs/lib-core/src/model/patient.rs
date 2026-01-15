@@ -1,12 +1,13 @@
 // Section D - Patient Information
 
 use crate::ctx::Ctx;
+use crate::model::base::base_uuid;
 use crate::model::base::DbBmc;
-use crate::model::store::dbx;
+use crate::model::store::{dbx, set_user_context};
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
-use modql::filter::{FilterNodes, OpValsString};
+use modql::filter::{FilterNodes, ListOptions, OpValsString, OpValsValue};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::types::time::{Date, OffsetDateTime};
@@ -47,6 +48,8 @@ pub struct PatientInformation {
 	// Timestamps
 	pub created_at: OffsetDateTime,
 	pub updated_at: OffsetDateTime,
+	pub created_by: Uuid,
+	pub updated_by: Option<Uuid>,
 }
 
 #[derive(Fields, Deserialize)]
@@ -97,6 +100,9 @@ pub struct MedicalHistoryEpisode {
 	pub comments: Option<String>,
 
 	pub created_at: OffsetDateTime,
+	pub updated_at: OffsetDateTime,
+	pub created_by: Uuid,
+	pub updated_by: Option<Uuid>,
 }
 
 #[derive(Fields, Deserialize)]
@@ -104,6 +110,22 @@ pub struct MedicalHistoryEpisodeForCreate {
 	pub patient_id: Uuid,
 	pub sequence_number: i32,
 	pub meddra_code: Option<String>,
+}
+
+#[derive(Fields, Deserialize)]
+pub struct MedicalHistoryEpisodeForUpdate {
+	pub meddra_version: Option<String>,
+	pub meddra_code: Option<String>,
+	pub start_date: Option<Date>,
+	pub continuing: Option<bool>,
+	pub end_date: Option<Date>,
+	pub comments: Option<String>,
+}
+
+#[derive(FilterNodes, Deserialize, Default)]
+pub struct MedicalHistoryEpisodeFilter {
+	pub patient_id: Option<OpValsValue>,
+	pub sequence_number: Option<OpValsValue>,
 }
 
 // -- PastDrugHistory
@@ -132,6 +154,9 @@ pub struct PastDrugHistory {
 	pub indication_meddra_code: Option<String>,
 
 	pub created_at: OffsetDateTime,
+	pub updated_at: OffsetDateTime,
+	pub created_by: Uuid,
+	pub updated_by: Option<Uuid>,
 }
 
 #[derive(Fields, Deserialize)]
@@ -139,6 +164,25 @@ pub struct PastDrugHistoryForCreate {
 	pub patient_id: Uuid,
 	pub sequence_number: i32,
 	pub drug_name: Option<String>,
+}
+
+#[derive(Fields, Deserialize)]
+pub struct PastDrugHistoryForUpdate {
+	pub drug_name: Option<String>,
+	pub mpid: Option<String>,
+	pub mpid_version: Option<String>,
+	pub phpid: Option<String>,
+	pub phpid_version: Option<String>,
+	pub start_date: Option<Date>,
+	pub end_date: Option<Date>,
+	pub indication_meddra_version: Option<String>,
+	pub indication_meddra_code: Option<String>,
+}
+
+#[derive(FilterNodes, Deserialize, Default)]
+pub struct PastDrugHistoryFilter {
+	pub patient_id: Option<OpValsValue>,
+	pub sequence_number: Option<OpValsValue>,
 }
 
 // -- PatientDeathInformation
@@ -156,6 +200,8 @@ pub struct PatientDeathInformation {
 
 	pub created_at: OffsetDateTime,
 	pub updated_at: OffsetDateTime,
+	pub created_by: Uuid,
+	pub updated_by: Option<Uuid>,
 }
 
 #[derive(Fields, Deserialize)]
@@ -163,6 +209,17 @@ pub struct PatientDeathInformationForCreate {
 	pub patient_id: Uuid,
 	pub date_of_death: Option<Date>,
 	pub autopsy_performed: Option<bool>,
+}
+
+#[derive(Fields, Deserialize)]
+pub struct PatientDeathInformationForUpdate {
+	pub date_of_death: Option<Date>,
+	pub autopsy_performed: Option<bool>,
+}
+
+#[derive(FilterNodes, Deserialize, Default)]
+pub struct PatientDeathInformationFilter {
+	pub patient_id: Option<OpValsValue>,
 }
 
 // -- ReportedCauseOfDeath
@@ -174,6 +231,10 @@ pub struct ReportedCauseOfDeath {
 	pub sequence_number: i32,
 	pub meddra_version: Option<String>,
 	pub meddra_code: Option<String>,
+	pub created_at: OffsetDateTime,
+	pub updated_at: OffsetDateTime,
+	pub created_by: Uuid,
+	pub updated_by: Option<Uuid>,
 }
 
 #[derive(Fields, Deserialize)]
@@ -181,6 +242,18 @@ pub struct ReportedCauseOfDeathForCreate {
 	pub death_info_id: Uuid,
 	pub sequence_number: i32,
 	pub meddra_code: Option<String>,
+}
+
+#[derive(Fields, Deserialize)]
+pub struct ReportedCauseOfDeathForUpdate {
+	pub meddra_version: Option<String>,
+	pub meddra_code: Option<String>,
+}
+
+#[derive(FilterNodes, Deserialize, Default)]
+pub struct ReportedCauseOfDeathFilter {
+	pub death_info_id: Option<OpValsValue>,
+	pub sequence_number: Option<OpValsValue>,
 }
 
 // -- AutopsyCauseOfDeath
@@ -192,6 +265,10 @@ pub struct AutopsyCauseOfDeath {
 	pub sequence_number: i32,
 	pub meddra_version: Option<String>,
 	pub meddra_code: Option<String>,
+	pub created_at: OffsetDateTime,
+	pub updated_at: OffsetDateTime,
+	pub created_by: Uuid,
+	pub updated_by: Option<Uuid>,
 }
 
 #[derive(Fields, Deserialize)]
@@ -199,6 +276,18 @@ pub struct AutopsyCauseOfDeathForCreate {
 	pub death_info_id: Uuid,
 	pub sequence_number: i32,
 	pub meddra_code: Option<String>,
+}
+
+#[derive(Fields, Deserialize)]
+pub struct AutopsyCauseOfDeathForUpdate {
+	pub meddra_version: Option<String>,
+	pub meddra_code: Option<String>,
+}
+
+#[derive(FilterNodes, Deserialize, Default)]
+pub struct AutopsyCauseOfDeathFilter {
+	pub death_info_id: Option<OpValsValue>,
+	pub sequence_number: Option<OpValsValue>,
 }
 
 // -- ParentInformation
@@ -218,12 +307,30 @@ pub struct ParentInformation {
 
 	pub created_at: OffsetDateTime,
 	pub updated_at: OffsetDateTime,
+	pub created_by: Uuid,
+	pub updated_by: Option<Uuid>,
 }
 
 #[derive(Fields, Deserialize)]
 pub struct ParentInformationForCreate {
 	pub patient_id: Uuid,
 	pub sex: Option<String>,
+}
+
+#[derive(Fields, Deserialize)]
+pub struct ParentInformationForUpdate {
+	pub parent_identification: Option<String>,
+	pub parent_age: Option<Decimal>,
+	pub parent_age_unit: Option<String>,
+	pub last_menstrual_period_date: Option<Date>,
+	pub weight_kg: Option<Decimal>,
+	pub height_cm: Option<Decimal>,
+	pub sex: Option<String>,
+}
+
+#[derive(FilterNodes, Deserialize, Default)]
+pub struct ParentInformationFilter {
+	pub patient_id: Option<OpValsValue>,
 }
 
 // -- BMCs
@@ -235,13 +342,17 @@ impl DbBmc for PatientInformationBmc {
 
 impl PatientInformationBmc {
 	pub async fn create(
-		_ctx: &Ctx,
+		ctx: &Ctx,
 		mm: &ModelManager,
 		data: PatientInformationForCreate,
 	) -> Result<Uuid> {
+		let db = mm.dbx().db();
+		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
+		set_user_context(&mut tx, ctx.user_id()).await?;
+
 		let sql = format!(
-			"INSERT INTO {} (case_id, patient_initials, sex, created_at, updated_at)
-			 VALUES ($1, $2, $3, now(), now())
+			"INSERT INTO {} (case_id, patient_initials, sex, created_at, updated_at, created_by)
+			 VALUES ($1, $2, $3, now(), now(), $4)
 			 RETURNING id",
 			Self::TABLE
 		);
@@ -249,9 +360,11 @@ impl PatientInformationBmc {
 			.bind(data.case_id)
 			.bind(data.patient_initials)
 			.bind(data.sex)
-			.fetch_one(mm.dbx().db())
+			.bind(ctx.user_id())
+			.fetch_one(&mut *tx)
 			.await
 			.map_err(|e| dbx::Error::from(e))?;
+		tx.commit().await.map_err(|e| dbx::Error::from(e))?;
 		Ok(id)
 	}
 
@@ -289,11 +402,15 @@ impl PatientInformationBmc {
 	}
 
 	pub async fn update(
-		_ctx: &Ctx,
+		ctx: &Ctx,
 		mm: &ModelManager,
 		id: Uuid,
 		data: PatientInformationForUpdate,
 	) -> Result<()> {
+		let db = mm.dbx().db();
+		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
+		set_user_context(&mut tx, ctx.user_id()).await?;
+
 		let sql = format!(
 			"UPDATE {}
 			 SET patient_initials = COALESCE($2, patient_initials),
@@ -306,7 +423,8 @@ impl PatientInformationBmc {
 			     height_cm = COALESCE($9, height_cm),
 			     sex = COALESCE($10, sex),
 			     medical_history_text = COALESCE($11, medical_history_text),
-			     updated_at = now()
+			     updated_at = now(),
+			     updated_by = $12
 			 WHERE id = $1",
 			Self::TABLE
 		);
@@ -322,7 +440,8 @@ impl PatientInformationBmc {
 			.bind(data.height_cm)
 			.bind(data.sex)
 			.bind(data.medical_history_text)
-			.execute(mm.dbx().db())
+			.bind(ctx.user_id())
+			.execute(&mut *tx)
 			.await
 			.map_err(|e| dbx::Error::from(e))?;
 
@@ -332,18 +451,23 @@ impl PatientInformationBmc {
 				id: 0,
 			});
 		}
+		tx.commit().await.map_err(|e| dbx::Error::from(e))?;
 		Ok(())
 	}
 
 	pub async fn delete(
-		_ctx: &Ctx,
+		ctx: &Ctx,
 		mm: &ModelManager,
 		id: Uuid,
 	) -> Result<()> {
+		let db = mm.dbx().db();
+		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
+		set_user_context(&mut tx, ctx.user_id()).await?;
+
 		let sql = format!("DELETE FROM {} WHERE id = $1", Self::TABLE);
 		let result = sqlx::query(&sql)
 			.bind(id)
-			.execute(mm.dbx().db())
+			.execute(&mut *tx)
 			.await
 			.map_err(|e| dbx::Error::from(e))?;
 
@@ -353,6 +477,7 @@ impl PatientInformationBmc {
 				id: 0,
 			});
 		}
+		tx.commit().await.map_err(|e| dbx::Error::from(e))?;
 		Ok(())
 	}
 
@@ -374,11 +499,15 @@ impl PatientInformationBmc {
 	}
 
 	pub async fn update_by_case(
-		_ctx: &Ctx,
+		ctx: &Ctx,
 		mm: &ModelManager,
 		case_id: Uuid,
 		data: PatientInformationForUpdate,
 	) -> Result<()> {
+		let db = mm.dbx().db();
+		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
+		set_user_context(&mut tx, ctx.user_id()).await?;
+
 		let sql = format!(
 			"UPDATE {}
 			 SET patient_initials = COALESCE($2, patient_initials),
@@ -391,7 +520,8 @@ impl PatientInformationBmc {
 			     height_cm = COALESCE($9, height_cm),
 			     sex = COALESCE($10, sex),
 			     medical_history_text = COALESCE($11, medical_history_text),
-			     updated_at = now()
+			     updated_at = now(),
+			     updated_by = $12
 			 WHERE case_id = $1",
 			Self::TABLE
 		);
@@ -407,7 +537,8 @@ impl PatientInformationBmc {
 			.bind(data.height_cm)
 			.bind(data.sex)
 			.bind(data.medical_history_text)
-			.execute(mm.dbx().db())
+			.bind(ctx.user_id())
+			.execute(&mut *tx)
 			.await
 			.map_err(|e| dbx::Error::from(e))?;
 		if result.rows_affected() == 0 {
@@ -416,18 +547,23 @@ impl PatientInformationBmc {
 				id: case_id,
 			});
 		}
+		tx.commit().await.map_err(|e| dbx::Error::from(e))?;
 		Ok(())
 	}
 
 	pub async fn delete_by_case(
-		_ctx: &Ctx,
+		ctx: &Ctx,
 		mm: &ModelManager,
 		case_id: Uuid,
 	) -> Result<()> {
+		let db = mm.dbx().db();
+		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
+		set_user_context(&mut tx, ctx.user_id()).await?;
+
 		let sql = format!("DELETE FROM {} WHERE case_id = $1", Self::TABLE);
 		let result = sqlx::query(&sql)
 			.bind(case_id)
-			.execute(mm.dbx().db())
+			.execute(&mut *tx)
 			.await
 			.map_err(|e| dbx::Error::from(e))?;
 		if result.rows_affected() == 0 {
@@ -436,6 +572,7 @@ impl PatientInformationBmc {
 				id: case_id,
 			});
 		}
+		tx.commit().await.map_err(|e| dbx::Error::from(e))?;
 		Ok(())
 	}
 }
@@ -445,9 +582,89 @@ impl DbBmc for MedicalHistoryEpisodeBmc {
 	const TABLE: &'static str = "medical_history_episodes";
 }
 
+impl MedicalHistoryEpisodeBmc {
+	pub async fn create(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		data: MedicalHistoryEpisodeForCreate,
+	) -> Result<Uuid> {
+		base_uuid::create::<Self, _>(ctx, mm, data).await
+	}
+
+	pub async fn get(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+	) -> Result<MedicalHistoryEpisode> {
+		base_uuid::get::<Self, _>(ctx, mm, id).await
+	}
+
+	pub async fn list(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		filters: Option<Vec<MedicalHistoryEpisodeFilter>>,
+		list_options: Option<ListOptions>,
+	) -> Result<Vec<MedicalHistoryEpisode>> {
+		base_uuid::list::<Self, _, _>(ctx, mm, filters, list_options).await
+	}
+
+	pub async fn update(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+		data: MedicalHistoryEpisodeForUpdate,
+	) -> Result<()> {
+		base_uuid::update::<Self, _>(ctx, mm, id, data).await
+	}
+
+	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
+		base_uuid::delete::<Self>(ctx, mm, id).await
+	}
+}
+
 pub struct PastDrugHistoryBmc;
 impl DbBmc for PastDrugHistoryBmc {
 	const TABLE: &'static str = "past_drug_history";
+}
+
+impl PastDrugHistoryBmc {
+	pub async fn create(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		data: PastDrugHistoryForCreate,
+	) -> Result<Uuid> {
+		base_uuid::create::<Self, _>(ctx, mm, data).await
+	}
+
+	pub async fn get(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+	) -> Result<PastDrugHistory> {
+		base_uuid::get::<Self, _>(ctx, mm, id).await
+	}
+
+	pub async fn list(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		filters: Option<Vec<PastDrugHistoryFilter>>,
+		list_options: Option<ListOptions>,
+	) -> Result<Vec<PastDrugHistory>> {
+		base_uuid::list::<Self, _, _>(ctx, mm, filters, list_options).await
+	}
+
+	pub async fn update(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+		data: PastDrugHistoryForUpdate,
+	) -> Result<()> {
+		base_uuid::update::<Self, _>(ctx, mm, id, data).await
+	}
+
+	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
+		base_uuid::delete::<Self>(ctx, mm, id).await
+	}
 }
 
 pub struct PatientDeathInformationBmc;
@@ -455,9 +672,89 @@ impl DbBmc for PatientDeathInformationBmc {
 	const TABLE: &'static str = "patient_death_information";
 }
 
+impl PatientDeathInformationBmc {
+	pub async fn create(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		data: PatientDeathInformationForCreate,
+	) -> Result<Uuid> {
+		base_uuid::create::<Self, _>(ctx, mm, data).await
+	}
+
+	pub async fn get(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+	) -> Result<PatientDeathInformation> {
+		base_uuid::get::<Self, _>(ctx, mm, id).await
+	}
+
+	pub async fn list(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		filters: Option<Vec<PatientDeathInformationFilter>>,
+		list_options: Option<ListOptions>,
+	) -> Result<Vec<PatientDeathInformation>> {
+		base_uuid::list::<Self, _, _>(ctx, mm, filters, list_options).await
+	}
+
+	pub async fn update(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+		data: PatientDeathInformationForUpdate,
+	) -> Result<()> {
+		base_uuid::update::<Self, _>(ctx, mm, id, data).await
+	}
+
+	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
+		base_uuid::delete::<Self>(ctx, mm, id).await
+	}
+}
+
 pub struct ReportedCauseOfDeathBmc;
 impl DbBmc for ReportedCauseOfDeathBmc {
 	const TABLE: &'static str = "reported_causes_of_death";
+}
+
+impl ReportedCauseOfDeathBmc {
+	pub async fn create(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		data: ReportedCauseOfDeathForCreate,
+	) -> Result<Uuid> {
+		base_uuid::create::<Self, _>(ctx, mm, data).await
+	}
+
+	pub async fn get(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+	) -> Result<ReportedCauseOfDeath> {
+		base_uuid::get::<Self, _>(ctx, mm, id).await
+	}
+
+	pub async fn list(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		filters: Option<Vec<ReportedCauseOfDeathFilter>>,
+		list_options: Option<ListOptions>,
+	) -> Result<Vec<ReportedCauseOfDeath>> {
+		base_uuid::list::<Self, _, _>(ctx, mm, filters, list_options).await
+	}
+
+	pub async fn update(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+		data: ReportedCauseOfDeathForUpdate,
+	) -> Result<()> {
+		base_uuid::update::<Self, _>(ctx, mm, id, data).await
+	}
+
+	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
+		base_uuid::delete::<Self>(ctx, mm, id).await
+	}
 }
 
 pub struct AutopsyCauseOfDeathBmc;
@@ -465,7 +762,87 @@ impl DbBmc for AutopsyCauseOfDeathBmc {
 	const TABLE: &'static str = "autopsy_causes_of_death";
 }
 
+impl AutopsyCauseOfDeathBmc {
+	pub async fn create(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		data: AutopsyCauseOfDeathForCreate,
+	) -> Result<Uuid> {
+		base_uuid::create::<Self, _>(ctx, mm, data).await
+	}
+
+	pub async fn get(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+	) -> Result<AutopsyCauseOfDeath> {
+		base_uuid::get::<Self, _>(ctx, mm, id).await
+	}
+
+	pub async fn list(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		filters: Option<Vec<AutopsyCauseOfDeathFilter>>,
+		list_options: Option<ListOptions>,
+	) -> Result<Vec<AutopsyCauseOfDeath>> {
+		base_uuid::list::<Self, _, _>(ctx, mm, filters, list_options).await
+	}
+
+	pub async fn update(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+		data: AutopsyCauseOfDeathForUpdate,
+	) -> Result<()> {
+		base_uuid::update::<Self, _>(ctx, mm, id, data).await
+	}
+
+	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
+		base_uuid::delete::<Self>(ctx, mm, id).await
+	}
+}
+
 pub struct ParentInformationBmc;
 impl DbBmc for ParentInformationBmc {
 	const TABLE: &'static str = "parent_information";
+}
+
+impl ParentInformationBmc {
+	pub async fn create(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		data: ParentInformationForCreate,
+	) -> Result<Uuid> {
+		base_uuid::create::<Self, _>(ctx, mm, data).await
+	}
+
+	pub async fn get(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+	) -> Result<ParentInformation> {
+		base_uuid::get::<Self, _>(ctx, mm, id).await
+	}
+
+	pub async fn list(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		filters: Option<Vec<ParentInformationFilter>>,
+		list_options: Option<ListOptions>,
+	) -> Result<Vec<ParentInformation>> {
+		base_uuid::list::<Self, _, _>(ctx, mm, filters, list_options).await
+	}
+
+	pub async fn update(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+		data: ParentInformationForUpdate,
+	) -> Result<()> {
+		base_uuid::update::<Self, _>(ctx, mm, id, data).await
+	}
+
+	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
+		base_uuid::delete::<Self>(ctx, mm, id).await
+	}
 }

@@ -45,7 +45,7 @@ pub async fn log_request(
 		rpc_id: None,  // No RPC info for REST
 		rpc_method: None,  // No RPC info for REST
 
-		user_audit_id: ctx.map(|c| c.user_audit_id()),
+		user_id: ctx.map(|c| c.user_id()),
 
 		client_error_type: client_error.map(|e| e.as_ref().to_string()),
 
@@ -69,7 +69,7 @@ struct RequestLogLine {
 	duration_ms: f64,
 
 	// -- User and context attributes.
-	user_audit_id: Option<i64>,
+	user_id: Option<uuid::Uuid>,
 
 	// -- http request attributes.
 	http_path: String,

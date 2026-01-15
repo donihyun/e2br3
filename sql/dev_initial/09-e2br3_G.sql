@@ -58,8 +58,11 @@ CREATE TABLE drug_information (
     -- G.k.11 - Parent Dosage Information
     parent_dosage_text TEXT,
 
+    -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_drug_sequence UNIQUE (case_id, sequence_number)
 );
@@ -86,6 +89,12 @@ CREATE TABLE drug_active_substances (
     -- G.k.2.3.r.3 - Strength (value + unit)
     strength_value DECIMAL(15,5),
     strength_unit VARCHAR(50),
+
+    -- Audit fields (standardized UUID-based)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_substance_sequence UNIQUE (drug_id, sequence_number)
 );
@@ -139,8 +148,11 @@ CREATE TABLE dosage_information (
     -- G.k.4.r.11 - Parent Route of Administration
     parent_route VARCHAR(3),
 
+    -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_dosage_sequence UNIQUE (drug_id, sequence_number)
 );
@@ -162,6 +174,12 @@ CREATE TABLE drug_indications (
     -- G.k.6.r.2 - Indication (MedDRA coded)
     indication_meddra_version VARCHAR(10),
     indication_meddra_code VARCHAR(20),
+
+    -- Audit fields (standardized UUID-based)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_indication_sequence UNIQUE (drug_id, sequence_number)
 );

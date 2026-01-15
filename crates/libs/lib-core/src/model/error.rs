@@ -37,6 +37,7 @@ pub enum Error {
 
 	// -- ModelManager
 	CantCreateModelManagerProvider(String),
+	Store(String),
 
 	// -- Modules
 	#[from]

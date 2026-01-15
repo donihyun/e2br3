@@ -2,7 +2,7 @@
 
 use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
-use crate::model::store::dbx;
+use crate::model::store::{dbx, set_user_context};
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -61,6 +61,8 @@ pub struct Reaction {
 	// Timestamps
 	pub created_at: OffsetDateTime,
 	pub updated_at: OffsetDateTime,
+	pub created_by: Uuid,
+	pub updated_by: Option<Uuid>,
 }
 
 #[derive(Fields, Deserialize)]
@@ -99,13 +101,17 @@ impl DbBmc for ReactionBmc {
 
 impl ReactionBmc {
 	pub async fn create(
-		_ctx: &Ctx,
+		ctx: &Ctx,
 		mm: &ModelManager,
 		reaction_c: ReactionForCreate,
 	) -> Result<Uuid> {
+		let db = mm.dbx().db();
+		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
+		set_user_context(&mut tx, ctx.user_id()).await?;
+
 		let sql = format!(
-			"INSERT INTO {} (case_id, sequence_number, primary_source_reaction, criteria_death, criteria_life_threatening, criteria_hospitalization, criteria_disabling, criteria_congenital_anomaly, criteria_other_medically_important, created_at, updated_at)
-			 VALUES ($1, $2, $3, false, false, false, false, false, false, now(), now())
+			"INSERT INTO {} (case_id, sequence_number, primary_source_reaction, criteria_death, criteria_life_threatening, criteria_hospitalization, criteria_disabling, criteria_congenital_anomaly, criteria_other_medically_important, created_at, updated_at, created_by)
+			 VALUES ($1, $2, $3, false, false, false, false, false, false, now(), now(), $4)
 			 RETURNING id",
 			Self::TABLE
 		);
@@ -113,9 +119,12 @@ impl ReactionBmc {
 			.bind(reaction_c.case_id)
 			.bind(reaction_c.sequence_number)
 			.bind(reaction_c.primary_source_reaction)
-			.fetch_one(mm.dbx().db())
+			.bind(ctx.user_id())
+			.fetch_one(&mut *tx)
 			.await
 			.map_err(|e| dbx::Error::from(e))?;
+
+		tx.commit().await.map_err(|e| dbx::Error::from(e))?;
 		Ok(id)
 	}
 
@@ -134,11 +143,15 @@ impl ReactionBmc {
 	}
 
 	pub async fn update(
-		_ctx: &Ctx,
+		ctx: &Ctx,
 		mm: &ModelManager,
 		id: Uuid,
 		reaction_u: ReactionForUpdate,
 	) -> Result<()> {
+		let db = mm.dbx().db();
+		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
+		set_user_context(&mut tx, ctx.user_id()).await?;
+
 		let sql = format!(
 			"UPDATE {}
 			 SET primary_source_reaction = COALESCE($2, primary_source_reaction),
@@ -151,7 +164,8 @@ impl ReactionBmc {
 			     start_date = COALESCE($9, start_date),
 			     end_date = COALESCE($10, end_date),
 			     outcome = COALESCE($11, outcome),
-			     updated_at = now()
+			     updated_at = now(),
+			     updated_by = $12
 			 WHERE id = $1",
 			Self::TABLE
 		);
@@ -167,7 +181,8 @@ impl ReactionBmc {
 			.bind(reaction_u.start_date)
 			.bind(reaction_u.end_date)
 			.bind(reaction_u.outcome)
-			.execute(mm.dbx().db())
+			.bind(ctx.user_id())
+			.execute(&mut *tx)
 			.await
 			.map_err(|e| dbx::Error::from(e))?;
 		if result.rows_affected() == 0 {
@@ -176,6 +191,7 @@ impl ReactionBmc {
 				id,
 			});
 		}
+		tx.commit().await.map_err(|e| dbx::Error::from(e))?;
 		Ok(())
 	}
 
@@ -220,12 +236,16 @@ impl ReactionBmc {
 	}
 
 	pub async fn update_in_case(
-		_ctx: &Ctx,
+		ctx: &Ctx,
 		mm: &ModelManager,
 		case_id: Uuid,
 		id: Uuid,
 		reaction_u: ReactionForUpdate,
 	) -> Result<()> {
+		let db = mm.dbx().db();
+		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
+		set_user_context(&mut tx, ctx.user_id()).await?;
+
 		let sql = format!(
 			"UPDATE {}
 			 SET primary_source_reaction = COALESCE($3, primary_source_reaction),
@@ -238,7 +258,8 @@ impl ReactionBmc {
 			     start_date = COALESCE($10, start_date),
 			     end_date = COALESCE($11, end_date),
 			     outcome = COALESCE($12, outcome),
-			     updated_at = now()
+			     updated_at = now(),
+			     updated_by = $13
 			 WHERE id = $1 AND case_id = $2",
 			Self::TABLE
 		);
@@ -255,7 +276,8 @@ impl ReactionBmc {
 			.bind(reaction_u.start_date)
 			.bind(reaction_u.end_date)
 			.bind(reaction_u.outcome)
-			.execute(mm.dbx().db())
+			.bind(ctx.user_id())
+			.execute(&mut *tx)
 			.await
 			.map_err(|e| dbx::Error::from(e))?;
 		if result.rows_affected() == 0 {
@@ -264,18 +286,23 @@ impl ReactionBmc {
 				id,
 			});
 		}
+		tx.commit().await.map_err(|e| dbx::Error::from(e))?;
 		Ok(())
 	}
 
 	pub async fn delete(
-		_ctx: &Ctx,
+		ctx: &Ctx,
 		mm: &ModelManager,
 		id: Uuid,
 	) -> Result<()> {
+		let db = mm.dbx().db();
+		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
+		set_user_context(&mut tx, ctx.user_id()).await?;
+
 		let sql = format!("DELETE FROM {} WHERE id = $1", Self::TABLE);
 		let result = sqlx::query(&sql)
 			.bind(id)
-			.execute(mm.dbx().db())
+			.execute(&mut *tx)
 			.await
 			.map_err(|e| dbx::Error::from(e))?;
 		if result.rows_affected() == 0 {
@@ -284,15 +311,20 @@ impl ReactionBmc {
 				id,
 			});
 		}
+		tx.commit().await.map_err(|e| dbx::Error::from(e))?;
 		Ok(())
 	}
 
 	pub async fn delete_in_case(
-		_ctx: &Ctx,
+		ctx: &Ctx,
 		mm: &ModelManager,
 		case_id: Uuid,
 		id: Uuid,
 	) -> Result<()> {
+		let db = mm.dbx().db();
+		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
+		set_user_context(&mut tx, ctx.user_id()).await?;
+
 		let sql = format!(
 			"DELETE FROM {} WHERE id = $1 AND case_id = $2",
 			Self::TABLE
@@ -300,7 +332,7 @@ impl ReactionBmc {
 		let result = sqlx::query(&sql)
 			.bind(id)
 			.bind(case_id)
-			.execute(mm.dbx().db())
+			.execute(&mut *tx)
 			.await
 			.map_err(|e| dbx::Error::from(e))?;
 		if result.rows_affected() == 0 {
@@ -309,6 +341,7 @@ impl ReactionBmc {
 				id,
 			});
 		}
+		tx.commit().await.map_err(|e| dbx::Error::from(e))?;
 		Ok(())
 	}
 }

@@ -23,6 +23,9 @@ async fn test_organization_crud() -> Result<()> {
 	let org = OrganizationBmc::get(&ctx, &mm, org_id).await?;
 	assert_eq!(org.name, "Test Org");
 
+	let orgs = OrganizationBmc::list(&ctx, &mm, None, None).await?;
+	assert!(orgs.iter().any(|o| o.id == org_id));
+
 	let org_u = OrganizationForUpdate {
 		name: Some("Updated Org".to_string()),
 		org_type: None,

@@ -30,7 +30,8 @@ pub async fn api_login_handler(
 		.await?
 		.ok_or(Error::LoginFailEmailNotFound)?;
 	let user_id = user.id;
-	let user_ctx = Ctx::new_with_ids(user.audit_id, user.id).map_err(|_| Error::LoginFailUserCtxCreate { user_id })?;
+	let user_ctx = Ctx::new(user.id)
+		.map_err(|_| Error::LoginFailUserCtxCreate { user_id })?;
 
 	// -- Validate the password.
 	let Some(pwd) = user.pwd else {

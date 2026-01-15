@@ -2,9 +2,11 @@ use crate::model::base::{CommonIden, DbBmc, TimestampIden};
 use lib_utils::time::now_utc;
 use modql::field::{SeaField, SeaFields};
 use sea_query::IntoIden;
+use uuid::Uuid;
 
 /// This method must be called when a model controller intends to create its entity.
-pub fn prep_fields_for_create<MC>(fields: &mut SeaFields, user_id: i64)
+/// Adds audit trail fields: created_by, created_at, updated_at
+pub fn prep_fields_for_create<MC>(fields: &mut SeaFields, user_id: Uuid)
 where
 	MC: DbBmc,
 {
@@ -16,8 +18,9 @@ where
 	}
 }
 
-/// This method must be calledwhen a Model Controller plans to update its entity.
-pub fn prep_fields_for_update<MC>(fields: &mut SeaFields, user_id: i64)
+/// This method must be called when a Model Controller plans to update its entity.
+/// Adds audit trail fields: updated_by, updated_at
+pub fn prep_fields_for_update<MC>(fields: &mut SeaFields, user_id: Uuid)
 where
 	MC: DbBmc,
 {
@@ -26,21 +29,20 @@ where
 	}
 }
 
-/// Update the timestamps info for create
-/// (e.g., cid, ctime, and mid, mtime will be updated with the same values)
-fn add_timestamps_for_create(fields: &mut SeaFields, user_id: i64) {
+/// Update the audit trail fields for create.
+/// Sets: created_by, created_at, updated_at
+/// Note: updated_by is left NULL on create (will be set on first update)
+fn add_timestamps_for_create(fields: &mut SeaFields, user_id: Uuid) {
 	let now = now_utc();
-	fields.push(SeaField::new(TimestampIden::Cid, user_id));
-	fields.push(SeaField::new(TimestampIden::Ctime, now));
-
-	fields.push(SeaField::new(TimestampIden::Mid, user_id));
-	fields.push(SeaField::new(TimestampIden::Mtime, now));
+	fields.push(SeaField::new(TimestampIden::CreatedBy, user_id));
+	fields.push(SeaField::new(TimestampIden::CreatedAt, now));
+	fields.push(SeaField::new(TimestampIden::UpdatedAt, now));
 }
 
-/// Update the timestamps info only for update.
-/// (.e.g., only mid, mtime will be udpated)
-fn add_timestamps_for_update(fields: &mut SeaFields, user_id: i64) {
+/// Update the audit trail fields for update.
+/// Sets: updated_by, updated_at
+fn add_timestamps_for_update(fields: &mut SeaFields, user_id: Uuid) {
 	let now = now_utc();
-	fields.push(SeaField::new(TimestampIden::Mid, user_id));
-	fields.push(SeaField::new(TimestampIden::Mtime, now));
+	fields.push(SeaField::new(TimestampIden::UpdatedBy, user_id));
+	fields.push(SeaField::new(TimestampIden::UpdatedAt, now));
 }

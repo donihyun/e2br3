@@ -33,8 +33,11 @@ CREATE TABLE safety_report_identification (
     -- Receiver Organization
     receiver_organization VARCHAR(200),
 
+    -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_identification_per_case UNIQUE (case_id)
 );
@@ -75,8 +78,11 @@ CREATE TABLE sender_information (
     fax VARCHAR(33),
     email VARCHAR(100),
 
+    -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_sender_per_case UNIQUE (case_id)
 );
@@ -92,7 +98,12 @@ CREATE TABLE literature_references (
     case_id UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
     reference_text TEXT NOT NULL,  -- C.4.r
     sequence_number INTEGER NOT NULL,  -- For ordering
+
+    -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_lit_ref_sequence UNIQUE (case_id, sequence_number)
 );
@@ -116,8 +127,11 @@ CREATE TABLE study_information (
     -- C.5.3 - Study Type Reaction
     study_type_reaction VARCHAR(2),  -- E2B(R3) code list
 
+    -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_study_per_case UNIQUE (case_id)
 );
@@ -129,6 +143,12 @@ CREATE TABLE study_registration_numbers (
     registration_number VARCHAR(100) NOT NULL,
     country_code VARCHAR(2),  -- ISO 3166-1 alpha-2
     sequence_number INTEGER NOT NULL,
+
+    -- Audit fields (standardized UUID-based)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_study_reg_num UNIQUE (study_information_id, sequence_number)
 );
@@ -174,8 +194,11 @@ CREATE TABLE primary_sources (
     primary_source_regulatory VARCHAR(1) CHECK (primary_source_regulatory IN ('1', '2', '3')),
     -- 1=Yes, 2=No, 3=Unknown
 
+    -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
 
     CONSTRAINT unique_primary_source_sequence UNIQUE (case_id, sequence_number)
 );

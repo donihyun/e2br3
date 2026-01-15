@@ -44,7 +44,6 @@ pub struct CaseForCreate {
 pub struct CaseForUpdate {
 	pub safety_report_id: Option<String>,
 	pub status: Option<String>,
-	pub updated_by: Option<Uuid>,
 	pub submitted_by: Option<Uuid>,
 	pub submitted_at: Option<OffsetDateTime>,
 }
@@ -62,10 +61,6 @@ pub struct CaseBmc;
 
 impl DbBmc for CaseBmc {
 	const TABLE: &'static str = "cases";
-
-	fn has_timestamps() -> bool {
-		false
-	}
 }
 
 impl CaseBmc {

@@ -52,24 +52,40 @@ CREATE TRIGGER update_narrative_information_updated_at BEFORE UPDATE ON narrativ
 -- Audit Trail Trigger
 -- ============================================================================
 
+-- Improved audit trigger function using helper function
 CREATE OR REPLACE FUNCTION audit_trigger_function()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_user_id UUID;
 BEGIN
+    -- Get user from context (will fail if not set, ensuring user attribution)
+    v_user_id := get_current_user_context();
+
     IF TG_OP = 'INSERT' THEN
         INSERT INTO audit_logs (table_name, record_id, action, user_id, new_values)
-        VALUES (TG_TABLE_NAME, NEW.id, 'CREATE', current_setting('app.current_user_id', true)::UUID, to_jsonb(NEW));
+        VALUES (TG_TABLE_NAME, NEW.id, 'CREATE', v_user_id, to_jsonb(NEW));
         RETURN NEW;
+
     ELSIF TG_OP = 'UPDATE' THEN
         INSERT INTO audit_logs (table_name, record_id, action, user_id, old_values, new_values)
-        VALUES (TG_TABLE_NAME, NEW.id, 'UPDATE', current_setting('app.current_user_id', true)::UUID, to_jsonb(OLD), to_jsonb(NEW));
+        VALUES (TG_TABLE_NAME, NEW.id, 'UPDATE', v_user_id, to_jsonb(OLD), to_jsonb(NEW));
         RETURN NEW;
+
     ELSIF TG_OP = 'DELETE' THEN
         INSERT INTO audit_logs (table_name, record_id, action, user_id, old_values)
-        VALUES (TG_TABLE_NAME, OLD.id, 'DELETE', current_setting('app.current_user_id', true)::UUID, to_jsonb(OLD));
+        VALUES (TG_TABLE_NAME, OLD.id, 'DELETE', v_user_id, to_jsonb(OLD));
         RETURN OLD;
     END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Audit trail logging failed for table %.%: %. User context may not be set.',
+            TG_TABLE_SCHEMA, TG_TABLE_NAME, SQLERRM;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER audit_cases AFTER INSERT OR UPDATE OR DELETE ON cases
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
@@ -142,3 +158,53 @@ CREATE TRIGGER audit_sender_diagnoses AFTER INSERT OR UPDATE OR DELETE ON sender
 
 CREATE TRIGGER audit_case_summary_information AFTER INSERT OR UPDATE OR DELETE ON case_summary_information
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
+
+CREATE TRIGGER audit_case_versions AFTER INSERT OR UPDATE OR DELETE ON case_versions
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
+
+-- Audit triggers for core tables
+CREATE TRIGGER audit_organizations AFTER INSERT OR UPDATE OR DELETE ON organizations
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
+
+CREATE TRIGGER audit_users AFTER INSERT OR UPDATE OR DELETE ON users
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
+
+-- ============================================================================
+-- Additional updated_at triggers for new tables
+-- ============================================================================
+
+CREATE TRIGGER update_organizations_updated_at BEFORE UPDATE ON organizations
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_literature_references_updated_at BEFORE UPDATE ON literature_references
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_study_registration_numbers_updated_at BEFORE UPDATE ON study_registration_numbers
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_medical_history_episodes_updated_at BEFORE UPDATE ON medical_history_episodes
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_past_drug_history_updated_at BEFORE UPDATE ON past_drug_history
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_reported_causes_of_death_updated_at BEFORE UPDATE ON reported_causes_of_death
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_autopsy_causes_of_death_updated_at BEFORE UPDATE ON autopsy_causes_of_death
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_drug_active_substances_updated_at BEFORE UPDATE ON drug_active_substances
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_drug_indications_updated_at BEFORE UPDATE ON drug_indications
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_sender_diagnoses_updated_at BEFORE UPDATE ON sender_diagnoses
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_case_summary_information_updated_at BEFORE UPDATE ON case_summary_information
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

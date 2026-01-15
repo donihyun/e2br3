@@ -1,7 +1,8 @@
 use crate::ctx::Ctx;
-use crate::model::base::{prep_fields_for_update, DbBmc};
 use crate::model::base::base_uuid;
+use crate::model::base::{prep_fields_for_update, DbBmc};
 use crate::model::{Error, ModelManager, Result};
+use crate::model::store::set_user_context_dbx;
 use lib_auth::pwd::{self, ContentToHash};
 use modql::field::{Fields, HasSeaFields, SeaField, SeaFields};
 use modql::filter::{FilterNodes, ListOptions, OpValsString, OpValsValue};
@@ -18,7 +19,6 @@ use sqlx::FromRow;
 #[derive(Debug, Clone, Fields, FromRow, Serialize)]
 pub struct User {
 	pub id: Uuid,
-	pub audit_id: i64, // For audit trail compatibility (cid/mid/owner_id)
 	pub organization_id: Uuid,
 	pub email: String,
 	pub username: String,
@@ -37,11 +37,11 @@ pub struct User {
 	pub active: bool,
 	pub last_login_at: Option<OffsetDateTime>,
 
-	// Timestamps
-	pub cid: i64,
-	pub ctime: OffsetDateTime,
-	pub mid: i64,
-	pub mtime: OffsetDateTime,
+	// Audit fields (standardized UUID-based)
+	pub created_at: OffsetDateTime,
+	pub updated_at: OffsetDateTime,
+	pub created_by: Option<Uuid>,
+	pub updated_by: Option<Uuid>,
 }
 
 #[derive(Deserialize)]
@@ -68,7 +68,6 @@ pub struct UserForInsert {
 #[derive(Clone, FromRow, Fields, Debug)]
 pub struct UserForLogin {
 	pub id: Uuid,
-	pub audit_id: i64,
 	pub organization_id: Uuid,
 	pub email: String,
 	pub username: String,
@@ -82,7 +81,6 @@ pub struct UserForLogin {
 #[derive(Clone, FromRow, Fields, Debug)]
 pub struct UserForAuth {
 	pub id: Uuid,
-	pub audit_id: i64,
 	pub organization_id: Uuid,
 	pub email: String,
 	pub username: String,
@@ -255,6 +253,13 @@ impl UserBmc {
 		id: Uuid,
 		pwd_clear: &str,
 	) -> Result<()> {
+		let dbx = mm.dbx();
+		dbx.begin_txn().await.map_err(Error::Dbx)?;
+		if let Err(err) = set_user_context_dbx(dbx, ctx.user_id()).await {
+			dbx.rollback_txn().await.map_err(Error::Dbx)?;
+			return Err(err);
+		}
+
 		// -- Prep password
 		let user: UserForLogin = Self::get(ctx, mm, id).await?;
 		let pwd = pwd::hash_pwd(ContentToHash {
@@ -266,7 +271,7 @@ impl UserBmc {
 		// -- Prep the data
 		let mut fields =
 			SeaFields::new(vec![SeaField::new(UserIden::Pwd, pwd)]);
-		prep_fields_for_update::<Self>(&mut fields, ctx.user_audit_id());
+		prep_fields_for_update::<Self>(&mut fields, ctx.user_id());
 
 		// -- Build query
 		let fields = fields.for_sea_update();
@@ -279,7 +284,12 @@ impl UserBmc {
 		// -- Exec query
 		let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 		let sqlx_query = sqlx::query_with(&sql, values);
-		let _count = mm.dbx().execute(sqlx_query).await?;
+		if let Err(err) = dbx.execute(sqlx_query).await {
+			dbx.rollback_txn().await.map_err(Error::Dbx)?;
+			return Err(err.into());
+		}
+
+		dbx.commit_txn().await.map_err(Error::Dbx)?;
 
 		Ok(())
 	}

@@ -20,10 +20,12 @@ async fn test_case_crud() -> Result<()> {
 	let case = CaseBmc::get(&ctx, &mm, case_id).await?;
 	assert_eq!(case.id, case_id);
 
+	let cases = CaseBmc::list(&ctx, &mm, None, None).await?;
+	assert!(cases.iter().any(|c| c.id == case_id));
+
 	let case_u = CaseForUpdate {
 		safety_report_id: None,
 		status: Some("validated".to_string()),
-		updated_by: Some(demo_user_id()),
 		submitted_by: None,
 		submitted_at: None,
 	};
