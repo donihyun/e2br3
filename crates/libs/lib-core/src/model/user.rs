@@ -1,10 +1,11 @@
 use crate::ctx::Ctx;
+use crate::model::base::base_uuid;
 use crate::model::base::{prep_fields_for_update, DbBmc};
-use crate::model::base_uuid;
 use crate::model::{Error, ModelManager, Result};
+use crate::model::store::set_user_context_dbx;
 use lib_auth::pwd::{self, ContentToHash};
 use modql::field::{Fields, HasSeaFields, SeaField, SeaFields};
-use modql::filter::{FilterNodes, ListOptions, OpValsInt64, OpValsString};
+use modql::filter::{FilterNodes, ListOptions, OpValsString, OpValsValue};
 use sea_query::{Expr, Iden, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
@@ -18,8 +19,7 @@ use sqlx::FromRow;
 #[derive(Debug, Clone, Fields, FromRow, Serialize)]
 pub struct User {
 	pub id: Uuid,
-	pub audit_id: i64, // For audit trail compatibility (cid/mid/owner_id)
-	pub organization_id: i64,
+	pub organization_id: Uuid,
 	pub email: String,
 	pub username: String,
 
@@ -37,16 +37,16 @@ pub struct User {
 	pub active: bool,
 	pub last_login_at: Option<OffsetDateTime>,
 
-	// Timestamps
-	pub cid: i64,
-	pub ctime: OffsetDateTime,
-	pub mid: i64,
-	pub mtime: OffsetDateTime,
+	// Audit fields (standardized UUID-based)
+	pub created_at: OffsetDateTime,
+	pub updated_at: OffsetDateTime,
+	pub created_by: Option<Uuid>,
+	pub updated_by: Option<Uuid>,
 }
 
 #[derive(Deserialize)]
 pub struct UserForCreate {
-	pub organization_id: i64,
+	pub organization_id: Uuid,
 	pub email: String,
 	pub username: String,
 	pub pwd_clear: String,
@@ -57,7 +57,7 @@ pub struct UserForCreate {
 
 #[derive(Fields)]
 pub struct UserForInsert {
-	pub organization_id: i64,
+	pub organization_id: Uuid,
 	pub email: String,
 	pub username: String,
 	pub role: Option<String>,
@@ -68,8 +68,7 @@ pub struct UserForInsert {
 #[derive(Clone, FromRow, Fields, Debug)]
 pub struct UserForLogin {
 	pub id: Uuid,
-	pub audit_id: i64,
-	pub organization_id: i64,
+	pub organization_id: Uuid,
 	pub email: String,
 	pub username: String,
 
@@ -82,8 +81,7 @@ pub struct UserForLogin {
 #[derive(Clone, FromRow, Fields, Debug)]
 pub struct UserForAuth {
 	pub id: Uuid,
-	pub audit_id: i64,
-	pub organization_id: i64,
+	pub organization_id: Uuid,
 	pub email: String,
 	pub username: String,
 
@@ -103,7 +101,7 @@ pub struct UserForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct UserFilter {
-	pub organization_id: Option<OpValsInt64>,
+	pub organization_id: Option<OpValsValue>,
 	pub email: Option<OpValsString>,
 	pub username: Option<OpValsString>,
 	pub role: Option<OpValsString>,
@@ -162,7 +160,7 @@ impl UserBmc {
 
 		mm.dbx().begin_txn().await?;
 
-		let user_id = base_uuid::create::<Self, _>(ctx, &mm, user_fi)
+		let user_id = match base_uuid::create::<Self, _>(ctx, &mm, user_fi)
 			.await
 			.map_err(|model_error| {
 				Error::resolve_unique_violation(
@@ -175,10 +173,20 @@ impl UserBmc {
 						}
 					}),
 				)
-			})?;
+			}) {
+			Ok(user_id) => user_id,
+			Err(err) => {
+				mm.dbx().rollback_txn().await?;
+				return Err(err);
+			}
+		};
 
 		// -- Update the password
-		Self::update_pwd(ctx, &mm, user_id, &pwd_clear).await?;
+		if let Err(err) = Self::update_pwd(ctx, &mm, user_id, &pwd_clear).await
+		{
+			mm.dbx().rollback_txn().await?;
+			return Err(err);
+		}
 
 		// Commit the transaction
 		mm.dbx().commit_txn().await?;
@@ -245,6 +253,13 @@ impl UserBmc {
 		id: Uuid,
 		pwd_clear: &str,
 	) -> Result<()> {
+		let dbx = mm.dbx();
+		dbx.begin_txn().await.map_err(Error::Dbx)?;
+		if let Err(err) = set_user_context_dbx(dbx, ctx.user_id()).await {
+			dbx.rollback_txn().await.map_err(Error::Dbx)?;
+			return Err(err);
+		}
+
 		// -- Prep password
 		let user: UserForLogin = Self::get(ctx, mm, id).await?;
 		let pwd = pwd::hash_pwd(ContentToHash {
@@ -256,7 +271,7 @@ impl UserBmc {
 		// -- Prep the data
 		let mut fields =
 			SeaFields::new(vec![SeaField::new(UserIden::Pwd, pwd)]);
-		prep_fields_for_update::<Self>(&mut fields, ctx.user_audit_id());
+		prep_fields_for_update::<Self>(&mut fields, ctx.user_id());
 
 		// -- Build query
 		let fields = fields.for_sea_update();
@@ -269,8 +284,15 @@ impl UserBmc {
 		// -- Exec query
 		let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 		let sqlx_query = sqlx::query_with(&sql, values);
-		let _count = mm.dbx().execute(sqlx_query).await?;
+		if let Err(err) = dbx.execute(sqlx_query).await {
+			dbx.rollback_txn().await.map_err(Error::Dbx)?;
+			return Err(err.into());
+		}
+
+		dbx.commit_txn().await.map_err(Error::Dbx)?;
 
 		Ok(())
 	}
 }
+
+// Tests moved to crates/libs/lib-core/tests/model_crud.rs

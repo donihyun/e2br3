@@ -39,3 +39,9 @@ pub async fn init_test() -> ModelManager {
 // NOTE: Test seed/clean helpers for user/agent/conv have been removed
 // as those models were replaced with the E2B(R3) SafetyDB models.
 // Add new test helpers here as needed for User, Organization, Case, etc.
+
+
+pub fn fx_org_id() -> uuid::Uuid {
+	// NOTE: This org_id is created via sql/dev_initial/00-recreate-db.sql
+	uuid::uuid!("00000000-0000-0000-0000-000000000001")
+}

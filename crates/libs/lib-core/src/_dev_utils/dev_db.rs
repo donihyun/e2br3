@@ -72,11 +72,32 @@ async fn pexec(db: &Db, file: &Path) -> Result<(), sqlx::Error> {
 	let sqls = split_sql(&content);
 
 	for sql in sqls {
-		sqlx::query(&sql).execute(db).await.map_err(|e| {
+		if let Err(e) = sqlx::query(&sql).execute(db).await {
+			if should_skip_role_setup() && should_ignore_role_error(&sql, &e) {
+				println!(
+					"pexec warning: skipping role creation due to permission error:\n{sql}\nreason:\n{e}"
+				);
+				continue;
+			}
+
+			if should_skip_role_setup() && should_ignore_policy_role_error(&sql, &e) {
+				println!(
+					"pexec warning: skipping policy creation due to missing role:\n{sql}\nreason:\n{e}"
+				);
+				continue;
+			}
+
+			if should_skip_role_setup() && should_ignore_grant_role_error(&sql, &e) {
+				println!(
+					"pexec warning: skipping grant due to missing role:\n{sql}\nreason:\n{e}"
+				);
+				continue;
+			}
+
 			println!("pexec error while running:\n{sql}");
 			println!("cause:\n{e}");
-			e
-		})?;
+			return Err(e);
+		}
 	}
 
 	Ok(())
@@ -181,4 +202,52 @@ fn split_sql(content: &str) -> Vec<String> {
 	}
 
 	statements
+}
+
+fn should_ignore_role_error(sql: &str, err: &sqlx::Error) -> bool {
+	let has_create_role = sql.to_ascii_lowercase().contains("create role");
+	if !has_create_role {
+		return false;
+	}
+
+	match err {
+		sqlx::Error::Database(db_err) => {
+			matches!(db_err.code().as_deref(), Some("42501"))
+		}
+		_ => false,
+	}
+}
+
+fn should_ignore_policy_role_error(sql: &str, err: &sqlx::Error) -> bool {
+	let has_create_policy = sql.to_ascii_lowercase().contains("create policy");
+	if !has_create_policy {
+		return false;
+	}
+
+	match err {
+		sqlx::Error::Database(db_err) => {
+			matches!(db_err.code().as_deref(), Some("42704"))
+		}
+		_ => false,
+	}
+}
+
+fn should_ignore_grant_role_error(sql: &str, err: &sqlx::Error) -> bool {
+	let has_grant = sql.to_ascii_lowercase().contains("grant ");
+	if !has_grant {
+		return false;
+	}
+
+	match err {
+		sqlx::Error::Database(db_err) => {
+			matches!(db_err.code().as_deref(), Some("42704"))
+		}
+		_ => false,
+	}
+}
+
+fn should_skip_role_setup() -> bool {
+	std::env::var("E2BR3_DEVDB_SKIP_ROLE_SETUP")
+		.map(|v| v != "0")
+		.unwrap_or(true)
 }

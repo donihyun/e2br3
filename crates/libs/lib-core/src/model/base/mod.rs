@@ -1,11 +1,10 @@
 // region:    --- Modules
 
-mod crud_fns;
 mod macro_utils;
 mod utils;
-
+pub mod base_uuid;
 // -- Flatten hierarchy for user code.
-pub use crud_fns::*;
+pub use base_uuid::*;
 pub use utils::*;
 
 use modql::SIden;
@@ -30,10 +29,10 @@ pub enum CommonIden {
 
 #[derive(Iden)]
 pub enum TimestampIden {
-	Cid,
-	Ctime,
-	Mid,
-	Mtime,
+	CreatedBy,
+	CreatedAt,
+	UpdatedBy,
+	UpdatedAt,
 }
 
 // endregion: --- SeaQuery Idens

@@ -1,20 +1,22 @@
 use crate::ctx::Ctx;
-use crate::model::base::{self, DbBmc};
+use crate::model::base::DbBmc;
+use crate::model::base::base_uuid;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
 use modql::filter::{
-	FilterNodes, ListOptions, OpValsBool, OpValsInt64, OpValsString,
+	FilterNodes, ListOptions, OpValsBool, OpValsString, OpValsValue,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::types::time::OffsetDateTime;
+use sqlx::types::Uuid;
 use sqlx::FromRow;
 
 // -- Types
 
 #[derive(Debug, Clone, Fields, FromRow, Serialize)]
 pub struct Organization {
-	pub id: i64,
+	pub id: Uuid,
 	pub name: String,
 	#[serde(rename = "type")]
 	pub org_type: Option<String>,
@@ -27,11 +29,11 @@ pub struct Organization {
 	pub contact_phone: Option<String>,
 	pub active: bool,
 
-	// Timestamps
-	pub cid: i64,
-	pub ctime: OffsetDateTime,
-	pub mid: i64,
-	pub mtime: OffsetDateTime,
+	// Audit fields (standardized UUID-based)
+	pub created_at: OffsetDateTime,
+	pub updated_at: OffsetDateTime,
+	pub created_by: Uuid,
+	pub updated_by: Option<Uuid>,
 }
 
 #[derive(Fields, Deserialize)]
@@ -60,7 +62,7 @@ pub struct OrganizationForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct OrganizationFilter {
-	pub id: Option<OpValsInt64>,
+	pub id: Option<OpValsValue>,
 	pub name: Option<OpValsString>,
 	pub active: Option<OpValsBool>,
 }
@@ -78,12 +80,12 @@ impl OrganizationBmc {
 		ctx: &Ctx,
 		mm: &ModelManager,
 		org_c: OrganizationForCreate,
-	) -> Result<i64> {
-		base::create::<Self, _>(ctx, mm, org_c).await
+	) -> Result<Uuid> {
+		base_uuid::create::<Self, _>(ctx, mm, org_c).await
 	}
 
-	pub async fn get(ctx: &Ctx, mm: &ModelManager, id: i64) -> Result<Organization> {
-		base::get::<Self, _>(ctx, mm, id).await
+	pub async fn get(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<Organization> {
+		base_uuid::get::<Self, _>(ctx, mm, id).await
 	}
 
 	pub async fn list(
@@ -92,19 +94,19 @@ impl OrganizationBmc {
 		filters: Option<Vec<OrganizationFilter>>,
 		list_options: Option<ListOptions>,
 	) -> Result<Vec<Organization>> {
-		base::list::<Self, _, _>(ctx, mm, filters, list_options).await
+		base_uuid::list::<Self, _, _>(ctx, mm, filters, list_options).await
 	}
 
 	pub async fn update(
 		ctx: &Ctx,
 		mm: &ModelManager,
-		id: i64,
+		id: Uuid,
 		org_u: OrganizationForUpdate,
 	) -> Result<()> {
-		base::update::<Self, _>(ctx, mm, id, org_u).await
+		base_uuid::update::<Self, _>(ctx, mm, id, org_u).await
 	}
 
-	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: i64) -> Result<()> {
-		base::delete::<Self>(ctx, mm, id).await
+	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
+		base_uuid::delete::<Self>(ctx, mm, id).await
 	}
 }
