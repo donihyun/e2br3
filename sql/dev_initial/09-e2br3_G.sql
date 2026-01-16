@@ -61,8 +61,8 @@ CREATE TABLE drug_information (
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID NOT NULL REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
 
     CONSTRAINT unique_drug_sequence UNIQUE (case_id, sequence_number)
 );
@@ -93,8 +93,8 @@ CREATE TABLE drug_active_substances (
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID NOT NULL REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
 
     CONSTRAINT unique_substance_sequence UNIQUE (drug_id, sequence_number)
 );
@@ -151,8 +151,8 @@ CREATE TABLE dosage_information (
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID NOT NULL REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
 
     CONSTRAINT unique_dosage_sequence UNIQUE (drug_id, sequence_number)
 );
@@ -178,8 +178,8 @@ CREATE TABLE drug_indications (
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID NOT NULL REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
 
     CONSTRAINT unique_indication_sequence UNIQUE (drug_id, sequence_number)
 );

@@ -379,26 +379,20 @@ impl PatientInformationBmc {
 			.fetch_optional(mm.dbx().db())
 			.await
 			.map_err(|e| dbx::Error::from(e))?
-			.ok_or(crate::model::Error::EntityNotFound {
+			.ok_or(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
-				id: 0, // UUID doesn't map to i64, using 0 as placeholder
+				id,
 			})?;
 		Ok(patient)
 	}
 
 	pub async fn list(
-		_ctx: &Ctx,
+		ctx: &Ctx,
 		mm: &ModelManager,
-		_filters: Option<Vec<PatientInformationFilter>>,
-		_list_options: Option<modql::filter::ListOptions>,
+		filters: Option<Vec<PatientInformationFilter>>,
+		list_options: Option<ListOptions>,
 	) -> Result<Vec<PatientInformation>> {
-		// For now, simple implementation without filter support
-		let sql = format!("SELECT * FROM {} ORDER BY created_at DESC LIMIT 100", Self::TABLE);
-		let patients = sqlx::query_as::<_, PatientInformation>(&sql)
-			.fetch_all(mm.dbx().db())
-			.await
-			.map_err(|e| dbx::Error::from(e))?;
-		Ok(patients)
+		base_uuid::list::<Self, _, _>(ctx, mm, filters, list_options).await
 	}
 
 	pub async fn update(
@@ -446,9 +440,9 @@ impl PatientInformationBmc {
 			.map_err(|e| dbx::Error::from(e))?;
 
 		if result.rows_affected() == 0 {
-			return Err(crate::model::Error::EntityNotFound {
+			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
-				id: 0,
+				id,
 			});
 		}
 		tx.commit().await.map_err(|e| dbx::Error::from(e))?;

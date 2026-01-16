@@ -25,8 +25,8 @@ CREATE TABLE if NOT EXISTS message_headers (
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID NOT NULL REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
 
     CONSTRAINT unique_message_per_case UNIQUE (case_id)
 );

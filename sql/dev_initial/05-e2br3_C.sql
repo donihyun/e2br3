@@ -36,8 +36,8 @@ CREATE TABLE safety_report_identification (
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID NOT NULL REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
 
     CONSTRAINT unique_identification_per_case UNIQUE (case_id)
 );
@@ -81,8 +81,8 @@ CREATE TABLE sender_information (
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID NOT NULL REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
 
     CONSTRAINT unique_sender_per_case UNIQUE (case_id)
 );
@@ -102,8 +102,8 @@ CREATE TABLE literature_references (
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID NOT NULL REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
 
     CONSTRAINT unique_lit_ref_sequence UNIQUE (case_id, sequence_number)
 );
@@ -130,8 +130,8 @@ CREATE TABLE study_information (
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID NOT NULL REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
 
     CONSTRAINT unique_study_per_case UNIQUE (case_id)
 );
@@ -147,8 +147,8 @@ CREATE TABLE study_registration_numbers (
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID NOT NULL REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
 
     CONSTRAINT unique_study_reg_num UNIQUE (study_information_id, sequence_number)
 );
@@ -197,8 +197,8 @@ CREATE TABLE primary_sources (
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID NOT NULL REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
 
     CONSTRAINT unique_primary_source_sequence UNIQUE (case_id, sequence_number)
 );

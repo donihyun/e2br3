@@ -136,7 +136,7 @@ async fn test_patient_get_not_found() -> Result<()> {
 	// NOTE: PatientInformationBmc::get currently returns EntityNotFound (legacy)
 	// rather than EntityUuidNotFound. Test matches current behavior.
 	match result {
-		Err(ModelError::EntityNotFound { entity, .. }) => {
+		Err(ModelError::EntityUuidNotFound { entity, .. }) => {
 			assert_eq!(entity, "patient_information");
 		}
 		Err(other) => return Err(format!("expected EntityNotFound, got: {other:?}").into()),

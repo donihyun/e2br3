@@ -55,8 +55,8 @@ CREATE TABLE reactions (
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID NOT NULL REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
 
     CONSTRAINT unique_reaction_sequence UNIQUE (case_id, sequence_number)
 );
