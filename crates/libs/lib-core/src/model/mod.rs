@@ -50,6 +50,21 @@ pub mod narrative; // Case narrative, sender diagnoses, case summaries
 // E2B(R3) Section N - Message Headers
 pub mod message_header; // Batch/message transmission headers
 
+// E2B(R3) Section A - Receiver Information
+pub mod receiver; // Receiver details for routing to regulatory authorities
+
+// E2B(R3) G.k.9.i - Drug-Reaction Assessment
+pub mod drug_reaction_assessment; // Causality assessment linking drugs to reactions
+
+// E2B(R3) G.k.8.r - Drug Recurrence Information
+pub mod drug_recurrence; // Structured rechallenge/recurrence data
+
+// E2B(R3) C.1.9.r / C.1.10.r - Case Identifiers
+pub mod case_identifiers; // Other case identifiers and linked report numbers
+
+// E2B(R3) D.10.7 / D.10.8 - Parent History
+pub mod parent_history; // Parent medical history and past drug history
+
 // Controlled Terminologies
 pub mod terminology; // MedDRA, WHODrug, ISO countries, E2B code lists
 

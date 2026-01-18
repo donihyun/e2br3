@@ -304,6 +304,7 @@ pub struct ParentInformation {
 	pub weight_kg: Option<Decimal>,
 	pub height_cm: Option<Decimal>,
 	pub sex: Option<String>,
+	pub medical_history_text: Option<String>,
 
 	pub created_at: OffsetDateTime,
 	pub updated_at: OffsetDateTime,
@@ -315,6 +316,7 @@ pub struct ParentInformation {
 pub struct ParentInformationForCreate {
 	pub patient_id: Uuid,
 	pub sex: Option<String>,
+	pub medical_history_text: Option<String>,
 }
 
 #[derive(Fields, Deserialize)]
@@ -326,6 +328,7 @@ pub struct ParentInformationForUpdate {
 	pub weight_kg: Option<Decimal>,
 	pub height_cm: Option<Decimal>,
 	pub sex: Option<String>,
+	pub medical_history_text: Option<String>,
 }
 
 #[derive(FilterNodes, Deserialize, Default)]

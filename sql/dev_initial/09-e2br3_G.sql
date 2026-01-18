@@ -48,7 +48,8 @@ CREATE TABLE drug_information (
     -- 5=Unknown, 6=Not applicable
 
     -- G.k.8 - Rechallenge/Recurrence Information
-    rechallenge VARCHAR(1),  -- E2B(R3) code list
+    rechallenge VARCHAR(1) CHECK (rechallenge IN ('1', '2', '3', '4')),
+    -- 1=Yes, reaction recurred, 2=Yes, reaction did not recur, 3=No, 4=Unknown
 
     -- G.k.9 - Additional Information (handled in primary_sources table with drug FK)
 
@@ -148,6 +149,10 @@ CREATE TABLE dosage_information (
     -- G.k.4.r.11 - Parent Route of Administration
     parent_route VARCHAR(3),
 
+    -- Null Flavor Support (E2B(R3) compliant: NI, UNK, ASKU, NASK, MSK)
+    first_administration_date_null_flavor VARCHAR(4) CHECK (first_administration_date_null_flavor IN ('NI', 'UNK', 'ASKU', 'NASK', 'MSK')),
+    last_administration_date_null_flavor VARCHAR(4) CHECK (last_administration_date_null_flavor IN ('NI', 'UNK', 'ASKU', 'NASK', 'MSK')),
+
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -185,3 +190,109 @@ CREATE TABLE drug_indications (
 );
 
 CREATE INDEX idx_drug_indications_drug ON drug_indications(drug_id);
+
+-- ============================================================================
+-- G.k.8.r: Drug Recurrence Information (Repeating)
+-- Structured recurrence data for rechallenge scenarios
+-- ============================================================================
+
+CREATE TABLE drug_recurrence_information (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    drug_id UUID NOT NULL REFERENCES drug_information(id) ON DELETE CASCADE,
+    sequence_number INTEGER NOT NULL,
+
+    -- G.k.8.r.1 - Rechallenge Action
+    rechallenge_action VARCHAR(1) CHECK (rechallenge_action IN ('1', '2', '3', '4')),
+    -- 1=Drug readministered, 2=Drug not readministered, 3=Unknown, 4=Not applicable
+
+    -- G.k.8.r.2a - MedDRA Version
+    reaction_meddra_version VARCHAR(10),
+
+    -- G.k.8.r.2b - Reaction Recurred (MedDRA code)
+    reaction_meddra_code VARCHAR(20),
+
+    -- G.k.8.r.3 - Did Reaction Recur on Readministration
+    reaction_recurred VARCHAR(1) CHECK (reaction_recurred IN ('1', '2', '3')),
+    -- 1=Yes, 2=No, 3=Unknown
+
+    -- Audit fields (standardized UUID-based)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
+
+    CONSTRAINT unique_drug_recurrence_sequence UNIQUE (drug_id, sequence_number)
+);
+
+CREATE INDEX idx_drug_recurrence_drug ON drug_recurrence_information(drug_id);
+
+-- ============================================================================
+-- G.k.9.i: Drug-Reaction Assessment (Causality)
+-- Links each drug (G.k) to each reaction (E.i) with causality assessment data
+-- ============================================================================
+
+CREATE TABLE drug_reaction_assessments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    drug_id UUID NOT NULL REFERENCES drug_information(id) ON DELETE CASCADE,
+    reaction_id UUID NOT NULL REFERENCES reactions(id) ON DELETE CASCADE,
+
+    -- G.k.9.i.1 - Time Interval between Drug Administration and Reaction Onset
+    time_interval_value DECIMAL(10,2),
+    time_interval_unit VARCHAR(3),  -- 800-805 (decade, year, month, week, day, hour)
+
+    -- G.k.9.i.3.1 - Did Reaction Recur on Readministration - Action
+    recurrence_action VARCHAR(1) CHECK (recurrence_action IN ('1', '2', '3', '4')),
+    -- 1=Drug readministered, 2=Drug not readministered, 3=Unknown, 4=Not applicable
+
+    -- G.k.9.i.3.2a - MedDRA Version for Reported Term for Reaction Recurred
+    recurrence_meddra_version VARCHAR(10),
+
+    -- G.k.9.i.3.2b - Reported Term for Reaction Recurred (MedDRA code)
+    recurrence_meddra_code VARCHAR(20),
+
+    -- G.k.9.i.4 - Did Reaction Recur on Readministration
+    reaction_recurred VARCHAR(1) CHECK (reaction_recurred IN ('1', '2', '3')),
+    -- 1=Yes, 2=No, 3=Unknown
+
+    -- Audit fields (standardized UUID-based)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
+
+    -- Each drug-reaction pair should have only one assessment record
+    CONSTRAINT unique_drug_reaction_assessment UNIQUE (drug_id, reaction_id)
+);
+
+CREATE INDEX idx_drug_reaction_assessments_drug ON drug_reaction_assessments(drug_id);
+CREATE INDEX idx_drug_reaction_assessments_reaction ON drug_reaction_assessments(reaction_id);
+
+-- ============================================================================
+-- G.k.9.i.2.r: Relatedness Assessments (Repeating)
+-- Multiple assessments per drug-reaction pair from different sources
+-- ============================================================================
+
+CREATE TABLE relatedness_assessments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    drug_reaction_assessment_id UUID NOT NULL REFERENCES drug_reaction_assessments(id) ON DELETE CASCADE,
+    sequence_number INTEGER NOT NULL,
+
+    -- G.k.9.i.2.r.1 - Source of Assessment
+    source_of_assessment VARCHAR(100),
+
+    -- G.k.9.i.2.r.2 - Method of Assessment
+    method_of_assessment VARCHAR(100),
+
+    -- G.k.9.i.2.r.3 - Result of Assessment
+    result_of_assessment VARCHAR(50),
+
+    -- Audit fields (standardized UUID-based)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
+
+    CONSTRAINT unique_relatedness_sequence UNIQUE (drug_reaction_assessment_id, sequence_number)
+);
+
+CREATE INDEX idx_relatedness_assessments_parent ON relatedness_assessments(drug_reaction_assessment_id);

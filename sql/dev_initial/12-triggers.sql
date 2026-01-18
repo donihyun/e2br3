@@ -87,6 +87,40 @@ EXCEPTION
 END;
 $$;
 
+-- Audit trigger for tables that use audit_id UUID instead of id UUID.
+CREATE OR REPLACE FUNCTION audit_trigger_function_with_audit_id()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_user_id UUID;
+BEGIN
+    v_user_id := get_current_user_context();
+
+    IF TG_OP = 'INSERT' THEN
+        INSERT INTO audit_logs (table_name, record_id, action, user_id, new_values)
+        VALUES (TG_TABLE_NAME, NEW.audit_id, 'CREATE', v_user_id, to_jsonb(NEW));
+        RETURN NEW;
+
+    ELSIF TG_OP = 'UPDATE' THEN
+        INSERT INTO audit_logs (table_name, record_id, action, user_id, old_values, new_values)
+        VALUES (TG_TABLE_NAME, NEW.audit_id, 'UPDATE', v_user_id, to_jsonb(OLD), to_jsonb(NEW));
+        RETURN NEW;
+
+    ELSIF TG_OP = 'DELETE' THEN
+        INSERT INTO audit_logs (table_name, record_id, action, user_id, old_values)
+        VALUES (TG_TABLE_NAME, OLD.audit_id, 'DELETE', v_user_id, to_jsonb(OLD));
+        RETURN OLD;
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Audit trail logging failed for table %.%: %. User context may not be set.',
+            TG_TABLE_SCHEMA, TG_TABLE_NAME, SQLERRM;
+END;
+$$;
+
 CREATE TRIGGER audit_cases AFTER INSERT OR UPDATE OR DELETE ON cases
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
 
@@ -169,6 +203,44 @@ CREATE TRIGGER audit_organizations AFTER INSERT OR UPDATE OR DELETE ON organizat
 CREATE TRIGGER audit_users AFTER INSERT OR UPDATE OR DELETE ON users
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
 
+-- Phase 1-3 new tables audit triggers
+CREATE TRIGGER audit_receiver_information AFTER INSERT OR UPDATE OR DELETE ON receiver_information
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
+
+CREATE TRIGGER audit_other_case_identifiers AFTER INSERT OR UPDATE OR DELETE ON other_case_identifiers
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
+
+CREATE TRIGGER audit_linked_report_numbers AFTER INSERT OR UPDATE OR DELETE ON linked_report_numbers
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
+
+CREATE TRIGGER audit_parent_medical_history AFTER INSERT OR UPDATE OR DELETE ON parent_medical_history
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
+
+CREATE TRIGGER audit_parent_past_drug_history AFTER INSERT OR UPDATE OR DELETE ON parent_past_drug_history
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
+
+CREATE TRIGGER audit_drug_recurrence_information AFTER INSERT OR UPDATE OR DELETE ON drug_recurrence_information
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
+
+CREATE TRIGGER audit_drug_reaction_assessments AFTER INSERT OR UPDATE OR DELETE ON drug_reaction_assessments
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
+
+CREATE TRIGGER audit_relatedness_assessments AFTER INSERT OR UPDATE OR DELETE ON relatedness_assessments
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
+
+-- Terminology tables audit triggers
+CREATE TRIGGER audit_meddra_terms AFTER INSERT OR UPDATE OR DELETE ON meddra_terms
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function_with_audit_id();
+
+CREATE TRIGGER audit_whodrug_products AFTER INSERT OR UPDATE OR DELETE ON whodrug_products
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function_with_audit_id();
+
+CREATE TRIGGER audit_iso_countries AFTER INSERT OR UPDATE OR DELETE ON iso_countries
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function_with_audit_id();
+
+CREATE TRIGGER audit_e2b_code_lists AFTER INSERT OR UPDATE OR DELETE ON e2b_code_lists
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function_with_audit_id();
+
 -- ============================================================================
 -- Additional updated_at triggers for new tables
 -- ============================================================================
@@ -207,4 +279,29 @@ CREATE TRIGGER update_sender_diagnoses_updated_at BEFORE UPDATE ON sender_diagno
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_case_summary_information_updated_at BEFORE UPDATE ON case_summary_information
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Phase 1-3 new tables updated_at triggers
+CREATE TRIGGER update_receiver_information_updated_at BEFORE UPDATE ON receiver_information
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_other_case_identifiers_updated_at BEFORE UPDATE ON other_case_identifiers
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_linked_report_numbers_updated_at BEFORE UPDATE ON linked_report_numbers
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_parent_medical_history_updated_at BEFORE UPDATE ON parent_medical_history
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_parent_past_drug_history_updated_at BEFORE UPDATE ON parent_past_drug_history
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_drug_recurrence_information_updated_at BEFORE UPDATE ON drug_recurrence_information
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_drug_reaction_assessments_updated_at BEFORE UPDATE ON drug_reaction_assessments
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_relatedness_assessments_updated_at BEFORE UPDATE ON relatedness_assessments
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

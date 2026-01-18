@@ -12,6 +12,12 @@ CREATE TABLE if NOT EXISTS message_headers (
     -- N.1.2 - Batch Sender Identifier
     batch_sender_identifier VARCHAR(60),
 
+    -- N.1.3 - Batch Receiver Identifier
+    batch_receiver_identifier VARCHAR(60),
+
+    -- N.1.4 - Date of Batch Transmission
+    batch_transmission_date TIMESTAMPTZ,
+
     -- Message identification
     message_type VARCHAR(50) NOT NULL,              -- ichicsr
     message_format_version VARCHAR(10) NOT NULL,     -- 2.1

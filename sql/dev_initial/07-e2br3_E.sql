@@ -52,6 +52,11 @@ CREATE TABLE reactions (
     -- E.i.9 - Identification of Country Where Reaction/Event Occurred
     country_code VARCHAR(2),  -- ISO 3166-1 alpha-2
 
+    -- Null Flavor Support (E2B(R3) compliant: NI, UNK, ASKU, NASK, MSK)
+    start_date_null_flavor VARCHAR(4) CHECK (start_date_null_flavor IN ('NI', 'UNK', 'ASKU', 'NASK', 'MSK')),
+    end_date_null_flavor VARCHAR(4) CHECK (end_date_null_flavor IN ('NI', 'UNK', 'ASKU', 'NASK', 'MSK')),
+    outcome_null_flavor VARCHAR(4) CHECK (outcome_null_flavor IN ('NI', 'UNK', 'ASKU', 'NASK', 'MSK')),
+
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

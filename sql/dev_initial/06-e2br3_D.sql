@@ -41,6 +41,12 @@ CREATE TABLE patient_information (
     -- D.7.2 - Text for Relevant Medical History
     medical_history_text TEXT,  -- Max 10000 chars
 
+    -- Null Flavor Support (E2B(R3) compliant: NI, UNK, ASKU, NASK, MSK)
+    patient_initials_null_flavor VARCHAR(4) CHECK (patient_initials_null_flavor IN ('NI', 'UNK', 'ASKU', 'NASK', 'MSK')),
+    birth_date_null_flavor VARCHAR(4) CHECK (birth_date_null_flavor IN ('NI', 'UNK', 'ASKU', 'NASK', 'MSK')),
+    age_at_time_of_onset_null_flavor VARCHAR(4) CHECK (age_at_time_of_onset_null_flavor IN ('NI', 'UNK', 'ASKU', 'NASK', 'MSK')),
+    sex_null_flavor VARCHAR(4) CHECK (sex_null_flavor IN ('NI', 'UNK', 'ASKU', 'NASK', 'MSK')),
+
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -219,7 +225,8 @@ CREATE TABLE parent_information (
     -- D.10.6 - Parent Sex
     sex VARCHAR(1) CHECK (sex IN ('0', '1', '2')),
 
-    -- D.10.7 - Parent Medical History (repeating - uses medical_history_episodes table with parent_id FK)
+    -- D.10.7.2 - Text for Relevant Parent Medical History
+    medical_history_text TEXT,
 
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -231,3 +238,90 @@ CREATE TABLE parent_information (
 );
 
 CREATE INDEX idx_parent_info_patient ON parent_information(patient_id);
+
+-- ============================================================================
+-- D.10.7.1.r: Parent Medical History Episodes (Repeating)
+-- ============================================================================
+
+CREATE TABLE parent_medical_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    parent_id UUID NOT NULL REFERENCES parent_information(id) ON DELETE CASCADE,
+    sequence_number INTEGER NOT NULL,
+
+    -- D.10.7.1.r.1a - MedDRA Version for Relevant Parent Medical History
+    meddra_version VARCHAR(10),
+
+    -- D.10.7.1.r.1b - Parent's Relevant Medical History (MedDRA code)
+    meddra_code VARCHAR(20),
+
+    -- D.10.7.1.r.2 - Start Date
+    start_date DATE,
+
+    -- D.10.7.1.r.3 - Continuing
+    continuing BOOLEAN,
+
+    -- D.10.7.1.r.4 - End Date
+    end_date DATE,
+
+    -- D.10.7.1.r.5 - Comments
+    comments TEXT,
+
+    -- Audit fields (standardized UUID-based)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
+
+    CONSTRAINT unique_parent_med_history_sequence UNIQUE (parent_id, sequence_number)
+);
+
+CREATE INDEX idx_parent_med_history_parent ON parent_medical_history(parent_id);
+
+-- ============================================================================
+-- D.10.8.r: Parent Past Drug History (Repeating)
+-- ============================================================================
+
+CREATE TABLE parent_past_drug_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    parent_id UUID NOT NULL REFERENCES parent_information(id) ON DELETE CASCADE,
+    sequence_number INTEGER NOT NULL,
+
+    -- D.10.8.r.1 - Drug Name
+    drug_name VARCHAR(500),
+
+    -- D.10.8.r.2 - MPID (Medicinal Product ID)
+    mpid VARCHAR(100),
+    mpid_version VARCHAR(10),
+
+    -- D.10.8.r.3 - PhPID (Pharmaceutical Product ID)
+    phpid VARCHAR(100),
+    phpid_version VARCHAR(10),
+
+    -- D.10.8.r.4 - Start Date
+    start_date DATE,
+
+    -- D.10.8.r.5 - End Date
+    end_date DATE,
+
+    -- D.10.8.r.6a - MedDRA Version for Indication
+    indication_meddra_version VARCHAR(10),
+
+    -- D.10.8.r.6b - Indication (MedDRA code)
+    indication_meddra_code VARCHAR(20),
+
+    -- D.10.8.r.7a - MedDRA Version for Reaction
+    reaction_meddra_version VARCHAR(10),
+
+    -- D.10.8.r.7b - Reaction (MedDRA code)
+    reaction_meddra_code VARCHAR(20),
+
+    -- Audit fields (standardized UUID-based)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
+
+    CONSTRAINT unique_parent_past_drug_sequence UNIQUE (parent_id, sequence_number)
+);
+
+CREATE INDEX idx_parent_past_drug_parent ON parent_past_drug_history(parent_id);

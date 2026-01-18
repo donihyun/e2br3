@@ -33,6 +33,9 @@ async fn test_message_header_crud() -> Result<()> {
 
 	let header_u = MessageHeaderForUpdate {
 		batch_number: Some("B-001".to_string()),
+		batch_sender_identifier: None,
+		batch_receiver_identifier: None,
+		batch_transmission_date: None,
 		message_number: Some("MSG-002".to_string()),
 		message_sender_identifier: None,
 		message_receiver_identifier: None,

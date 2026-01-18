@@ -197,6 +197,7 @@ async fn test_patient_submodels_crud() -> Result<()> {
 	let parent_c = ParentInformationForCreate {
 		patient_id,
 		sex: Some("2".to_string()),
+		medical_history_text: None,
 	};
 	let parent_id =
 		ParentInformationBmc::create(&ctx, &mm, parent_c).await?;
@@ -211,6 +212,7 @@ async fn test_patient_submodels_crud() -> Result<()> {
 		weight_kg: None,
 		height_cm: None,
 		sex: None,
+		medical_history_text: None,
 	};
 	ParentInformationBmc::update(&ctx, &mm, parent_id, parent_u).await?;
 	let parent = ParentInformationBmc::get(&ctx, &mm, parent_id).await?;

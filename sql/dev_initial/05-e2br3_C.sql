@@ -204,3 +204,109 @@ CREATE TABLE primary_sources (
 );
 
 CREATE INDEX idx_primary_sources_case ON primary_sources(case_id);
+
+-- ============================================================================
+-- SECTION A: Receiver Information
+-- A.1.4 through A.1.5.10 - Receiver details for routing to regulatory authorities
+-- ============================================================================
+
+CREATE TABLE receiver_information (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    case_id UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+
+    -- A.1.4 - Receiver Type
+    receiver_type VARCHAR(1) CHECK (receiver_type IN ('1', '2', '3', '4', '5', '6')),
+    -- 1=Pharmaceutical company, 2=Regulatory authority, 3=Health professional
+    -- 4=Regional pharmacovigilance center, 5=WHO collaborating center, 6=Other
+
+    -- A.1.5.1 - Receiver Organization
+    organization_name VARCHAR(100),
+
+    -- A.1.5.2 - Receiver Department
+    department VARCHAR(60),
+
+    -- A.1.5.3 - Receiver Street Address
+    street_address VARCHAR(100),
+
+    -- A.1.5.4 - Receiver City
+    city VARCHAR(35),
+
+    -- A.1.5.5 - Receiver State/Province
+    state_province VARCHAR(40),
+
+    -- A.1.5.6 - Receiver Postcode
+    postcode VARCHAR(15),
+
+    -- A.1.5.7 - Receiver Country Code
+    country_code VARCHAR(2),  -- ISO 3166-1 alpha-2
+
+    -- A.1.5.8 - Receiver Telephone
+    telephone VARCHAR(33),
+
+    -- A.1.5.9 - Receiver Fax
+    fax VARCHAR(33),
+
+    -- A.1.5.10 - Receiver Email
+    email VARCHAR(100),
+
+    -- Audit fields (standardized UUID-based)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
+
+    CONSTRAINT unique_receiver_per_case UNIQUE (case_id)
+);
+
+CREATE INDEX idx_receiver_info_case ON receiver_information(case_id);
+
+-- ============================================================================
+-- C.1.9.r: Other Case Identifiers (Repeating)
+-- Track additional identifiers from other sources (e.g., regulatory authority numbers)
+-- ============================================================================
+
+CREATE TABLE other_case_identifiers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    case_id UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    sequence_number INTEGER NOT NULL,
+
+    -- C.1.9.1.r.1 - Source of the Case Identifier
+    source_of_identifier VARCHAR(60) NOT NULL,
+
+    -- C.1.9.1.r.2 - Case Identifier
+    case_identifier VARCHAR(100) NOT NULL,
+
+    -- Audit fields (standardized UUID-based)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
+
+    CONSTRAINT unique_other_identifier_sequence UNIQUE (case_id, sequence_number)
+);
+
+CREATE INDEX idx_other_case_identifiers_case ON other_case_identifiers(case_id);
+
+-- ============================================================================
+-- C.1.10.r: Linked Report Numbers (Repeating)
+-- Links to follow-up reports, amendments, related cases
+-- ============================================================================
+
+CREATE TABLE linked_report_numbers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    case_id UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    sequence_number INTEGER NOT NULL,
+
+    -- C.1.10.r - Linked Report Number
+    linked_report_number VARCHAR(100) NOT NULL,
+
+    -- Audit fields (standardized UUID-based)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
+
+    CONSTRAINT unique_linked_report_sequence UNIQUE (case_id, sequence_number)
+);
+
+CREATE INDEX idx_linked_report_numbers_case ON linked_report_numbers(case_id);

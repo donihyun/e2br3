@@ -8,7 +8,7 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::{json, to_value};
 use std::sync::Arc;
-use tracing::debug;
+use tracing::{debug, error};
 use uuid::Uuid;
 
 pub async fn mw_reponse_map(
@@ -22,9 +22,6 @@ pub async fn mw_reponse_map(
 
 	debug!("{:<12} - mw_reponse_map", "RES_MAPPER");
 	let uuid = Uuid::new_v4();
-
-	// For REST, we don't have RPC info
-	let rpc_info = None;
 
 	// -- Get the eventual response error.
 	let web_error = res.extensions().get::<Arc<Error>>().map(Arc::as_ref);
@@ -58,17 +55,18 @@ pub async fn mw_reponse_map(
 	// -- Build and log the server log line.
 	let client_error = client_status_error.unzip().1;
 
-	// TODO: Need to hander if log_request fail (but should not fail request)
-	let _ = log_request(
+	if let Err(err) = log_request(
 		req_method,
 		uri,
 		req_stamp,
-		rpc_info,
 		ctx,
 		web_error,
 		client_error,
 	)
-	.await;
+	.await
+	{
+		error!("log_request failed: {err}");
+	}
 
 	debug!("\n");
 

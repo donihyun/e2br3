@@ -18,17 +18,18 @@ pub mod safety_report_rest;
 use axum::routing::get;
 use axum::Router;
 use lib_core::model::ModelManager;
+use lib_web::handlers::handlers_rest::rest_collection_item_routes;
 
 /// Routes for /api/cases and nested subresources
 pub fn routes_cases(mm: ModelManager) -> Router {
-	Router::new()
-		.route("/cases", get(case_rest::list_cases).post(case_rest::create_case))
-		.route(
-			"/cases/{id}",
-			get(case_rest::get_case)
-				.put(case_rest::update_case)
-				.delete(case_rest::delete_case),
-		)
+	rest_collection_item_routes(
+		"/cases",
+		"/cases/{id}",
+		get(case_rest::list_cases).post(case_rest::create_case),
+		get(case_rest::get_case)
+			.put(case_rest::update_case)
+			.delete(case_rest::delete_case),
+	)
 		.route(
 			"/cases/{case_id}/patient",
 			get(patient_rest::get_patient)
@@ -93,29 +94,27 @@ pub fn routes_cases(mm: ModelManager) -> Router {
 
 /// Routes for /api/organizations
 pub fn routes_organizations(mm: ModelManager) -> Router {
-	Router::new()
-		.route(
-			"/organizations",
-			get(organization_rest::list_organizations).post(organization_rest::create_organization),
-		)
-		.route(
-			"/organizations/{id}",
-			get(organization_rest::get_organization)
-				.put(organization_rest::update_organization)
-				.delete(organization_rest::delete_organization),
-		)
-		.with_state(mm)
+	rest_collection_item_routes(
+		"/organizations",
+		"/organizations/{id}",
+		get(organization_rest::list_organizations)
+			.post(organization_rest::create_organization),
+		get(organization_rest::get_organization)
+			.put(organization_rest::update_organization)
+			.delete(organization_rest::delete_organization),
+	)
+	.with_state(mm)
 }
 
 /// Routes for /api/users
 pub fn routes_users(mm: ModelManager) -> Router {
-	Router::new()
-		.route("/users", get(user_rest::list_users).post(user_rest::create_user))
-		.route(
-			"/users/{id}",
-			get(user_rest::get_user)
-				.put(user_rest::update_user)
-				.delete(user_rest::delete_user),
-		)
-		.with_state(mm)
+	rest_collection_item_routes(
+		"/users",
+		"/users/{id}",
+		get(user_rest::list_users).post(user_rest::create_user),
+		get(user_rest::get_user)
+			.put(user_rest::update_user)
+			.delete(user_rest::delete_user),
+	)
+	.with_state(mm)
 }

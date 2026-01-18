@@ -22,6 +22,7 @@ macro_rules! generate_common_rest_fns {
                 Json(params): Json<ParamsForCreate<$for_create>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!("{:<12} - rest create {}", "HANDLER", stringify!($suffix));
                 let ParamsForCreate { data } = params;
                 let id = $bmc::create(&ctx, &mm, data).await?;
                 let entity = $bmc::get(&ctx, &mm, id).await?;
@@ -34,6 +35,12 @@ macro_rules! generate_common_rest_fns {
                 Path(id): Path<Uuid>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest get {} id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    id
+                );
                 let entity = $bmc::get(&ctx, &mm, id).await?;
                 Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entity })))
             }
@@ -45,6 +52,7 @@ macro_rules! generate_common_rest_fns {
                 Query(params): Query<ParamsList<$filter>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<Vec<$entity>>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!("{:<12} - rest list {}s", "HANDLER", stringify!($suffix));
                 let entities = $bmc::list(&ctx, &mm, params.filters, params.list_options).await?;
                 Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entities })))
             }
@@ -56,6 +64,12 @@ macro_rules! generate_common_rest_fns {
                 Json(params): Json<ParamsForUpdate<$for_update>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest update {} id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    id
+                );
                 let ParamsForUpdate { data } = params;
                 $bmc::update(&ctx, &mm, id, data).await?;
                 let entity = $bmc::get(&ctx, &mm, id).await?;
@@ -68,6 +82,12 @@ macro_rules! generate_common_rest_fns {
                 Path(id): Path<Uuid>,
             ) -> Result<axum::http::StatusCode> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest delete {} id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    id
+                );
                 $bmc::delete(&ctx, &mm, id).await?;
                 Ok(axum::http::StatusCode::NO_CONTENT)
             }
@@ -89,6 +109,7 @@ macro_rules! generate_common_rest_fns {
                 Json(params): Json<ParamsForCreate<$for_create>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!("{:<12} - rest create {}", "HANDLER", stringify!($suffix));
                 let ParamsForCreate { data } = params;
                 let id = $bmc::create(&ctx, &mm, data).await?;
                 let entity = $bmc::get(&ctx, &mm, id).await?;
@@ -101,6 +122,12 @@ macro_rules! generate_common_rest_fns {
                 Path(id): Path<Uuid>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest get {} id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    id
+                );
                 let entity = $bmc::get(&ctx, &mm, id).await?;
                 Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entity })))
             }
@@ -111,6 +138,7 @@ macro_rules! generate_common_rest_fns {
                 Query(params): Query<ParamsList<$filter>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<Vec<$entity>>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!("{:<12} - rest list {}s", "HANDLER", stringify!($suffix));
                 let entities = $bmc::list(&ctx, &mm, params.filters, params.list_options).await?;
                 Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entities })))
             }
@@ -121,6 +149,12 @@ macro_rules! generate_common_rest_fns {
                 Path(id): Path<Uuid>,
             ) -> Result<axum::http::StatusCode> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest delete {} id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    id
+                );
                 $bmc::delete(&ctx, &mm, id).await?;
                 Ok(axum::http::StatusCode::NO_CONTENT)
             }
@@ -142,6 +176,7 @@ macro_rules! generate_common_rest_fns {
                 Json(params): Json<ParamsForCreate<$for_create>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!("{:<12} - rest create {}", "HANDLER", stringify!($suffix));
                 let ParamsForCreate { data } = params;
                 let id = $bmc::create(&ctx, &mm, data).await?;
                 let entity = $bmc::get(&ctx, &mm, id).await?;
@@ -154,6 +189,12 @@ macro_rules! generate_common_rest_fns {
                 Path(id): Path<Uuid>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest get {} id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    id
+                );
                 let entity = $bmc::get(&ctx, &mm, id).await?;
                 Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entity })))
             }
@@ -163,6 +204,7 @@ macro_rules! generate_common_rest_fns {
                 ctx_w: lib_web::middleware::mw_auth::CtxW,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<Vec<$entity>>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!("{:<12} - rest list {}s", "HANDLER", stringify!($suffix));
                 let entities = $bmc::list(&ctx, &mm, None, None).await?;
                 Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entities })))
             }
@@ -174,6 +216,12 @@ macro_rules! generate_common_rest_fns {
                 Json(params): Json<ParamsForUpdate<$for_update>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest update {} id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    id
+                );
                 let ParamsForUpdate { data } = params;
                 $bmc::update(&ctx, &mm, id, data).await?;
                 let entity = $bmc::get(&ctx, &mm, id).await?;
@@ -186,6 +234,12 @@ macro_rules! generate_common_rest_fns {
                 Path(id): Path<Uuid>,
             ) -> Result<axum::http::StatusCode> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest delete {} id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    id
+                );
                 $bmc::delete(&ctx, &mm, id).await?;
                 Ok(axum::http::StatusCode::NO_CONTENT)
             }
@@ -211,6 +265,12 @@ macro_rules! generate_case_rest_fns {
                 Json(params): Json<ParamsForCreate<$for_create>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest create {} case_id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    case_id
+                );
                 let ParamsForCreate { data } = params;
                 let mut data = data;
                 data.case_id = case_id;
@@ -225,6 +285,13 @@ macro_rules! generate_case_rest_fns {
                 Path((case_id, id)): Path<(Uuid, Uuid)>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest get {} case_id={} id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    case_id,
+                    id
+                );
                 let entity = $bmc::get_in_case(&ctx, &mm, case_id, id).await?;
                 Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entity })))
             }
@@ -235,6 +302,12 @@ macro_rules! generate_case_rest_fns {
                 Path(case_id): Path<Uuid>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<Vec<$entity>>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest list {}s case_id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    case_id
+                );
                 let entities = $bmc::list_by_case(&ctx, &mm, case_id).await?;
                 Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entities })))
             }
@@ -246,6 +319,13 @@ macro_rules! generate_case_rest_fns {
                 Json(params): Json<ParamsForUpdate<$for_update>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest update {} case_id={} id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    case_id,
+                    id
+                );
                 let ParamsForUpdate { data } = params;
                 $bmc::update_in_case(&ctx, &mm, case_id, id, data).await?;
                 let entity = $bmc::get_in_case(&ctx, &mm, case_id, id).await?;
@@ -258,6 +338,13 @@ macro_rules! generate_case_rest_fns {
                 Path((case_id, id)): Path<(Uuid, Uuid)>,
             ) -> Result<axum::http::StatusCode> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest delete {} case_id={} id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    case_id,
+                    id
+                );
                 $bmc::delete_in_case(&ctx, &mm, case_id, id).await?;
                 Ok(axum::http::StatusCode::NO_CONTENT)
             }
@@ -283,6 +370,12 @@ macro_rules! generate_case_single_rest_fns {
                 Json(params): Json<ParamsForCreate<$for_create>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest create {} case_id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    case_id
+                );
                 let ParamsForCreate { data } = params;
                 let mut data = data;
                 data.case_id = case_id;
@@ -297,6 +390,12 @@ macro_rules! generate_case_single_rest_fns {
                 Path(case_id): Path<Uuid>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest get {} case_id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    case_id
+                );
                 let entity = $bmc::get_by_case(&ctx, &mm, case_id).await?;
                 Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entity })))
             }
@@ -308,6 +407,12 @@ macro_rules! generate_case_single_rest_fns {
                 Json(params): Json<ParamsForUpdate<$for_update>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest update {} case_id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    case_id
+                );
                 let ParamsForUpdate { data } = params;
                 $bmc::update_by_case(&ctx, &mm, case_id, data).await?;
                 let entity = $bmc::get_by_case(&ctx, &mm, case_id).await?;
@@ -320,6 +425,12 @@ macro_rules! generate_case_single_rest_fns {
                 Path(case_id): Path<Uuid>,
             ) -> Result<axum::http::StatusCode> {
                 let ctx = ctx_w.0;
+                tracing::debug!(
+                    "{:<12} - rest delete {} case_id={}",
+                    "HANDLER",
+                    stringify!($suffix),
+                    case_id
+                );
                 $bmc::delete_by_case(&ctx, &mm, case_id).await?;
                 Ok(axum::http::StatusCode::NO_CONTENT)
             }

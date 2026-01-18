@@ -23,6 +23,12 @@ pub struct MessageHeader {
 	// N.1.2 - Batch Sender Identifier
 	pub batch_sender_identifier: Option<String>,
 
+	// N.1.3 - Batch Receiver Identifier (Phase 1 addition)
+	pub batch_receiver_identifier: Option<String>,
+
+	// N.1.4 - Date of Batch Transmission (Phase 1 addition)
+	pub batch_transmission_date: Option<OffsetDateTime>,
+
 	// Message identification
 	pub message_type: String,           // ichicsr
 	pub message_format_version: String, // 2.1
@@ -52,6 +58,9 @@ pub struct MessageHeaderForCreate {
 #[derive(Fields, Deserialize)]
 pub struct MessageHeaderForUpdate {
 	pub batch_number: Option<String>,
+	pub batch_sender_identifier: Option<String>,
+	pub batch_receiver_identifier: Option<String>,
+	pub batch_transmission_date: Option<OffsetDateTime>,
 	pub message_number: Option<String>,
 	pub message_sender_identifier: Option<String>,
 	pub message_receiver_identifier: Option<String>,
@@ -128,17 +137,23 @@ impl MessageHeaderBmc {
 		let sql = format!(
 			"UPDATE {}
 			 SET batch_number = COALESCE($2, batch_number),
-			     message_number = COALESCE($3, message_number),
-			     message_sender_identifier = COALESCE($4, message_sender_identifier),
-			     message_receiver_identifier = COALESCE($5, message_receiver_identifier),
+			     batch_sender_identifier = COALESCE($3, batch_sender_identifier),
+			     batch_receiver_identifier = COALESCE($4, batch_receiver_identifier),
+			     batch_transmission_date = COALESCE($5, batch_transmission_date),
+			     message_number = COALESCE($6, message_number),
+			     message_sender_identifier = COALESCE($7, message_sender_identifier),
+			     message_receiver_identifier = COALESCE($8, message_receiver_identifier),
 			     updated_at = now(),
-			     updated_by = $6
+			     updated_by = $9
 			 WHERE case_id = $1",
 			Self::TABLE
 		);
 		let result = sqlx::query(&sql)
 			.bind(case_id)
 			.bind(data.batch_number)
+			.bind(data.batch_sender_identifier)
+			.bind(data.batch_receiver_identifier)
+			.bind(data.batch_transmission_date)
 			.bind(data.message_number)
 			.bind(data.message_sender_identifier)
 			.bind(data.message_receiver_identifier)

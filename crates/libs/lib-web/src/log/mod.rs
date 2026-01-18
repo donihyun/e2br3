@@ -14,7 +14,6 @@ pub async fn log_request(
 	http_method: Method,
 	uri: Uri,
 	req_stamp: ReqStamp,
-	rpc_info: Option<()>,  // Placeholder for REST - not used anymore
 	ctx: Option<Ctx>,
 	web_error: Option<&Error>,
 	client_error: Option<ClientError>,
@@ -41,9 +40,6 @@ pub async fn log_request(
 
 		http_path: uri.to_string(),
 		http_method: http_method.to_string(),
-
-		rpc_id: None,  // No RPC info for REST
-		rpc_method: None,  // No RPC info for REST
 
 		user_id: ctx.map(|c| c.user_id()),
 
@@ -74,10 +70,6 @@ struct RequestLogLine {
 	// -- http request attributes.
 	http_path: String,
 	http_method: String,
-
-	// -- rpc info.
-	rpc_id: Option<String>,
-	rpc_method: Option<String>,
 
 	// -- Errors attributes.
 	client_error_type: Option<String>,
