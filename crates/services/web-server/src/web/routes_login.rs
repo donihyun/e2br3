@@ -7,5 +7,6 @@ pub fn routes(mm: ModelManager) -> Router {
 	Router::new()
 		.route("/login", post(handlers_login::api_login_handler))
 		.route("/logoff", post(handlers_login::api_logoff_handler))
+		.route("/refresh", post(handlers_login::api_refresh_handler))
 		.with_state(mm)
 }

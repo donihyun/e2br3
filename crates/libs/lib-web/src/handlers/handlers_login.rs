@@ -4,7 +4,7 @@ use axum::extract::State;
 use axum::Json;
 use lib_auth::pwd::{self, ContentToHash, SchemeStatus};
 use lib_core::ctx::Ctx;
-use lib_core::model::user::{UserBmc, UserForLogin};
+use lib_core::model::user::{UserBmc, UserForAuth, UserForLogin};
 use lib_core::model::ModelManager;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -101,3 +101,34 @@ pub struct LogoffPayload {
 	logoff: bool,
 }
 // endregion: --- Logoff
+
+// region:    --- Token Refresh
+pub async fn api_refresh_handler(
+	State(mm): State<ModelManager>,
+	ctx_w: crate::middleware::mw_auth::CtxW,
+	cookies: Cookies,
+) -> Result<Json<Value>> {
+	debug!("{:<12} - api_refresh_handler", "HANDLER");
+
+	let ctx = ctx_w.0;
+	let user_id = ctx.user_id();
+
+	// Get the user to refresh token
+	let user: UserForAuth = UserBmc::get(&ctx, &mm, user_id).await?;
+
+	// Set new web token
+	token::set_token_cookie(&cookies, &user.email, user.token_salt)?;
+
+	// Calculate expiration time (15 minutes from now)
+	let expires_at = time::OffsetDateTime::now_utc() + time::Duration::minutes(15);
+
+	// Create the success body with expiration info
+	let body = Json(json!({
+		"data": {
+			"expiresAt": expires_at.format(&time::format_description::well_known::Rfc3339).unwrap_or_default()
+		}
+	}));
+
+	Ok(body)
+}
+// endregion: --- Token Refresh
