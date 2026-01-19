@@ -12,6 +12,9 @@ pub fn routes(mm: ModelManager) -> Router {
 		// Reference data
 		.merge(rest::routes_organizations(mm.clone()))
 		// System entities
-		.merge(rest::routes_users(mm))
-
+		.merge(rest::routes_users(mm.clone()))
+		// Terminology search
+		.merge(rest::routes_terminology(mm.clone()))
+		// Audit logs
+		.merge(rest::routes_audit(mm))
 }

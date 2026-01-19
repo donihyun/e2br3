@@ -29,6 +29,12 @@ pub enum Error {
 	LoginFailUserCtxCreate {
 		user_id: Uuid,
 	},
+
+	// -- Authorization
+	AccessDenied {
+		required_role: String,
+	},
+
 	// -- CtxExtError
 	#[from]
 	CtxExt(middleware::mw_auth::CtxExtError),
@@ -102,6 +108,14 @@ impl Error {
 			// -- Auth
 			CtxExt(_) => (StatusCode::FORBIDDEN, ClientError::NO_AUTH),
 
+			// -- Authorization
+			AccessDenied { required_role } => (
+				StatusCode::FORBIDDEN,
+				ClientError::ACCESS_DENIED {
+					required_role: required_role.clone(),
+				},
+			),
+
 			// -- Model
 			Model(model::Error::EntityNotFound { entity, id }) => (
 				StatusCode::BAD_REQUEST,
@@ -123,6 +137,7 @@ impl Error {
 pub enum ClientError {
 	LOGIN_FAIL,
 	NO_AUTH,
+	ACCESS_DENIED { required_role: String },
 	ENTITY_NOT_FOUND { entity: &'static str, id: i64 },
 	SERVICE_ERROR,
 }
