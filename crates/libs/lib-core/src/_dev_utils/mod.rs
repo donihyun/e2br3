@@ -14,7 +14,10 @@ use tracing::info;
 pub async fn init_dev() {
 	// Skip if using Docker PostgreSQL (already initialized)
 	if std::env::var("SKIP_DEV_INIT").unwrap_or_default() == "1" {
-		info!("{:<12} - init_dev() SKIPPED (SKIP_DEV_INIT=1)", "FOR-DEV-ONLY");
+		info!(
+			"{:<12} - init_dev() SKIPPED (SKIP_DEV_INIT=1)",
+			"FOR-DEV-ONLY"
+		);
 		return;
 	}
 
@@ -46,7 +49,6 @@ pub async fn init_test() -> ModelManager {
 // NOTE: Test seed/clean helpers for user/agent/conv have been removed
 // as those models were replaced with the E2B(R3) SafetyDB models.
 // Add new test helpers here as needed for User, Organization, Case, etc.
-
 
 pub fn fx_org_id() -> uuid::Uuid {
 	// NOTE: This org_id is created via sql/dev_initial/00-recreate-db.sql

@@ -1,8 +1,8 @@
 // region:    --- Modules
 
+pub mod base_uuid;
 mod macro_utils;
 mod utils;
-pub mod base_uuid;
 // -- Flatten hierarchy for user code.
 pub use base_uuid::*;
 pub use utils::*;

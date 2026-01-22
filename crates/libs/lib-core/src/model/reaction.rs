@@ -290,11 +290,7 @@ impl ReactionBmc {
 		Ok(())
 	}
 
-	pub async fn delete(
-		ctx: &Ctx,
-		mm: &ModelManager,
-		id: Uuid,
-	) -> Result<()> {
+	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
 		let db = mm.dbx().db();
 		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
 		set_user_context(&mut tx, ctx.user_id()).await?;
@@ -325,10 +321,8 @@ impl ReactionBmc {
 		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
 		set_user_context(&mut tx, ctx.user_id()).await?;
 
-		let sql = format!(
-			"DELETE FROM {} WHERE id = $1 AND case_id = $2",
-			Self::TABLE
-		);
+		let sql =
+			format!("DELETE FROM {} WHERE id = $1 AND case_id = $2", Self::TABLE);
 		let result = sqlx::query(&sql)
 			.bind(id)
 			.bind(case_id)

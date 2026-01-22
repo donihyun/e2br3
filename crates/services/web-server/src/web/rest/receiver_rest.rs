@@ -1,5 +1,6 @@
 use lib_core::model::receiver::{
-	ReceiverInformationBmc, ReceiverInformationForCreate, ReceiverInformationForUpdate,
+	ReceiverInformationBmc, ReceiverInformationForCreate,
+	ReceiverInformationForUpdate,
 };
 use lib_rest_core::prelude::*;
 

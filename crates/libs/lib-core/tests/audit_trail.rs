@@ -1,8 +1,8 @@
 mod common;
 
 use common::{
-	audit_log_count, create_case_fixture, demo_org_id, demo_user_id,
-	delete_case_fixture, init_test_mm, set_current_user, Result,
+	audit_log_count, create_case_fixture, delete_case_fixture, demo_org_id,
+	demo_user_id, init_test_mm, set_current_user, Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::audit::AuditLogBmc;

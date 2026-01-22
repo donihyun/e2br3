@@ -4,8 +4,9 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
 use lib_core::model::drug_recurrence::{
-	DrugRecurrenceInformation, DrugRecurrenceInformationBmc, DrugRecurrenceInformationForCreate,
-	DrugRecurrenceInformationForUpdate, DrugRecurrenceInformationFilter,
+	DrugRecurrenceInformation, DrugRecurrenceInformationBmc,
+	DrugRecurrenceInformationFilter, DrugRecurrenceInformationForCreate,
+	DrugRecurrenceInformationForUpdate,
 };
 use lib_core::model::ModelManager;
 use lib_rest_core::rest_params::{ParamsForCreate, ParamsForUpdate};
@@ -47,7 +48,10 @@ pub async fn list_drug_recurrences(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
 	Path((_case_id, drug_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<DataRestResult<Vec<DrugRecurrenceInformation>>>)> {
+) -> Result<(
+	StatusCode,
+	Json<DataRestResult<Vec<DrugRecurrenceInformation>>>,
+)> {
 	let ctx = ctx_w.0;
 	tracing::debug!(
 		"{:<12} - rest list_drug_recurrences drug_id={}",
@@ -57,12 +61,18 @@ pub async fn list_drug_recurrences(
 
 	// Filter by drug_id
 	let filter = DrugRecurrenceInformationFilter {
-		drug_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(drug_id.to_string()))])),
+		drug_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(
+			drug_id.to_string()
+		))])),
 		..Default::default()
 	};
-	let entities =
-		DrugRecurrenceInformationBmc::list(&ctx, &mm, Some(vec![filter]), Some(ListOptions::default()))
-			.await?;
+	let entities = DrugRecurrenceInformationBmc::list(
+		&ctx,
+		&mm,
+		Some(vec![filter]),
+		Some(ListOptions::default()),
+	)
+	.await?;
 
 	Ok((StatusCode::OK, Json(DataRestResult { data: entities })))
 }
@@ -91,11 +101,7 @@ pub async fn update_drug_recurrence(
 	Json(params): Json<ParamsForUpdate<DrugRecurrenceInformationForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<DrugRecurrenceInformation>>)> {
 	let ctx = ctx_w.0;
-	tracing::debug!(
-		"{:<12} - rest update_drug_recurrence id={}",
-		"HANDLER",
-		id
-	);
+	tracing::debug!("{:<12} - rest update_drug_recurrence id={}", "HANDLER", id);
 
 	let ParamsForUpdate { data } = params;
 	DrugRecurrenceInformationBmc::update(&ctx, &mm, id, data).await?;
@@ -112,11 +118,7 @@ pub async fn delete_drug_recurrence(
 	Path((_case_id, _drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
-	tracing::debug!(
-		"{:<12} - rest delete_drug_recurrence id={}",
-		"HANDLER",
-		id
-	);
+	tracing::debug!("{:<12} - rest delete_drug_recurrence id={}", "HANDLER", id);
 
 	DrugRecurrenceInformationBmc::delete(&ctx, &mm, id).await?;
 

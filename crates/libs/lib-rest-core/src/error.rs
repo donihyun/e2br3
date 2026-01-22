@@ -1,11 +1,11 @@
 //! This module encompasses errors for all REST handlers.
 //! Variants from our application's library errors can be added as required by the handlers.
 
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use derive_more::From;
 use serde::Serialize;
 use serde_with::{serde_as, DisplayFromStr};
-use axum::response::{IntoResponse, Response};
-use axum::http::StatusCode;
 use std::sync::Arc;
 
 pub type Result<T> = core::result::Result<T, Error>;

@@ -3,7 +3,7 @@
 /// - `get_...`
 ///
 /// NOTE: Make sure to import the Ctx, ModelManager, ... in the model that uses this macro.
-/// 
+///
 
 #[macro_export]
 macro_rules! generate_common_rest_fns {

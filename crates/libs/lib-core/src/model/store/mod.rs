@@ -22,16 +22,17 @@ pub async fn new_db_pool() -> sqlx::Result<Db> {
 		.after_connect(|conn, _meta| {
 			Box::pin(async move {
 				if let Ok(user_id) = env::var("E2BR3_TEST_CURRENT_USER_ID") {
-					sqlx::query("SELECT set_config('app.current_user_id', $1, false)")
-						.bind(user_id)
-						.execute(&mut *conn)
-						.await?;
+					sqlx::query(
+						"SELECT set_config('app.current_user_id', $1, false)",
+					)
+					.bind(user_id)
+					.execute(&mut *conn)
+					.await?;
 				}
 				if let Ok(role) = env::var("E2BR3_DB_ROLE") {
 					if !role.is_empty() && is_safe_role_name(&role) {
 						let sql = format!("SET ROLE {}", role);
-						if let Err(err) =
-							sqlx::query(&sql).execute(&mut *conn).await
+						if let Err(err) = sqlx::query(&sql).execute(&mut *conn).await
 						{
 							if should_ignore_role_set_error(&err) {
 								println!(
@@ -102,8 +103,7 @@ pub async fn get_user_context(
 // endregion: --- User Context Helpers
 
 fn is_safe_role_name(role: &str) -> bool {
-	role.chars()
-		.all(|c| c.is_ascii_alphanumeric() || c == '_')
+	role.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
 fn should_ignore_role_set_error(err: &sqlx::Error) -> bool {
@@ -115,10 +115,9 @@ fn should_ignore_role_set_error(err: &sqlx::Error) -> bool {
 	}
 
 	match err {
-		sqlx::Error::Database(db_err) => matches!(
-			db_err.code().as_deref(),
-			Some("42704") | Some("42501")
-		),
+		sqlx::Error::Database(db_err) => {
+			matches!(db_err.code().as_deref(), Some("42704") | Some("42501"))
+		}
 		_ => false,
 	}
 }

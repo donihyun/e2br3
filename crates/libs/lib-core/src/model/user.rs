@@ -1,8 +1,8 @@
 use crate::ctx::Ctx;
 use crate::model::base::base_uuid;
 use crate::model::base::{prep_fields_for_update, DbBmc};
-use crate::model::{Error, ModelManager, Result};
 use crate::model::store::set_user_context_dbx;
+use crate::model::{Error, ModelManager, Result};
 use lib_auth::pwd::{self, ContentToHash};
 use modql::field::{Fields, HasSeaFields, SeaField, SeaFields};
 use modql::filter::{FilterNodes, ListOptions, OpValsString, OpValsValue};
@@ -182,8 +182,7 @@ impl UserBmc {
 		};
 
 		// -- Update the password
-		if let Err(err) = Self::update_pwd(ctx, &mm, user_id, &pwd_clear).await
-		{
+		if let Err(err) = Self::update_pwd(ctx, &mm, user_id, &pwd_clear).await {
 			mm.dbx().rollback_txn().await?;
 			return Err(err);
 		}
@@ -269,8 +268,7 @@ impl UserBmc {
 		.await?;
 
 		// -- Prep the data
-		let mut fields =
-			SeaFields::new(vec![SeaField::new(UserIden::Pwd, pwd)]);
+		let mut fields = SeaFields::new(vec![SeaField::new(UserIden::Pwd, pwd)]);
 		prep_fields_for_update::<Self>(&mut fields, ctx.user_id());
 
 		// -- Build query

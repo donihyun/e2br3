@@ -1,4 +1,6 @@
-use lib_core::model::test_result::{TestResultBmc, TestResultForCreate, TestResultForUpdate};
+use lib_core::model::test_result::{
+	TestResultBmc, TestResultForCreate, TestResultForUpdate,
+};
 use lib_rest_core::prelude::*;
 
 // Case-scoped CRUD functions:

@@ -1,8 +1,8 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm,
-	set_current_user, Result,
+	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
+	Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::case::CaseBmc;
@@ -12,9 +12,8 @@ use lib_core::model::parent_history::{
 	ParentPastDrugHistoryForCreate, ParentPastDrugHistoryForUpdate,
 };
 use lib_core::model::patient::{
-	ParentInformationBmc, ParentInformationForCreate,
-	ParentInformationForUpdate, PatientInformationBmc,
-	PatientInformationForCreate,
+	ParentInformationBmc, ParentInformationForCreate, ParentInformationForUpdate,
+	PatientInformationBmc, PatientInformationForCreate,
 };
 use serial_test::serial;
 
@@ -86,10 +85,12 @@ async fn test_parent_history_crud() -> Result<()> {
 		.await?;
 	let med_history =
 		ParentMedicalHistoryBmc::get(&ctx, &mm, med_history_id).await?;
-	assert_eq!(med_history.comments.as_deref(), Some("Family history noted"));
+	assert_eq!(
+		med_history.comments.as_deref(),
+		Some("Family history noted")
+	);
 
-	let med_histories =
-		ParentMedicalHistoryBmc::list(&ctx, &mm, None, None).await?;
+	let med_histories = ParentMedicalHistoryBmc::list(&ctx, &mm, None, None).await?;
 	assert!(med_histories.iter().any(|m| m.id == med_history_id));
 
 	let past_drug_c = ParentPastDrugHistoryForCreate {
@@ -99,8 +100,7 @@ async fn test_parent_history_crud() -> Result<()> {
 	};
 	let past_drug_id =
 		ParentPastDrugHistoryBmc::create(&ctx, &mm, past_drug_c).await?;
-	let past_drug =
-		ParentPastDrugHistoryBmc::get(&ctx, &mm, past_drug_id).await?;
+	let past_drug = ParentPastDrugHistoryBmc::get(&ctx, &mm, past_drug_id).await?;
 	assert_eq!(past_drug.sequence_number, 1);
 
 	let past_drug_u = ParentPastDrugHistoryForUpdate {
@@ -116,14 +116,11 @@ async fn test_parent_history_crud() -> Result<()> {
 		reaction_meddra_version: None,
 		reaction_meddra_code: None,
 	};
-	ParentPastDrugHistoryBmc::update(&ctx, &mm, past_drug_id, past_drug_u)
-		.await?;
-	let past_drug =
-		ParentPastDrugHistoryBmc::get(&ctx, &mm, past_drug_id).await?;
+	ParentPastDrugHistoryBmc::update(&ctx, &mm, past_drug_id, past_drug_u).await?;
+	let past_drug = ParentPastDrugHistoryBmc::get(&ctx, &mm, past_drug_id).await?;
 	assert_eq!(past_drug.drug_name.as_deref(), Some("Updated Drug"));
 
-	let past_drugs =
-		ParentPastDrugHistoryBmc::list(&ctx, &mm, None, None).await?;
+	let past_drugs = ParentPastDrugHistoryBmc::list(&ctx, &mm, None, None).await?;
 	assert!(past_drugs.iter().any(|p| p.id == past_drug_id));
 
 	ParentPastDrugHistoryBmc::delete(&ctx, &mm, past_drug_id).await?;

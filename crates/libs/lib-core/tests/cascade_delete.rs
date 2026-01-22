@@ -1,8 +1,8 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm,
-	set_current_user, Result,
+	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
+	Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::case::CaseBmc;
@@ -14,19 +14,19 @@ use lib_core::model::drug::{
 use lib_core::model::message_header::{MessageHeaderBmc, MessageHeaderForCreate};
 use lib_core::model::narrative::{
 	CaseSummaryInformationBmc, CaseSummaryInformationForCreate,
-	NarrativeInformationBmc, NarrativeInformationForCreate,
-	SenderDiagnosisBmc, SenderDiagnosisForCreate,
+	NarrativeInformationBmc, NarrativeInformationForCreate, SenderDiagnosisBmc,
+	SenderDiagnosisForCreate,
 };
 use lib_core::model::patient::{
-	MedicalHistoryEpisodeBmc, MedicalHistoryEpisodeForCreate,
-	PatientInformationBmc, PatientInformationForCreate,
+	MedicalHistoryEpisodeBmc, MedicalHistoryEpisodeForCreate, PatientInformationBmc,
+	PatientInformationForCreate,
 };
 use lib_core::model::reaction::{ReactionBmc, ReactionForCreate};
 use lib_core::model::safety_report::{
-	LiteratureReferenceBmc, LiteratureReferenceForCreate,
-	PrimarySourceBmc, PrimarySourceForCreate,
-	SafetyReportIdentificationBmc, SafetyReportIdentificationForCreate,
-	SenderInformationBmc, SenderInformationForCreate,
+	LiteratureReferenceBmc, LiteratureReferenceForCreate, PrimarySourceBmc,
+	PrimarySourceForCreate, SafetyReportIdentificationBmc,
+	SafetyReportIdentificationForCreate, SenderInformationBmc,
+	SenderInformationForCreate,
 };
 use lib_core::model::test_result::{TestResultBmc, TestResultForCreate};
 use lib_core::model::Error as ModelError;
@@ -67,7 +67,10 @@ async fn test_case_delete_cascades_to_message_header() -> Result<()> {
 
 	// Verify header is also deleted (cascade)
 	let result = MessageHeaderBmc::get_by_case(&ctx, &mm, case_id).await;
-	assert!(result.is_err(), "message header should be cascade deleted with case");
+	assert!(
+		result.is_err(),
+		"message header should be cascade deleted with case"
+	);
 
 	Ok(())
 }
@@ -130,7 +133,10 @@ async fn test_case_delete_cascades_to_reactions() -> Result<()> {
 
 	// Verify reaction is also deleted
 	let result = ReactionBmc::get(&ctx, &mm, reaction_id).await;
-	assert!(result.is_err(), "reaction should be cascade deleted with case");
+	assert!(
+		result.is_err(),
+		"reaction should be cascade deleted with case"
+	);
 
 	Ok(())
 }
@@ -161,7 +167,10 @@ async fn test_case_delete_cascades_to_patient_information() -> Result<()> {
 
 	// Verify patient is also deleted
 	let result = PatientInformationBmc::get(&ctx, &mm, patient_id).await;
-	assert!(result.is_err(), "patient should be cascade deleted with case");
+	assert!(
+		result.is_err(),
+		"patient should be cascade deleted with case"
+	);
 
 	Ok(())
 }
@@ -192,7 +201,10 @@ async fn test_case_delete_cascades_to_test_results() -> Result<()> {
 
 	// Verify test is also deleted
 	let result = TestResultBmc::get(&ctx, &mm, test_id).await;
-	assert!(result.is_err(), "test result should be cascade deleted with case");
+	assert!(
+		result.is_err(),
+		"test result should be cascade deleted with case"
+	);
 
 	Ok(())
 }
@@ -211,22 +223,36 @@ async fn test_case_delete_cascades_to_safety_report_identification() -> Result<(
 		case_id,
 		transmission_date: Date::from_calendar_date(2024, Month::January, 1)?,
 		report_type: "1".to_string(),
-		date_first_received_from_source: Date::from_calendar_date(2024, Month::January, 1)?,
-		date_of_most_recent_information: Date::from_calendar_date(2024, Month::January, 1)?,
+		date_first_received_from_source: Date::from_calendar_date(
+			2024,
+			Month::January,
+			1,
+		)?,
+		date_of_most_recent_information: Date::from_calendar_date(
+			2024,
+			Month::January,
+			1,
+		)?,
 		fulfil_expedited_criteria: true,
 	};
-	let report_id = SafetyReportIdentificationBmc::create(&ctx, &mm, report_c).await?;
+	let report_id =
+		SafetyReportIdentificationBmc::create(&ctx, &mm, report_c).await?;
 
 	// Verify report exists
-	let report = SafetyReportIdentificationBmc::get_by_case(&ctx, &mm, case_id).await?;
+	let report =
+		SafetyReportIdentificationBmc::get_by_case(&ctx, &mm, case_id).await?;
 	assert_eq!(report.id, report_id);
 
 	// Delete case
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
 	// Verify report is also deleted
-	let result = SafetyReportIdentificationBmc::get_by_case(&ctx, &mm, case_id).await;
-	assert!(result.is_err(), "safety report should be cascade deleted with case");
+	let result =
+		SafetyReportIdentificationBmc::get_by_case(&ctx, &mm, case_id).await;
+	assert!(
+		result.is_err(),
+		"safety report should be cascade deleted with case"
+	);
 
 	Ok(())
 }
@@ -245,7 +271,8 @@ async fn test_case_delete_cascades_to_narrative() -> Result<()> {
 		case_id,
 		case_narrative: "Cascade test narrative".to_string(),
 	};
-	let narrative_id = NarrativeInformationBmc::create(&ctx, &mm, narrative_c).await?;
+	let narrative_id =
+		NarrativeInformationBmc::create(&ctx, &mm, narrative_c).await?;
 
 	// Verify narrative exists
 	let narrative = NarrativeInformationBmc::get_by_case(&ctx, &mm, case_id).await?;
@@ -256,7 +283,10 @@ async fn test_case_delete_cascades_to_narrative() -> Result<()> {
 
 	// Verify narrative is also deleted
 	let result = NarrativeInformationBmc::get_by_case(&ctx, &mm, case_id).await;
-	assert!(result.is_err(), "narrative should be cascade deleted with case");
+	assert!(
+		result.is_err(),
+		"narrative should be cascade deleted with case"
+	);
 
 	Ok(())
 }
@@ -296,7 +326,8 @@ async fn test_drug_delete_cascades_to_dosage_and_substances() -> Result<()> {
 		sequence_number: 1,
 		substance_name: Some("Test Substance".to_string()),
 	};
-	let substance_id = DrugActiveSubstanceBmc::create(&ctx, &mm, substance_c).await?;
+	let substance_id =
+		DrugActiveSubstanceBmc::create(&ctx, &mm, substance_c).await?;
 
 	// Create child: indication
 	let indication_c = DrugIndicationForCreate {
@@ -313,11 +344,18 @@ async fn test_drug_delete_cascades_to_dosage_and_substances() -> Result<()> {
 	let dosage_result = DosageInformationBmc::get(&ctx, &mm, dosage_id).await;
 	assert!(dosage_result.is_err(), "dosage should be cascade deleted");
 
-	let substance_result = DrugActiveSubstanceBmc::get(&ctx, &mm, substance_id).await;
-	assert!(substance_result.is_err(), "substance should be cascade deleted");
+	let substance_result =
+		DrugActiveSubstanceBmc::get(&ctx, &mm, substance_id).await;
+	assert!(
+		substance_result.is_err(),
+		"substance should be cascade deleted"
+	);
 
 	let indication_result = DrugIndicationBmc::get(&ctx, &mm, indication_id).await;
-	assert!(indication_result.is_err(), "indication should be cascade deleted");
+	assert!(
+		indication_result.is_err(),
+		"indication should be cascade deleted"
+	);
 
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
@@ -355,7 +393,10 @@ async fn test_patient_delete_cascades_to_medical_history() -> Result<()> {
 
 	// Verify medical history is deleted
 	let history_result = MedicalHistoryEpisodeBmc::get(&ctx, &mm, history_id).await;
-	assert!(history_result.is_err(), "medical history should be cascade deleted");
+	assert!(
+		history_result.is_err(),
+		"medical history should be cascade deleted"
+	);
 
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
@@ -377,7 +418,8 @@ async fn test_narrative_delete_cascades_to_sender_diagnosis() -> Result<()> {
 		case_id,
 		case_narrative: "Test narrative".to_string(),
 	};
-	let narrative_id = NarrativeInformationBmc::create(&ctx, &mm, narrative_c).await?;
+	let narrative_id =
+		NarrativeInformationBmc::create(&ctx, &mm, narrative_c).await?;
 
 	// Create child: sender diagnosis
 	let diagnosis_c = SenderDiagnosisForCreate {
@@ -400,10 +442,16 @@ async fn test_narrative_delete_cascades_to_sender_diagnosis() -> Result<()> {
 
 	// Verify children are deleted
 	let diagnosis_result = SenderDiagnosisBmc::get(&ctx, &mm, diagnosis_id).await;
-	assert!(diagnosis_result.is_err(), "sender diagnosis should be cascade deleted");
+	assert!(
+		diagnosis_result.is_err(),
+		"sender diagnosis should be cascade deleted"
+	);
 
 	let summary_result = CaseSummaryInformationBmc::get(&ctx, &mm, summary_id).await;
-	assert!(summary_result.is_err(), "case summary should be cascade deleted");
+	assert!(
+		summary_result.is_err(),
+		"case summary should be cascade deleted"
+	);
 
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
@@ -439,8 +487,16 @@ async fn test_case_delete_cascades_all_children_comprehensive() -> Result<()> {
 		case_id,
 		transmission_date: Date::from_calendar_date(2024, Month::January, 1)?,
 		report_type: "1".to_string(),
-		date_first_received_from_source: Date::from_calendar_date(2024, Month::January, 1)?,
-		date_of_most_recent_information: Date::from_calendar_date(2024, Month::January, 1)?,
+		date_first_received_from_source: Date::from_calendar_date(
+			2024,
+			Month::January,
+			1,
+		)?,
+		date_of_most_recent_information: Date::from_calendar_date(
+			2024,
+			Month::January,
+			1,
+		)?,
 		fulfil_expedited_criteria: true,
 	};
 	SafetyReportIdentificationBmc::create(&ctx, &mm, report_c).await?;
@@ -513,7 +569,8 @@ async fn test_case_delete_cascades_all_children_comprehensive() -> Result<()> {
 		case_id,
 		case_narrative: "Test narrative".to_string(),
 	};
-	let narrative_id = NarrativeInformationBmc::create(&ctx, &mm, narrative_c).await?;
+	let narrative_id =
+		NarrativeInformationBmc::create(&ctx, &mm, narrative_c).await?;
 
 	let diagnosis_c = SenderDiagnosisForCreate {
 		narrative_id,

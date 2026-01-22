@@ -39,13 +39,16 @@ async fn test_terminology_queries() -> Result<()> {
 	.execute(mm.dbx().db())
 	.await?;
 
-	sqlx::query("INSERT INTO iso_countries (code, name, active) VALUES ($1, $2, true)")
-		.bind("ZZ")
-		.bind("Zedland")
-		.execute(mm.dbx().db())
-		.await?;
+	sqlx::query(
+		"INSERT INTO iso_countries (code, name, active) VALUES ($1, $2, true)",
+	)
+	.bind("ZZ")
+	.bind("Zedland")
+	.execute(mm.dbx().db())
+	.await?;
 
-	let meddra_terms = MeddraTermBmc::search(&ctx, &mm, "TestTerm", Some("v1"), 5).await?;
+	let meddra_terms =
+		MeddraTermBmc::search(&ctx, &mm, "TestTerm", Some("v1"), 5).await?;
 	assert!(meddra_terms.iter().any(|t| t.code == "10000001"));
 
 	let whodrug = WhodrugProductBmc::search(&ctx, &mm, "TestDrug", 5).await?;
@@ -54,7 +57,8 @@ async fn test_terminology_queries() -> Result<()> {
 	let countries = IsoCountryBmc::list_all(&ctx, &mm).await?;
 	assert!(countries.iter().any(|c| c.code == "ZZ"));
 
-	let report_types = E2bCodeListBmc::get_by_list_name(&ctx, &mm, "report_type").await?;
+	let report_types =
+		E2bCodeListBmc::get_by_list_name(&ctx, &mm, "report_type").await?;
 	assert!(!report_types.is_empty());
 
 	sqlx::query("DELETE FROM meddra_terms WHERE code = $1 AND version = $2")

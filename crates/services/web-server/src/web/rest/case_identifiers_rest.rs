@@ -58,12 +58,18 @@ pub async fn list_other_case_identifiers(
 	);
 
 	let filter = OtherCaseIdentifierFilter {
-		case_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(case_id.to_string()))])),
+		case_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(
+			case_id.to_string()
+		))])),
 		..Default::default()
 	};
-	let entities =
-		OtherCaseIdentifierBmc::list(&ctx, &mm, Some(vec![filter]), Some(ListOptions::default()))
-			.await?;
+	let entities = OtherCaseIdentifierBmc::list(
+		&ctx,
+		&mm,
+		Some(vec![filter]),
+		Some(ListOptions::default()),
+	)
+	.await?;
 
 	Ok((StatusCode::OK, Json(DataRestResult { data: entities })))
 }
@@ -165,12 +171,18 @@ pub async fn list_linked_report_numbers(
 	);
 
 	let filter = LinkedReportNumberFilter {
-		case_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(case_id.to_string()))])),
+		case_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(
+			case_id.to_string()
+		))])),
 		..Default::default()
 	};
-	let entities =
-		LinkedReportNumberBmc::list(&ctx, &mm, Some(vec![filter]), Some(ListOptions::default()))
-			.await?;
+	let entities = LinkedReportNumberBmc::list(
+		&ctx,
+		&mm,
+		Some(vec![filter]),
+		Some(ListOptions::default()),
+	)
+	.await?;
 
 	Ok((StatusCode::OK, Json(DataRestResult { data: entities })))
 }

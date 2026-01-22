@@ -3,17 +3,22 @@
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use lib_core::model::audit::{AuditLog, AuditLogBmc, AuditLogFilter, CaseVersion, CaseVersionBmc};
+use lib_core::model::audit::{
+	AuditLog, AuditLogBmc, AuditLogFilter, CaseVersion, CaseVersionBmc,
+};
 use lib_core::model::user::{User, UserBmc};
 use lib_core::model::ModelManager;
 use lib_rest_core::rest_params::ParamsList;
 use lib_rest_core::rest_result::DataRestResult;
-use lib_web::{Error as WebError, Result};
 use lib_web::middleware::mw_auth::CtxW;
+use lib_web::{Error as WebError, Result};
 use uuid::Uuid;
 
 /// Verifies that the current user has admin role
-async fn require_admin_role(ctx: &lib_core::ctx::Ctx, mm: &ModelManager) -> Result<()> {
+async fn require_admin_role(
+	ctx: &lib_core::ctx::Ctx,
+	mm: &ModelManager,
+) -> Result<()> {
 	let user: User = UserBmc::get(ctx, mm, ctx.user_id())
 		.await
 		.map_err(|e| WebError::Model(e))?;

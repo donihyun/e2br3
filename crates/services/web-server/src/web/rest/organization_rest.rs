@@ -1,5 +1,6 @@
 use lib_core::model::organization::{
-	OrganizationBmc, OrganizationFilter, OrganizationForCreate, OrganizationForUpdate,
+	OrganizationBmc, OrganizationFilter, OrganizationForCreate,
+	OrganizationForUpdate,
 };
 use lib_rest_core::prelude::*;
 

@@ -1,17 +1,17 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm,
-	set_current_user, Result,
+	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
+	Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::case::CaseBmc;
 use lib_core::model::drug::{
-	DosageInformationBmc, DosageInformationForCreate,
-	DosageInformationForUpdate, DrugActiveSubstanceBmc,
-	DrugActiveSubstanceForCreate, DrugActiveSubstanceForUpdate,
-	DrugIndicationBmc, DrugIndicationForCreate, DrugIndicationForUpdate,
-	DrugInformationBmc, DrugInformationForCreate, DrugInformationForUpdate,
+	DosageInformationBmc, DosageInformationForCreate, DosageInformationForUpdate,
+	DrugActiveSubstanceBmc, DrugActiveSubstanceForCreate,
+	DrugActiveSubstanceForUpdate, DrugIndicationBmc, DrugIndicationForCreate,
+	DrugIndicationForUpdate, DrugInformationBmc, DrugInformationForCreate,
+	DrugInformationForUpdate,
 };
 use rust_decimal::Decimal;
 use serial_test::serial;
@@ -43,8 +43,7 @@ async fn test_drug_information_crud() -> Result<()> {
 		batch_lot_number: None,
 		action_taken: Some("1".to_string()),
 	};
-	DrugInformationBmc::update_in_case(&ctx, &mm, case_id, drug_id, drug_u)
-		.await?;
+	DrugInformationBmc::update_in_case(&ctx, &mm, case_id, drug_id, drug_u).await?;
 	let drug = DrugInformationBmc::get_in_case(&ctx, &mm, case_id, drug_id).await?;
 	assert_eq!(drug.medicinal_product, "Updated Drug");
 
@@ -80,8 +79,7 @@ async fn test_drug_submodels_crud() -> Result<()> {
 	};
 	let substance_id =
 		DrugActiveSubstanceBmc::create(&ctx, &mm, substance_c).await?;
-	let substance =
-		DrugActiveSubstanceBmc::get(&ctx, &mm, substance_id).await?;
+	let substance = DrugActiveSubstanceBmc::get(&ctx, &mm, substance_id).await?;
 	assert_eq!(substance.sequence_number, 1);
 
 	let substance_u = DrugActiveSubstanceForUpdate {
@@ -91,22 +89,18 @@ async fn test_drug_submodels_crud() -> Result<()> {
 		strength_value: None,
 		strength_unit: Some("mg".to_string()),
 	};
-	DrugActiveSubstanceBmc::update(&ctx, &mm, substance_id, substance_u)
-		.await?;
-	let substance =
-		DrugActiveSubstanceBmc::get(&ctx, &mm, substance_id).await?;
+	DrugActiveSubstanceBmc::update(&ctx, &mm, substance_id, substance_u).await?;
+	let substance = DrugActiveSubstanceBmc::get(&ctx, &mm, substance_id).await?;
 	assert_eq!(substance.substance_name.as_deref(), Some("Substance B"));
 
-	let substances =
-		DrugActiveSubstanceBmc::list(&ctx, &mm, None, None).await?;
+	let substances = DrugActiveSubstanceBmc::list(&ctx, &mm, None, None).await?;
 	assert!(substances.iter().any(|s| s.id == substance_id));
 
 	let dosage_c = DosageInformationForCreate {
 		drug_id,
 		sequence_number: 1,
 	};
-	let dosage_id =
-		DosageInformationBmc::create(&ctx, &mm, dosage_c).await?;
+	let dosage_id = DosageInformationBmc::create(&ctx, &mm, dosage_c).await?;
 	let dosage = DosageInformationBmc::get(&ctx, &mm, dosage_id).await?;
 	assert_eq!(dosage.sequence_number, 1);
 
@@ -132,8 +126,7 @@ async fn test_drug_submodels_crud() -> Result<()> {
 	let dosage = DosageInformationBmc::get(&ctx, &mm, dosage_id).await?;
 	assert_eq!(dosage.dose_unit.as_deref(), Some("tab"));
 
-	let dosage_list =
-		DosageInformationBmc::list(&ctx, &mm, None, None).await?;
+	let dosage_list = DosageInformationBmc::list(&ctx, &mm, None, None).await?;
 	assert!(dosage_list.iter().any(|d| d.id == dosage_id));
 
 	let indication_c = DrugIndicationForCreate {
@@ -141,10 +134,8 @@ async fn test_drug_submodels_crud() -> Result<()> {
 		sequence_number: 1,
 		indication_text: Some("Headache".to_string()),
 	};
-	let indication_id =
-		DrugIndicationBmc::create(&ctx, &mm, indication_c).await?;
-	let indication =
-		DrugIndicationBmc::get(&ctx, &mm, indication_id).await?;
+	let indication_id = DrugIndicationBmc::create(&ctx, &mm, indication_c).await?;
+	let indication = DrugIndicationBmc::get(&ctx, &mm, indication_id).await?;
 	assert_eq!(indication.sequence_number, 1);
 
 	let indication_u = DrugIndicationForUpdate {
@@ -152,14 +143,11 @@ async fn test_drug_submodels_crud() -> Result<()> {
 		indication_meddra_version: None,
 		indication_meddra_code: None,
 	};
-	DrugIndicationBmc::update(&ctx, &mm, indication_id, indication_u)
-		.await?;
-	let indication =
-		DrugIndicationBmc::get(&ctx, &mm, indication_id).await?;
+	DrugIndicationBmc::update(&ctx, &mm, indication_id, indication_u).await?;
+	let indication = DrugIndicationBmc::get(&ctx, &mm, indication_id).await?;
 	assert_eq!(indication.indication_text.as_deref(), Some("Fever"));
 
-	let indications =
-		DrugIndicationBmc::list(&ctx, &mm, None, None).await?;
+	let indications = DrugIndicationBmc::list(&ctx, &mm, None, None).await?;
 	assert!(indications.iter().any(|i| i.id == indication_id));
 
 	DrugIndicationBmc::delete(&ctx, &mm, indication_id).await?;

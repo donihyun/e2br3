@@ -5,9 +5,9 @@ use axum::http::StatusCode;
 use axum::Json;
 use lib_core::model::parent_history::{
 	ParentMedicalHistory, ParentMedicalHistoryBmc, ParentMedicalHistoryFilter,
-	ParentMedicalHistoryForCreate, ParentMedicalHistoryForUpdate, ParentPastDrugHistory,
-	ParentPastDrugHistoryBmc, ParentPastDrugHistoryFilter, ParentPastDrugHistoryForCreate,
-	ParentPastDrugHistoryForUpdate,
+	ParentMedicalHistoryForCreate, ParentMedicalHistoryForUpdate,
+	ParentPastDrugHistory, ParentPastDrugHistoryBmc, ParentPastDrugHistoryFilter,
+	ParentPastDrugHistoryForCreate, ParentPastDrugHistoryForUpdate,
 };
 use lib_core::model::ModelManager;
 use lib_rest_core::rest_params::{ParamsForCreate, ParamsForUpdate};
@@ -58,12 +58,18 @@ pub async fn list_parent_medical_history(
 	);
 
 	let filter = ParentMedicalHistoryFilter {
-		parent_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(parent_id.to_string()))])),
+		parent_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(
+			parent_id.to_string()
+		))])),
 		..Default::default()
 	};
-	let entities =
-		ParentMedicalHistoryBmc::list(&ctx, &mm, Some(vec![filter]), Some(ListOptions::default()))
-			.await?;
+	let entities = ParentMedicalHistoryBmc::list(
+		&ctx,
+		&mm,
+		Some(vec![filter]),
+		Some(ListOptions::default()),
+	)
+	.await?;
 
 	Ok((StatusCode::OK, Json(DataRestResult { data: entities })))
 }
@@ -165,12 +171,18 @@ pub async fn list_parent_past_drug_history(
 	);
 
 	let filter = ParentPastDrugHistoryFilter {
-		parent_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(parent_id.to_string()))])),
+		parent_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(
+			parent_id.to_string()
+		))])),
 		..Default::default()
 	};
-	let entities =
-		ParentPastDrugHistoryBmc::list(&ctx, &mm, Some(vec![filter]), Some(ListOptions::default()))
-			.await?;
+	let entities = ParentPastDrugHistoryBmc::list(
+		&ctx,
+		&mm,
+		Some(vec![filter]),
+		Some(ListOptions::default()),
+	)
+	.await?;
 
 	Ok((StatusCode::OK, Json(DataRestResult { data: entities })))
 }

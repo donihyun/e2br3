@@ -452,11 +452,7 @@ impl PatientInformationBmc {
 		Ok(())
 	}
 
-	pub async fn delete(
-		ctx: &Ctx,
-		mm: &ModelManager,
-		id: Uuid,
-	) -> Result<()> {
+	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
 		let db = mm.dbx().db();
 		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
 		set_user_context(&mut tx, ctx.user_id()).await?;

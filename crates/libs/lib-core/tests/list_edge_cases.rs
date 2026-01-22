@@ -1,14 +1,14 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm,
-	set_current_user, Result,
+	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
+	Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::case::CaseBmc;
 use lib_core::model::drug::{
-	DrugActiveSubstanceBmc, DrugActiveSubstanceForCreate,
-	DrugInformationBmc, DrugInformationForCreate,
+	DrugActiveSubstanceBmc, DrugActiveSubstanceForCreate, DrugInformationBmc,
+	DrugInformationForCreate,
 };
 use lib_core::model::reaction::{ReactionBmc, ReactionForCreate};
 use lib_core::model::Error as ModelError;
@@ -87,7 +87,8 @@ async fn test_substance_list_with_limit() -> Result<()> {
 			sequence_number: i,
 			substance_name: Some(format!("Substance {}", i)),
 		};
-		let substance_id = DrugActiveSubstanceBmc::create(&ctx, &mm, substance_c).await?;
+		let substance_id =
+			DrugActiveSubstanceBmc::create(&ctx, &mm, substance_c).await?;
 		substance_ids.push(substance_id);
 	}
 
@@ -97,7 +98,8 @@ async fn test_substance_list_with_limit() -> Result<()> {
 		offset: None,
 		order_bys: Some("sequence_number".into()),
 	};
-	let substances = DrugActiveSubstanceBmc::list(&ctx, &mm, None, Some(list_options)).await?;
+	let substances =
+		DrugActiveSubstanceBmc::list(&ctx, &mm, None, Some(list_options)).await?;
 	assert!(substances.len() <= 3, "should respect limit");
 
 	// Cleanup
@@ -136,7 +138,8 @@ async fn test_substance_list_with_offset() -> Result<()> {
 			sequence_number: i,
 			substance_name: Some(format!("Offset Substance {}", i)),
 		};
-		let substance_id = DrugActiveSubstanceBmc::create(&ctx, &mm, substance_c).await?;
+		let substance_id =
+			DrugActiveSubstanceBmc::create(&ctx, &mm, substance_c).await?;
 		substance_ids.push(substance_id);
 	}
 
@@ -149,10 +152,14 @@ async fn test_substance_list_with_offset() -> Result<()> {
 		offset: Some(2),
 		order_bys: Some("id".into()),
 	};
-	let offset_substances = DrugActiveSubstanceBmc::list(&ctx, &mm, None, Some(list_options)).await?;
+	let offset_substances =
+		DrugActiveSubstanceBmc::list(&ctx, &mm, None, Some(list_options)).await?;
 
 	// With offset, should have fewer or equal results
-	assert!(offset_substances.len() <= all_substances.len(), "offset should reduce or equal results");
+	assert!(
+		offset_substances.len() <= all_substances.len(),
+		"offset should reduce or equal results"
+	);
 
 	// Cleanup
 	for substance_id in substance_ids {
@@ -181,14 +188,17 @@ async fn test_list_limit_over_max() -> Result<()> {
 		order_bys: None,
 	};
 
-	let result = DrugActiveSubstanceBmc::list(&ctx, &mm, None, Some(list_options)).await;
+	let result =
+		DrugActiveSubstanceBmc::list(&ctx, &mm, None, Some(list_options)).await;
 
 	match result {
 		Err(ModelError::ListLimitOverMax { max, actual }) => {
 			assert_eq!(max, 5000);
 			assert_eq!(actual, 10000);
 		}
-		Err(other) => return Err(format!("expected ListLimitOverMax, got: {other:?}").into()),
+		Err(other) => {
+			return Err(format!("expected ListLimitOverMax, got: {other:?}").into())
+		}
 		Ok(_) => return Err("expected error for limit over max".into()),
 	}
 
@@ -208,7 +218,8 @@ async fn test_list_limit_at_max() -> Result<()> {
 		order_bys: None,
 	};
 
-	let result = DrugActiveSubstanceBmc::list(&ctx, &mm, None, Some(list_options)).await;
+	let result =
+		DrugActiveSubstanceBmc::list(&ctx, &mm, None, Some(list_options)).await;
 	assert!(result.is_ok(), "limit at max should succeed");
 
 	Ok(())
@@ -222,7 +233,10 @@ async fn test_list_default_limit() -> Result<()> {
 
 	// List without specifying limit - should use default (1000)
 	let result = DrugActiveSubstanceBmc::list(&ctx, &mm, None, None).await;
-	assert!(result.is_ok(), "list without options should use default limit");
+	assert!(
+		result.is_ok(),
+		"list without options should use default limit"
+	);
 
 	Ok(())
 }
@@ -240,7 +254,10 @@ async fn test_drug_list_by_nonexistent_case() -> Result<()> {
 
 	// List drugs for non-existent case should return empty, not error
 	let drugs = DrugInformationBmc::list_by_case(&ctx, &mm, fake_case_id).await?;
-	assert!(drugs.is_empty(), "non-existent case should return empty list");
+	assert!(
+		drugs.is_empty(),
+		"non-existent case should return empty list"
+	);
 
 	Ok(())
 }
@@ -254,7 +271,10 @@ async fn test_reaction_list_by_nonexistent_case() -> Result<()> {
 
 	// List reactions for non-existent case should return empty, not error
 	let reactions = ReactionBmc::list_by_case(&ctx, &mm, fake_case_id).await?;
-	assert!(reactions.is_empty(), "non-existent case should return empty list");
+	assert!(
+		reactions.is_empty(),
+		"non-existent case should return empty list"
+	);
 
 	Ok(())
 }

@@ -1,8 +1,8 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm,
-	set_current_user, Result,
+	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
+	Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::case::CaseBmc;
@@ -39,8 +39,7 @@ async fn test_reaction_crud() -> Result<()> {
 		end_date: None,
 		outcome: None,
 	};
-	ReactionBmc::update_in_case(&ctx, &mm, case_id, reaction_id, reaction_u)
-		.await?;
+	ReactionBmc::update_in_case(&ctx, &mm, case_id, reaction_id, reaction_u).await?;
 	let reaction = ReactionBmc::get_in_case(&ctx, &mm, case_id, reaction_id).await?;
 	assert_eq!(reaction.primary_source_reaction, "Updated Headache");
 

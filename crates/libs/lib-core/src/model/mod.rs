@@ -26,8 +26,8 @@ mod store;
 
 // E2B(R3) SafetyDB Core Models
 pub mod case;
-pub mod user; // E2B users table (UUID-based)
-pub mod organization; // Organizations table // Core cases table
+pub mod organization;
+pub mod user; // E2B users table (UUID-based) // Organizations table // Core cases table
 
 // E2B(R3) Section C - Safety Report Identification
 pub mod safety_report; // Safety report ID, sender info, primary sources, literature refs, study info

@@ -80,7 +80,8 @@ async fn pexec(db: &Db, file: &Path) -> Result<(), sqlx::Error> {
 				continue;
 			}
 
-			if should_skip_role_setup() && should_ignore_policy_role_error(&sql, &e) {
+			if should_skip_role_setup() && should_ignore_policy_role_error(&sql, &e)
+			{
 				println!(
 					"pexec warning: skipping policy creation due to missing role:\n{sql}\nreason:\n{e}"
 				);

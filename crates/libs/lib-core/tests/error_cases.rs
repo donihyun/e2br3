@@ -1,12 +1,14 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm,
-	set_current_user, Result,
+	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
+	Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::case::{CaseBmc, CaseForUpdate};
-use lib_core::model::drug::{DrugInformationBmc, DrugInformationForCreate, DrugInformationForUpdate};
+use lib_core::model::drug::{
+	DrugInformationBmc, DrugInformationForCreate, DrugInformationForUpdate,
+};
 use lib_core::model::organization::{OrganizationBmc, OrganizationForUpdate};
 use lib_core::model::patient::{PatientInformationBmc, PatientInformationForCreate};
 use lib_core::model::reaction::{ReactionBmc, ReactionForCreate};
@@ -33,7 +35,9 @@ async fn test_case_get_not_found() -> Result<()> {
 			assert_eq!(entity, "cases");
 			assert_eq!(id, fake_id);
 		}
-		Err(other) => return Err(format!("expected EntityUuidNotFound, got: {other:?}").into()),
+		Err(other) => {
+			return Err(format!("expected EntityUuidNotFound, got: {other:?}").into())
+		}
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
@@ -47,14 +51,17 @@ async fn test_user_get_not_found() -> Result<()> {
 	let ctx = Ctx::root_ctx();
 	let fake_id = Uuid::new_v4();
 
-	let result = UserBmc::get::<lib_core::model::user::User>(&ctx, &mm, fake_id).await;
+	let result =
+		UserBmc::get::<lib_core::model::user::User>(&ctx, &mm, fake_id).await;
 
 	match result {
 		Err(ModelError::EntityUuidNotFound { entity, id }) => {
 			assert_eq!(entity, "users");
 			assert_eq!(id, fake_id);
 		}
-		Err(other) => return Err(format!("expected EntityUuidNotFound, got: {other:?}").into()),
+		Err(other) => {
+			return Err(format!("expected EntityUuidNotFound, got: {other:?}").into())
+		}
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
@@ -75,7 +82,9 @@ async fn test_organization_get_not_found() -> Result<()> {
 			assert_eq!(entity, "organizations");
 			assert_eq!(id, fake_id);
 		}
-		Err(other) => return Err(format!("expected EntityUuidNotFound, got: {other:?}").into()),
+		Err(other) => {
+			return Err(format!("expected EntityUuidNotFound, got: {other:?}").into())
+		}
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
@@ -96,7 +105,9 @@ async fn test_drug_information_get_not_found() -> Result<()> {
 			assert_eq!(entity, "drug_information");
 			assert_eq!(id, fake_id);
 		}
-		Err(other) => return Err(format!("expected EntityUuidNotFound, got: {other:?}").into()),
+		Err(other) => {
+			return Err(format!("expected EntityUuidNotFound, got: {other:?}").into())
+		}
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
@@ -117,7 +128,9 @@ async fn test_reaction_get_not_found() -> Result<()> {
 			assert_eq!(entity, "reactions");
 			assert_eq!(id, fake_id);
 		}
-		Err(other) => return Err(format!("expected EntityUuidNotFound, got: {other:?}").into()),
+		Err(other) => {
+			return Err(format!("expected EntityUuidNotFound, got: {other:?}").into())
+		}
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
@@ -139,7 +152,9 @@ async fn test_patient_get_not_found() -> Result<()> {
 		Err(ModelError::EntityUuidNotFound { entity, .. }) => {
 			assert_eq!(entity, "patient_information");
 		}
-		Err(other) => return Err(format!("expected EntityNotFound, got: {other:?}").into()),
+		Err(other) => {
+			return Err(format!("expected EntityNotFound, got: {other:?}").into())
+		}
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
@@ -173,7 +188,9 @@ async fn test_case_update_not_found() -> Result<()> {
 			assert_eq!(entity, "cases");
 			assert_eq!(id, fake_id);
 		}
-		Err(other) => return Err(format!("expected EntityUuidNotFound, got: {other:?}").into()),
+		Err(other) => {
+			return Err(format!("expected EntityUuidNotFound, got: {other:?}").into())
+		}
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
@@ -203,7 +220,9 @@ async fn test_user_update_not_found() -> Result<()> {
 			assert_eq!(entity, "users");
 			assert_eq!(id, fake_id);
 		}
-		Err(other) => return Err(format!("expected EntityUuidNotFound, got: {other:?}").into()),
+		Err(other) => {
+			return Err(format!("expected EntityUuidNotFound, got: {other:?}").into())
+		}
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
@@ -237,7 +256,9 @@ async fn test_organization_update_not_found() -> Result<()> {
 			assert_eq!(entity, "organizations");
 			assert_eq!(id, fake_id);
 		}
-		Err(other) => return Err(format!("expected EntityUuidNotFound, got: {other:?}").into()),
+		Err(other) => {
+			return Err(format!("expected EntityUuidNotFound, got: {other:?}").into())
+		}
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
@@ -264,7 +285,9 @@ async fn test_case_delete_not_found() -> Result<()> {
 			assert_eq!(entity, "cases");
 			assert_eq!(id, fake_id);
 		}
-		Err(other) => return Err(format!("expected EntityUuidNotFound, got: {other:?}").into()),
+		Err(other) => {
+			return Err(format!("expected EntityUuidNotFound, got: {other:?}").into())
+		}
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
@@ -285,7 +308,9 @@ async fn test_user_delete_not_found() -> Result<()> {
 			assert_eq!(entity, "users");
 			assert_eq!(id, fake_id);
 		}
-		Err(other) => return Err(format!("expected EntityUuidNotFound, got: {other:?}").into()),
+		Err(other) => {
+			return Err(format!("expected EntityUuidNotFound, got: {other:?}").into())
+		}
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
@@ -306,7 +331,9 @@ async fn test_organization_delete_not_found() -> Result<()> {
 			assert_eq!(entity, "organizations");
 			assert_eq!(id, fake_id);
 		}
-		Err(other) => return Err(format!("expected EntityUuidNotFound, got: {other:?}").into()),
+		Err(other) => {
+			return Err(format!("expected EntityUuidNotFound, got: {other:?}").into())
+		}
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
@@ -327,7 +354,9 @@ async fn test_drug_delete_not_found() -> Result<()> {
 			assert_eq!(entity, "drug_information");
 			assert_eq!(id, fake_id);
 		}
-		Err(other) => return Err(format!("expected EntityUuidNotFound, got: {other:?}").into()),
+		Err(other) => {
+			return Err(format!("expected EntityUuidNotFound, got: {other:?}").into())
+		}
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
@@ -348,7 +377,9 @@ async fn test_reaction_delete_not_found() -> Result<()> {
 			assert_eq!(entity, "reactions");
 			assert_eq!(id, fake_id);
 		}
-		Err(other) => return Err(format!("expected EntityUuidNotFound, got: {other:?}").into()),
+		Err(other) => {
+			return Err(format!("expected EntityUuidNotFound, got: {other:?}").into())
+		}
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
@@ -456,7 +487,10 @@ async fn test_drug_create_invalid_case() -> Result<()> {
 	let result = DrugInformationBmc::create(&ctx, &mm, drug_c).await;
 
 	// Should fail due to FK constraint on case_id
-	assert!(result.is_err(), "expected FK violation error for invalid case_id");
+	assert!(
+		result.is_err(),
+		"expected FK violation error for invalid case_id"
+	);
 
 	Ok(())
 }
@@ -479,7 +513,10 @@ async fn test_reaction_create_invalid_case() -> Result<()> {
 	let result = ReactionBmc::create(&ctx, &mm, reaction_c).await;
 
 	// Should fail due to FK constraint on case_id
-	assert!(result.is_err(), "expected FK violation error for invalid case_id");
+	assert!(
+		result.is_err(),
+		"expected FK violation error for invalid case_id"
+	);
 
 	Ok(())
 }
@@ -502,7 +539,10 @@ async fn test_patient_create_invalid_case() -> Result<()> {
 	let result = PatientInformationBmc::create(&ctx, &mm, patient_c).await;
 
 	// Should fail due to FK constraint on case_id
-	assert!(result.is_err(), "expected FK violation error for invalid case_id");
+	assert!(
+		result.is_err(),
+		"expected FK violation error for invalid case_id"
+	);
 
 	Ok(())
 }
@@ -533,7 +573,8 @@ async fn test_drug_get_in_wrong_case() -> Result<()> {
 	let drug_id = DrugInformationBmc::create(&ctx, &mm, drug_c).await?;
 
 	// Try to get drug using case 2 (wrong case)
-	let result = DrugInformationBmc::get_in_case(&ctx, &mm, case_id_2, drug_id).await;
+	let result =
+		DrugInformationBmc::get_in_case(&ctx, &mm, case_id_2, drug_id).await;
 
 	assert!(result.is_err(), "should not find drug in wrong case");
 
@@ -575,13 +616,18 @@ async fn test_drug_update_in_wrong_case() -> Result<()> {
 		batch_lot_number: None,
 		action_taken: None,
 	};
-	let result = DrugInformationBmc::update_in_case(&ctx, &mm, case_id_2, drug_id, drug_u).await;
+	let result =
+		DrugInformationBmc::update_in_case(&ctx, &mm, case_id_2, drug_id, drug_u)
+			.await;
 
 	assert!(result.is_err(), "should not update drug in wrong case");
 
 	// Verify drug was not modified
 	let drug = DrugInformationBmc::get(&ctx, &mm, drug_id).await?;
-	assert_eq!(drug.medicinal_product, "Test Drug", "drug should not be modified");
+	assert_eq!(
+		drug.medicinal_product, "Test Drug",
+		"drug should not be modified"
+	);
 
 	// Cleanup
 	DrugInformationBmc::delete(&ctx, &mm, drug_id).await?;

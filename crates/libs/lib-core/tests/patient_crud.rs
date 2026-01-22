@@ -1,8 +1,8 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm,
-	set_current_user, Result,
+	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
+	Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::case::CaseBmc;
@@ -10,11 +10,11 @@ use lib_core::model::patient::{
 	AutopsyCauseOfDeathBmc, AutopsyCauseOfDeathForCreate,
 	AutopsyCauseOfDeathForUpdate, MedicalHistoryEpisodeBmc,
 	MedicalHistoryEpisodeForCreate, MedicalHistoryEpisodeForUpdate,
-	PastDrugHistoryBmc, PastDrugHistoryForCreate, PastDrugHistoryForUpdate,
-	PatientInformationBmc, PatientInformationForCreate,
-	PatientInformationForUpdate, PatientDeathInformationBmc,
-	PatientDeathInformationForCreate, PatientDeathInformationForUpdate,
 	ParentInformationBmc, ParentInformationForCreate, ParentInformationForUpdate,
+	PastDrugHistoryBmc, PastDrugHistoryForCreate, PastDrugHistoryForUpdate,
+	PatientDeathInformationBmc, PatientDeathInformationForCreate,
+	PatientDeathInformationForUpdate, PatientInformationBmc,
+	PatientInformationForCreate, PatientInformationForUpdate,
 	ReportedCauseOfDeathBmc, ReportedCauseOfDeathForCreate,
 	ReportedCauseOfDeathForUpdate,
 };
@@ -87,8 +87,7 @@ async fn test_patient_submodels_crud() -> Result<()> {
 		sequence_number: 1,
 		meddra_code: Some("12345678".to_string()),
 	};
-	let med_id =
-		MedicalHistoryEpisodeBmc::create(&ctx, &mm, med_c).await?;
+	let med_id = MedicalHistoryEpisodeBmc::create(&ctx, &mm, med_c).await?;
 	let med = MedicalHistoryEpisodeBmc::get(&ctx, &mm, med_id).await?;
 	assert_eq!(med.sequence_number, 1);
 
@@ -104,8 +103,7 @@ async fn test_patient_submodels_crud() -> Result<()> {
 	let med = MedicalHistoryEpisodeBmc::get(&ctx, &mm, med_id).await?;
 	assert_eq!(med.meddra_version.as_deref(), Some("26.0"));
 
-	let med_list =
-		MedicalHistoryEpisodeBmc::list(&ctx, &mm, None, None).await?;
+	let med_list = MedicalHistoryEpisodeBmc::list(&ctx, &mm, None, None).await?;
 	assert!(med_list.iter().any(|m| m.id == med_id));
 
 	let past_c = PastDrugHistoryForCreate {
@@ -113,8 +111,7 @@ async fn test_patient_submodels_crud() -> Result<()> {
 		sequence_number: 1,
 		drug_name: Some("Old Drug".to_string()),
 	};
-	let past_id =
-		PastDrugHistoryBmc::create(&ctx, &mm, past_c).await?;
+	let past_id = PastDrugHistoryBmc::create(&ctx, &mm, past_c).await?;
 	let past = PastDrugHistoryBmc::get(&ctx, &mm, past_id).await?;
 	assert_eq!(past.sequence_number, 1);
 
@@ -138,8 +135,7 @@ async fn test_patient_submodels_crud() -> Result<()> {
 		date_of_death: None,
 		autopsy_performed: Some(false),
 	};
-	let death_id =
-		PatientDeathInformationBmc::create(&ctx, &mm, death_c).await?;
+	let death_id = PatientDeathInformationBmc::create(&ctx, &mm, death_c).await?;
 	let death = PatientDeathInformationBmc::get(&ctx, &mm, death_id).await?;
 	assert_eq!(death.patient_id, patient_id);
 
@@ -147,8 +143,7 @@ async fn test_patient_submodels_crud() -> Result<()> {
 		date_of_death: None,
 		autopsy_performed: Some(true),
 	};
-	PatientDeathInformationBmc::update(&ctx, &mm, death_id, death_u)
-		.await?;
+	PatientDeathInformationBmc::update(&ctx, &mm, death_id, death_u).await?;
 	let death = PatientDeathInformationBmc::get(&ctx, &mm, death_id).await?;
 	assert_eq!(death.autopsy_performed, Some(true));
 
@@ -157,20 +152,16 @@ async fn test_patient_submodels_crud() -> Result<()> {
 		sequence_number: 1,
 		meddra_code: Some("87654321".to_string()),
 	};
-	let reported_id =
-		ReportedCauseOfDeathBmc::create(&ctx, &mm, reported_c).await?;
-	let reported =
-		ReportedCauseOfDeathBmc::get(&ctx, &mm, reported_id).await?;
+	let reported_id = ReportedCauseOfDeathBmc::create(&ctx, &mm, reported_c).await?;
+	let reported = ReportedCauseOfDeathBmc::get(&ctx, &mm, reported_id).await?;
 	assert_eq!(reported.sequence_number, 1);
 
 	let reported_u = ReportedCauseOfDeathForUpdate {
 		meddra_version: Some("26.0".to_string()),
 		meddra_code: None,
 	};
-	ReportedCauseOfDeathBmc::update(&ctx, &mm, reported_id, reported_u)
-		.await?;
-	let reported =
-		ReportedCauseOfDeathBmc::get(&ctx, &mm, reported_id).await?;
+	ReportedCauseOfDeathBmc::update(&ctx, &mm, reported_id, reported_u).await?;
+	let reported = ReportedCauseOfDeathBmc::get(&ctx, &mm, reported_id).await?;
 	assert_eq!(reported.meddra_version.as_deref(), Some("26.0"));
 
 	let autopsy_c = AutopsyCauseOfDeathForCreate {
@@ -178,20 +169,16 @@ async fn test_patient_submodels_crud() -> Result<()> {
 		sequence_number: 1,
 		meddra_code: Some("87654322".to_string()),
 	};
-	let autopsy_id =
-		AutopsyCauseOfDeathBmc::create(&ctx, &mm, autopsy_c).await?;
-	let autopsy =
-		AutopsyCauseOfDeathBmc::get(&ctx, &mm, autopsy_id).await?;
+	let autopsy_id = AutopsyCauseOfDeathBmc::create(&ctx, &mm, autopsy_c).await?;
+	let autopsy = AutopsyCauseOfDeathBmc::get(&ctx, &mm, autopsy_id).await?;
 	assert_eq!(autopsy.sequence_number, 1);
 
 	let autopsy_u = AutopsyCauseOfDeathForUpdate {
 		meddra_version: Some("26.0".to_string()),
 		meddra_code: None,
 	};
-	AutopsyCauseOfDeathBmc::update(&ctx, &mm, autopsy_id, autopsy_u)
-		.await?;
-	let autopsy =
-		AutopsyCauseOfDeathBmc::get(&ctx, &mm, autopsy_id).await?;
+	AutopsyCauseOfDeathBmc::update(&ctx, &mm, autopsy_id, autopsy_u).await?;
+	let autopsy = AutopsyCauseOfDeathBmc::get(&ctx, &mm, autopsy_id).await?;
 	assert_eq!(autopsy.meddra_version.as_deref(), Some("26.0"));
 
 	let parent_c = ParentInformationForCreate {
@@ -199,8 +186,7 @@ async fn test_patient_submodels_crud() -> Result<()> {
 		sex: Some("2".to_string()),
 		medical_history_text: None,
 	};
-	let parent_id =
-		ParentInformationBmc::create(&ctx, &mm, parent_c).await?;
+	let parent_id = ParentInformationBmc::create(&ctx, &mm, parent_c).await?;
 	let parent = ParentInformationBmc::get(&ctx, &mm, parent_id).await?;
 	assert_eq!(parent.patient_id, patient_id);
 

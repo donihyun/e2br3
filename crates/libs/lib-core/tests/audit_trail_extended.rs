@@ -1,15 +1,21 @@
 mod common;
 
 use common::{
-	audit_log_count, create_case_fixture, demo_org_id, demo_user_id,
-	init_test_mm, set_current_user, Result,
+	audit_log_count, create_case_fixture, demo_org_id, demo_user_id, init_test_mm,
+	set_current_user, Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::audit::AuditLogBmc;
 use lib_core::model::case::CaseBmc;
-use lib_core::model::drug::{DrugInformationBmc, DrugInformationForCreate, DrugInformationForUpdate};
-use lib_core::model::organization::{OrganizationBmc, OrganizationForCreate, OrganizationForUpdate};
-use lib_core::model::patient::{PatientInformationBmc, PatientInformationForCreate, PatientInformationForUpdate};
+use lib_core::model::drug::{
+	DrugInformationBmc, DrugInformationForCreate, DrugInformationForUpdate,
+};
+use lib_core::model::organization::{
+	OrganizationBmc, OrganizationForCreate, OrganizationForUpdate,
+};
+use lib_core::model::patient::{
+	PatientInformationBmc, PatientInformationForCreate, PatientInformationForUpdate,
+};
 use lib_core::model::reaction::{ReactionBmc, ReactionForCreate, ReactionForUpdate};
 use lib_core::model::user::{UserBmc, UserForCreate, UserForUpdate};
 use serial_test::serial;
@@ -35,7 +41,10 @@ async fn test_audit_trail_drug_information() -> Result<()> {
 		medicinal_product: "Audit Test Drug".to_string(),
 	};
 	let drug_id = DrugInformationBmc::create(&ctx, &mm, drug_c).await?;
-	assert_eq!(audit_log_count(&mm, "drug_information", drug_id, "CREATE").await?, 1);
+	assert_eq!(
+		audit_log_count(&mm, "drug_information", drug_id, "CREATE").await?,
+		1
+	);
 
 	// UPDATE
 	let drug_u = DrugInformationForUpdate {
@@ -47,14 +56,21 @@ async fn test_audit_trail_drug_information() -> Result<()> {
 		action_taken: None,
 	};
 	DrugInformationBmc::update_in_case(&ctx, &mm, case_id, drug_id, drug_u).await?;
-	assert_eq!(audit_log_count(&mm, "drug_information", drug_id, "UPDATE").await?, 1);
+	assert_eq!(
+		audit_log_count(&mm, "drug_information", drug_id, "UPDATE").await?,
+		1
+	);
 
 	// DELETE
 	DrugInformationBmc::delete(&ctx, &mm, drug_id).await?;
-	assert_eq!(audit_log_count(&mm, "drug_information", drug_id, "DELETE").await?, 1);
+	assert_eq!(
+		audit_log_count(&mm, "drug_information", drug_id, "DELETE").await?,
+		1
+	);
 
 	// Verify all audit logs
-	let logs = AuditLogBmc::list_by_record(&ctx, &mm, "drug_information", drug_id).await?;
+	let logs =
+		AuditLogBmc::list_by_record(&ctx, &mm, "drug_information", drug_id).await?;
 	assert_eq!(logs.len(), 3, "should have CREATE, UPDATE, DELETE logs");
 
 	// Verify user attribution
@@ -68,8 +84,14 @@ async fn test_audit_trail_drug_information() -> Result<()> {
 	assert!(update_log.new_values.is_some());
 	let old = update_log.old_values.as_ref().unwrap();
 	let new = update_log.new_values.as_ref().unwrap();
-	assert_eq!(old.get("medicinal_product").and_then(|v| v.as_str()), Some("Audit Test Drug"));
-	assert_eq!(new.get("medicinal_product").and_then(|v| v.as_str()), Some("Updated Audit Drug"));
+	assert_eq!(
+		old.get("medicinal_product").and_then(|v| v.as_str()),
+		Some("Audit Test Drug")
+	);
+	assert_eq!(
+		new.get("medicinal_product").and_then(|v| v.as_str()),
+		Some("Updated Audit Drug")
+	);
 
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
@@ -97,7 +119,10 @@ async fn test_audit_trail_reactions() -> Result<()> {
 		primary_source_reaction: "Audit Test Reaction".to_string(),
 	};
 	let reaction_id = ReactionBmc::create(&ctx, &mm, reaction_c).await?;
-	assert_eq!(audit_log_count(&mm, "reactions", reaction_id, "CREATE").await?, 1);
+	assert_eq!(
+		audit_log_count(&mm, "reactions", reaction_id, "CREATE").await?,
+		1
+	);
 
 	// UPDATE
 	let reaction_u = ReactionForUpdate {
@@ -113,14 +138,21 @@ async fn test_audit_trail_reactions() -> Result<()> {
 		outcome: None,
 	};
 	ReactionBmc::update_in_case(&ctx, &mm, case_id, reaction_id, reaction_u).await?;
-	assert_eq!(audit_log_count(&mm, "reactions", reaction_id, "UPDATE").await?, 1);
+	assert_eq!(
+		audit_log_count(&mm, "reactions", reaction_id, "UPDATE").await?,
+		1
+	);
 
 	// DELETE
 	ReactionBmc::delete(&ctx, &mm, reaction_id).await?;
-	assert_eq!(audit_log_count(&mm, "reactions", reaction_id, "DELETE").await?, 1);
+	assert_eq!(
+		audit_log_count(&mm, "reactions", reaction_id, "DELETE").await?,
+		1
+	);
 
 	// Verify
-	let logs = AuditLogBmc::list_by_record(&ctx, &mm, "reactions", reaction_id).await?;
+	let logs =
+		AuditLogBmc::list_by_record(&ctx, &mm, "reactions", reaction_id).await?;
 	assert_eq!(logs.len(), 3);
 
 	// Cleanup
@@ -149,7 +181,10 @@ async fn test_audit_trail_patient_information() -> Result<()> {
 		sex: Some("1".to_string()),
 	};
 	let patient_id = PatientInformationBmc::create(&ctx, &mm, patient_c).await?;
-	assert_eq!(audit_log_count(&mm, "patient_information", patient_id, "CREATE").await?, 1);
+	assert_eq!(
+		audit_log_count(&mm, "patient_information", patient_id, "CREATE").await?,
+		1
+	);
 
 	// UPDATE
 	let patient_u = PatientInformationForUpdate {
@@ -165,14 +200,22 @@ async fn test_audit_trail_patient_information() -> Result<()> {
 		medical_history_text: Some("Test history".to_string()),
 	};
 	PatientInformationBmc::update_by_case(&ctx, &mm, case_id, patient_u).await?;
-	assert_eq!(audit_log_count(&mm, "patient_information", patient_id, "UPDATE").await?, 1);
+	assert_eq!(
+		audit_log_count(&mm, "patient_information", patient_id, "UPDATE").await?,
+		1
+	);
 
 	// DELETE
 	PatientInformationBmc::delete_by_case(&ctx, &mm, case_id).await?;
-	assert_eq!(audit_log_count(&mm, "patient_information", patient_id, "DELETE").await?, 1);
+	assert_eq!(
+		audit_log_count(&mm, "patient_information", patient_id, "DELETE").await?,
+		1
+	);
 
 	// Verify
-	let logs = AuditLogBmc::list_by_record(&ctx, &mm, "patient_information", patient_id).await?;
+	let logs =
+		AuditLogBmc::list_by_record(&ctx, &mm, "patient_information", patient_id)
+			.await?;
 	assert_eq!(logs.len(), 3);
 
 	// Cleanup
@@ -201,7 +244,10 @@ async fn test_audit_trail_organizations() -> Result<()> {
 		contact_email: Some("audit@test.com".to_string()),
 	};
 	let org_id = OrganizationBmc::create(&ctx, &mm, org_c).await?;
-	assert_eq!(audit_log_count(&mm, "organizations", org_id, "CREATE").await?, 1);
+	assert_eq!(
+		audit_log_count(&mm, "organizations", org_id, "CREATE").await?,
+		1
+	);
 
 	// UPDATE
 	let org_u = OrganizationForUpdate {
@@ -217,14 +263,21 @@ async fn test_audit_trail_organizations() -> Result<()> {
 		active: None,
 	};
 	OrganizationBmc::update(&ctx, &mm, org_id, org_u).await?;
-	assert_eq!(audit_log_count(&mm, "organizations", org_id, "UPDATE").await?, 1);
+	assert_eq!(
+		audit_log_count(&mm, "organizations", org_id, "UPDATE").await?,
+		1
+	);
 
 	// DELETE
 	OrganizationBmc::delete(&ctx, &mm, org_id).await?;
-	assert_eq!(audit_log_count(&mm, "organizations", org_id, "DELETE").await?, 1);
+	assert_eq!(
+		audit_log_count(&mm, "organizations", org_id, "DELETE").await?,
+		1
+	);
 
 	// Verify
-	let logs = AuditLogBmc::list_by_record(&ctx, &mm, "organizations", org_id).await?;
+	let logs =
+		AuditLogBmc::list_by_record(&ctx, &mm, "organizations", org_id).await?;
 	assert_eq!(logs.len(), 3);
 
 	Ok(())
@@ -255,8 +308,12 @@ async fn test_audit_trail_users() -> Result<()> {
 	let user_id = UserBmc::create(&ctx, &mm, user_c).await?;
 	assert_eq!(audit_log_count(&mm, "users", user_id, "CREATE").await?, 1);
 	// Password is set via update_pwd during create, generating 1 UPDATE log
-	let update_count_after_create = audit_log_count(&mm, "users", user_id, "UPDATE").await?;
-	assert!(update_count_after_create >= 1, "create should generate at least 1 UPDATE from password setup");
+	let update_count_after_create =
+		audit_log_count(&mm, "users", user_id, "UPDATE").await?;
+	assert!(
+		update_count_after_create >= 1,
+		"create should generate at least 1 UPDATE from password setup"
+	);
 
 	// UPDATE
 	let user_u = UserForUpdate {
@@ -268,7 +325,8 @@ async fn test_audit_trail_users() -> Result<()> {
 		last_login_at: None,
 	};
 	UserBmc::update(&ctx, &mm, user_id, user_u).await?;
-	let update_count_after_update = audit_log_count(&mm, "users", user_id, "UPDATE").await?;
+	let update_count_after_update =
+		audit_log_count(&mm, "users", user_id, "UPDATE").await?;
 	assert!(
 		update_count_after_update > update_count_after_create,
 		"explicit update should add another UPDATE log"
@@ -280,7 +338,10 @@ async fn test_audit_trail_users() -> Result<()> {
 
 	// Verify total logs (CREATE + UPDATE(s) + DELETE)
 	let logs = AuditLogBmc::list_by_record(&ctx, &mm, "users", user_id).await?;
-	assert!(logs.len() >= 3, "should have at least CREATE, UPDATE, DELETE logs");
+	assert!(
+		logs.len() >= 3,
+		"should have at least CREATE, UPDATE, DELETE logs"
+	);
 
 	Ok(())
 }
@@ -318,9 +379,14 @@ async fn test_audit_log_list_all() -> Result<()> {
 	// Verify logs contain our drug records
 	let drug_logs: Vec<_> = logs
 		.iter()
-		.filter(|l| l.table_name == "drug_information" && drug_ids.contains(&l.record_id))
+		.filter(|l| {
+			l.table_name == "drug_information" && drug_ids.contains(&l.record_id)
+		})
 		.collect();
-	assert!(drug_logs.len() >= 3, "should have at least 3 CREATE logs for our drugs");
+	assert!(
+		drug_logs.len() >= 3,
+		"should have at least 3 CREATE logs for our drugs"
+	);
 
 	// Cleanup
 	for drug_id in drug_ids {
@@ -367,7 +433,8 @@ async fn test_audit_log_chronological_order() -> Result<()> {
 	ReactionBmc::delete(&ctx, &mm, reaction_id).await?;
 
 	// Get logs - should be in chronological order
-	let logs = AuditLogBmc::list_by_record(&ctx, &mm, "reactions", reaction_id).await?;
+	let logs =
+		AuditLogBmc::list_by_record(&ctx, &mm, "reactions", reaction_id).await?;
 	assert_eq!(logs.len(), 3);
 
 	// Verify order: CREATE should have earliest timestamp
@@ -375,8 +442,14 @@ async fn test_audit_log_chronological_order() -> Result<()> {
 	let update_log = logs.iter().find(|l| l.action == "UPDATE").unwrap();
 	let delete_log = logs.iter().find(|l| l.action == "DELETE").unwrap();
 
-	assert!(create_log.created_at <= update_log.created_at, "CREATE should be before UPDATE");
-	assert!(update_log.created_at <= delete_log.created_at, "UPDATE should be before DELETE");
+	assert!(
+		create_log.created_at <= update_log.created_at,
+		"CREATE should be before UPDATE"
+	);
+	assert!(
+		update_log.created_at <= delete_log.created_at,
+		"UPDATE should be before DELETE"
+	);
 
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
@@ -418,7 +491,8 @@ async fn test_audit_log_captures_all_changed_fields() -> Result<()> {
 	DrugInformationBmc::update_in_case(&ctx, &mm, case_id, drug_id, drug_u).await?;
 
 	// Get UPDATE log
-	let logs = AuditLogBmc::list_by_record(&ctx, &mm, "drug_information", drug_id).await?;
+	let logs =
+		AuditLogBmc::list_by_record(&ctx, &mm, "drug_information", drug_id).await?;
 	let update_log = logs.iter().find(|l| l.action == "UPDATE").unwrap();
 
 	let new_values = update_log.new_values.as_ref().unwrap();

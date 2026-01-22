@@ -1,6 +1,6 @@
 // region:    --- Modules
+pub mod rest;
 pub mod routes_login;
 pub mod routes_rest;
-pub mod rest;
 
 // endregion: --- Modules

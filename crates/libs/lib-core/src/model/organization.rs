@@ -1,6 +1,6 @@
 use crate::ctx::Ctx;
-use crate::model::base::DbBmc;
 use crate::model::base::base_uuid;
+use crate::model::base::DbBmc;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -84,7 +84,11 @@ impl OrganizationBmc {
 		base_uuid::create::<Self, _>(ctx, mm, org_c).await
 	}
 
-	pub async fn get(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<Organization> {
+	pub async fn get(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+	) -> Result<Organization> {
 		base_uuid::get::<Self, _>(ctx, mm, id).await
 	}
 

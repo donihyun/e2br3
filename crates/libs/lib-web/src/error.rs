@@ -101,9 +101,10 @@ impl Error {
 			| LoginFailPwdNotMatching { .. } => {
 				(StatusCode::FORBIDDEN, ClientError::LOGIN_FAIL)
 			}
-			| LoginFailUserCtxCreate { .. } => {
-				(StatusCode::INTERNAL_SERVER_ERROR, ClientError::SERVICE_ERROR)
-			}
+			LoginFailUserCtxCreate { .. } => (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				ClientError::SERVICE_ERROR,
+			),
 
 			// -- Auth
 			CtxExt(_) => (StatusCode::FORBIDDEN, ClientError::NO_AUTH),

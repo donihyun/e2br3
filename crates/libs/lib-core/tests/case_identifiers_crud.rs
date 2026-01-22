@@ -1,15 +1,15 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm,
-	set_current_user, Result,
+	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
+	Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::case::CaseBmc;
 use lib_core::model::case_identifiers::{
-	LinkedReportNumberBmc, LinkedReportNumberForCreate,
-	LinkedReportNumberForUpdate, OtherCaseIdentifierBmc,
-	OtherCaseIdentifierForCreate, OtherCaseIdentifierForUpdate,
+	LinkedReportNumberBmc, LinkedReportNumberForCreate, LinkedReportNumberForUpdate,
+	OtherCaseIdentifierBmc, OtherCaseIdentifierForCreate,
+	OtherCaseIdentifierForUpdate,
 };
 use serial_test::serial;
 

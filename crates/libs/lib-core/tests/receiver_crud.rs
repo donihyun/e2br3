@@ -1,8 +1,8 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm,
-	set_current_user, Result,
+	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
+	Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::case::CaseBmc;
@@ -44,8 +44,7 @@ async fn test_receiver_information_crud() -> Result<()> {
 		fax: None,
 		email: Some("safety@example.org".to_string()),
 	};
-	ReceiverInformationBmc::update_by_case(&ctx, &mm, case_id, receiver_u)
-		.await?;
+	ReceiverInformationBmc::update_by_case(&ctx, &mm, case_id, receiver_u).await?;
 	let receiver = ReceiverInformationBmc::get_by_case(&ctx, &mm, case_id).await?;
 	assert_eq!(receiver.organization_name.as_deref(), Some("EMA"));
 	assert_eq!(receiver.department.as_deref(), Some("Safety"));

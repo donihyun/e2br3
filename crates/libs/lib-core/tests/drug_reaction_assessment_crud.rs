@@ -1,8 +1,8 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm,
-	set_current_user, Result,
+	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
+	Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::case::CaseBmc;
@@ -40,7 +40,10 @@ async fn test_drug_reaction_assessment_crud() -> Result<()> {
 	};
 	let reaction_id = ReactionBmc::create(&ctx, &mm, reaction_c).await?;
 
-	let assessment_c = DrugReactionAssessmentForCreate { drug_id, reaction_id };
+	let assessment_c = DrugReactionAssessmentForCreate {
+		drug_id,
+		reaction_id,
+	};
 	let assessment_id =
 		DrugReactionAssessmentBmc::create(&ctx, &mm, assessment_c).await?;
 	let assessment =
@@ -66,8 +69,7 @@ async fn test_drug_reaction_assessment_crud() -> Result<()> {
 		DrugReactionAssessmentBmc::list_by_drug(&ctx, &mm, drug_id).await?;
 	assert!(by_drug.iter().any(|a| a.id == assessment_id));
 	let by_reaction =
-		DrugReactionAssessmentBmc::list_by_reaction(&ctx, &mm, reaction_id)
-			.await?;
+		DrugReactionAssessmentBmc::list_by_reaction(&ctx, &mm, reaction_id).await?;
 	assert!(by_reaction.iter().any(|a| a.id == assessment_id));
 	let by_pair = DrugReactionAssessmentBmc::get_by_drug_and_reaction(
 		&ctx,
@@ -82,10 +84,8 @@ async fn test_drug_reaction_assessment_crud() -> Result<()> {
 		drug_reaction_assessment_id: assessment_id,
 		sequence_number: 1,
 	};
-	let related_id =
-		RelatednessAssessmentBmc::create(&ctx, &mm, related_c).await?;
-	let related =
-		RelatednessAssessmentBmc::get(&ctx, &mm, related_id).await?;
+	let related_id = RelatednessAssessmentBmc::create(&ctx, &mm, related_c).await?;
+	let related = RelatednessAssessmentBmc::get(&ctx, &mm, related_id).await?;
 	assert_eq!(related.sequence_number, 1);
 
 	let related_u = RelatednessAssessmentForUpdate {
@@ -93,14 +93,11 @@ async fn test_drug_reaction_assessment_crud() -> Result<()> {
 		method_of_assessment: Some("Expert judgement".to_string()),
 		result_of_assessment: Some("Related".to_string()),
 	};
-	RelatednessAssessmentBmc::update(&ctx, &mm, related_id, related_u)
-		.await?;
-	let related =
-		RelatednessAssessmentBmc::get(&ctx, &mm, related_id).await?;
+	RelatednessAssessmentBmc::update(&ctx, &mm, related_id, related_u).await?;
+	let related = RelatednessAssessmentBmc::get(&ctx, &mm, related_id).await?;
 	assert_eq!(related.source_of_assessment.as_deref(), Some("Reporter"));
 
-	let related_list =
-		RelatednessAssessmentBmc::list(&ctx, &mm, None, None).await?;
+	let related_list = RelatednessAssessmentBmc::list(&ctx, &mm, None, None).await?;
 	assert!(related_list.iter().any(|r| r.id == related_id));
 
 	RelatednessAssessmentBmc::delete(&ctx, &mm, related_id).await?;

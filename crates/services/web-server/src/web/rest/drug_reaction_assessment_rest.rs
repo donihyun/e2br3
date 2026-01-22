@@ -4,8 +4,8 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
 use lib_core::model::drug_reaction_assessment::{
-	DrugReactionAssessment, DrugReactionAssessmentBmc, DrugReactionAssessmentForCreate,
-	DrugReactionAssessmentForUpdate,
+	DrugReactionAssessment, DrugReactionAssessmentBmc,
+	DrugReactionAssessmentForCreate, DrugReactionAssessmentForUpdate,
 };
 use lib_core::model::ModelManager;
 use lib_rest_core::rest_params::{ParamsForCreate, ParamsForUpdate};
@@ -45,7 +45,10 @@ pub async fn list_drug_reaction_assessments(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
 	Path((_case_id, drug_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<DataRestResult<Vec<DrugReactionAssessment>>>)> {
+) -> Result<(
+	StatusCode,
+	Json<DataRestResult<Vec<DrugReactionAssessment>>>,
+)> {
 	let ctx = ctx_w.0;
 	tracing::debug!(
 		"{:<12} - rest list_drug_reaction_assessments drug_id={}",
@@ -53,7 +56,8 @@ pub async fn list_drug_reaction_assessments(
 		drug_id
 	);
 
-	let entities = DrugReactionAssessmentBmc::list_by_drug(&ctx, &mm, drug_id).await?;
+	let entities =
+		DrugReactionAssessmentBmc::list_by_drug(&ctx, &mm, drug_id).await?;
 
 	Ok((StatusCode::OK, Json(DataRestResult { data: entities })))
 }

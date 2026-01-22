@@ -115,7 +115,9 @@ async fn main() -> Result<()> {
 	let hc = httpc_test::new_client(BASE_URL)?;
 
 	println!("\n========== E2B(R3) REST API Quick Dev Testing ==========\n");
-	println!("NOTE: Make sure the web server is running: cargo run --bin web-server\n");
+	println!(
+		"NOTE: Make sure the web server is running: cargo run --bin web-server\n"
+	);
 
 	// =====================================================================
 	// AUTHENTICATION
@@ -612,7 +614,10 @@ async fn main() -> Result<()> {
 
 	// -- Refresh Token
 	println!(">> Refreshing authentication token...");
-	hc.do_post("/auth/v1/refresh", json!({})).await?.print().await?;
+	hc.do_post("/auth/v1/refresh", json!({}))
+		.await?
+		.print()
+		.await?;
 
 	// =====================================================================
 	// CLEANUP (Optional - uncomment to delete test data)

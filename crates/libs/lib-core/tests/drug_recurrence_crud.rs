@@ -1,8 +1,8 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm,
-	set_current_user, Result,
+	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
+	Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::case::CaseBmc;
@@ -35,8 +35,7 @@ async fn test_drug_recurrence_crud() -> Result<()> {
 		sequence_number: 1,
 	};
 	let recurrence_id =
-		DrugRecurrenceInformationBmc::create(&ctx, &mm, recurrence_c)
-			.await?;
+		DrugRecurrenceInformationBmc::create(&ctx, &mm, recurrence_c).await?;
 	let recurrence =
 		DrugRecurrenceInformationBmc::get(&ctx, &mm, recurrence_id).await?;
 	assert_eq!(recurrence.sequence_number, 1);

@@ -4,8 +4,8 @@ use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use lib_core::model::terminology::{
-	E2bCodeList, E2bCodeListBmc, IsoCountry, IsoCountryBmc, MeddraTerm, MeddraTermBmc,
-	WhodrugProduct, WhodrugProductBmc,
+	E2bCodeList, E2bCodeListBmc, IsoCountry, IsoCountryBmc, MeddraTerm,
+	MeddraTermBmc, WhodrugProduct, WhodrugProductBmc,
 };
 use lib_core::model::ModelManager;
 use lib_rest_core::rest_result::DataRestResult;
@@ -72,7 +72,8 @@ pub async fn search_whodrug(
 		params.limit
 	);
 
-	let products = WhodrugProductBmc::search(&ctx, &mm, &params.q, params.limit).await?;
+	let products =
+		WhodrugProductBmc::search(&ctx, &mm, &params.q, params.limit).await?;
 
 	Ok((StatusCode::OK, Json(DataRestResult { data: products })))
 }
@@ -105,7 +106,8 @@ pub async fn get_code_list(
 		params.list_name
 	);
 
-	let codes = E2bCodeListBmc::get_by_list_name(&ctx, &mm, &params.list_name).await?;
+	let codes =
+		E2bCodeListBmc::get_by_list_name(&ctx, &mm, &params.list_name).await?;
 
 	Ok((StatusCode::OK, Json(DataRestResult { data: codes })))
 }

@@ -1,15 +1,12 @@
-use lib_core::model::ModelManager;
 use lib_core::_dev_utils;
+use lib_core::model::ModelManager;
 use sqlx::types::Uuid;
 use std::env;
 
 pub type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
 
 pub async fn init_test_mm() -> ModelManager {
-	env::set_var(
-		"E2BR3_TEST_CURRENT_USER_ID",
-		demo_user_id().to_string(),
-	);
+	env::set_var("E2BR3_TEST_CURRENT_USER_ID", demo_user_id().to_string());
 	_dev_utils::init_dev().await;
 	ModelManager::new().await.unwrap()
 }

@@ -1,5 +1,6 @@
 use lib_core::model::narrative::{
-	NarrativeInformationBmc, NarrativeInformationForCreate, NarrativeInformationForUpdate,
+	NarrativeInformationBmc, NarrativeInformationForCreate,
+	NarrativeInformationForUpdate,
 };
 use lib_rest_core::prelude::*;
 

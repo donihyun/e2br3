@@ -1,6 +1,4 @@
-use lib_core::model::reaction::{
-	ReactionBmc, ReactionForCreate, ReactionForUpdate,
-};
+use lib_core::model::reaction::{ReactionBmc, ReactionForCreate, ReactionForUpdate};
 use lib_rest_core::prelude::*;
 
 // Case-scoped CRUD functions:

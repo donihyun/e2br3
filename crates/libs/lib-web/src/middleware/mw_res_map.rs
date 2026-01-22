@@ -55,15 +55,8 @@ pub async fn mw_reponse_map(
 	// -- Build and log the server log line.
 	let client_error = client_status_error.unzip().1;
 
-	if let Err(err) = log_request(
-		req_method,
-		uri,
-		req_stamp,
-		ctx,
-		web_error,
-		client_error,
-	)
-	.await
+	if let Err(err) =
+		log_request(req_method, uri, req_stamp, ctx, web_error, client_error).await
 	{
 		error!("log_request failed: {err}");
 	}

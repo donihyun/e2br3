@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
 
 	// -- Define Routes
 	let routes_rest = routes_rest::routes(mm.clone())
-		.route_layer(middleware::from_fn(mw_ctx_require)); 
+		.route_layer(middleware::from_fn(mw_ctx_require));
 	let routes_login = routes_login::routes(mm.clone());
 	let routes_all = Router::new()
 		.nest("/auth/v1", routes_login)
@@ -53,7 +53,8 @@ async fn main() -> Result<()> {
 	// region:    --- Start Server
 	// Note: For this block, ok to unwrap.
 	// Use 0.0.0.0 in Docker, 127.0.0.1 for local dev
-	let bind_addr = std::env::var("SERVICE_BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:8080".to_string());
+	let bind_addr = std::env::var("SERVICE_BIND_ADDR")
+		.unwrap_or_else(|_| "127.0.0.1:8080".to_string());
 	let listener = TcpListener::bind(&bind_addr).await.unwrap();
 	info!("{:<12} - {:?}\n", "LISTENING", listener.local_addr());
 	axum::serve(listener, routes_all.into_make_service())

@@ -8,11 +8,11 @@
 //!
 //! These types are designed to work with Axum extractors.
 
+use axum::extract::Path;
 use modql::filter::ListOptions;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_with::{serde_as, OneOrMany};
-use axum::extract::Path;
 use uuid::Uuid;
 
 /// Request body structure for REST Create calls.
