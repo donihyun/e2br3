@@ -10,7 +10,14 @@ use tracing::info;
 
 /// Initialize environment for local development.
 /// (for early development, will be called from main()).
+/// Skip if SKIP_DEV_INIT=1 (e.g., when using Docker PostgreSQL).
 pub async fn init_dev() {
+	// Skip if using Docker PostgreSQL (already initialized)
+	if std::env::var("SKIP_DEV_INIT").unwrap_or_default() == "1" {
+		info!("{:<12} - init_dev() SKIPPED (SKIP_DEV_INIT=1)", "FOR-DEV-ONLY");
+		return;
+	}
+
 	static INIT: OnceCell<()> = OnceCell::const_new();
 
 	INIT.get_or_init(|| async {

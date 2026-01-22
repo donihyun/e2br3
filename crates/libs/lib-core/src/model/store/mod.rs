@@ -28,7 +28,7 @@ pub async fn new_db_pool() -> sqlx::Result<Db> {
 						.await?;
 				}
 				if let Ok(role) = env::var("E2BR3_DB_ROLE") {
-					if is_safe_role_name(&role) {
+					if !role.is_empty() && is_safe_role_name(&role) {
 						let sql = format!("SET ROLE {}", role);
 						if let Err(err) =
 							sqlx::query(&sql).execute(&mut *conn).await

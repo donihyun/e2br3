@@ -1,0 +1,66 @@
+# Docker Compose for local development
+# Usage: docker compose up -d
+
+services:
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
+  postgres:
+    image: postgres:16
+    container_name: e2br3-postgres
+    environment:
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: dev_only_pwd
+      POSTGRES_DB: app_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Mount SQL init scripts (runs on first startup only)
+      - ./docs/dev_initial/03-safetydb-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./docs/dev_initial/04-e2br3_N.sql:/docker-entrypoint-initdb.d/02-e2br3_N.sql:ro
+      - ./docs/dev_initial/05-e2br3_C.sql:/docker-entrypoint-initdb.d/03-e2br3_C.sql:ro
+      - ./docs/dev_initial/06-e2br3_D.sql:/docker-entrypoint-initdb.d/04-e2br3_D.sql:ro
+      - ./docs/dev_initial/07-e2br3_E.sql:/docker-entrypoint-initdb.d/05-e2br3_E.sql:ro
+      - ./docs/dev_initial/08-e2br3_F.sql:/docker-entrypoint-initdb.d/06-e2br3_F.sql:ro
+      - ./docs/dev_initial/09-e2br3_G.sql:/docker-entrypoint-initdb.d/07-e2br3_G.sql:ro
+      - ./docs/dev_initial/10-e2br3_H.sql:/docker-entrypoint-initdb.d/08-e2br3_H.sql:ro
+      - ./docs/dev_initial/11-terminology.sql:/docker-entrypoint-initdb.d/09-terminology.sql:ro
+      - ./docs/dev_initial/12-triggers.sql:/docker-entrypoint-initdb.d/10-triggers.sql:ro
+      - ./docs/dev_initial/13-e2br3-seed.sql:/docker-entrypoint-initdb.d/11-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d app_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Web Server Application
+  # ============================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: e2br3-web-server
+    ports:
+      - "8080:8080"
+    environment:
+      # Skip dev database init (DB is initialized via PostgreSQL init scripts)
+      SKIP_DEV_INIT: "1"
+      # Bind to all interfaces (required for Docker)
+      SERVICE_BIND_ADDR: "0.0.0.0:8080"
+      # Database connection (use 'postgres' as host - the service name)
+      SERVICE_DB_URL: postgres://app_user:dev_only_pwd@postgres/app_db
+      # Auth keys (dev only - use Secrets Manager in production)
+      SERVICE_PWD_KEY: CKUGFOD9_2Qf6Pn3ZFRYgPYb8ht4vKqEG9PGMXTB7497bT0367DjoaD6ydFnEVaIRda0kKeBZVCT5Hb62m2sCA
+      SERVICE_TOKEN_KEY: 9FoHBmkyxbgu_xFoQK7e0jz3RMNVJWgfvbVn712FBNH9LLaAWS3CS6Zpcg6RveiObvCUb6a2z-uAiLjhLh2igw
+      SERVICE_TOKEN_DURATION_SEC: "1800"
+      SERVICE_WEB_FOLDER: "/app/web-folder/"
+      RUST_LOG: "web_server=debug,lib_core=debug,lib_web=debug"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

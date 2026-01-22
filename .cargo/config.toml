@@ -18,7 +18,7 @@ RUST_LOG="web_server=debug,lib_core=debug,lib_web=debug,lib_auth=debug,lib_utils
 # e.g., "welcome" type of passwords.
 # i.e., Encryption not needed.
 
-SERVICE_DB_URL="postgres://app_user:dev_only_pwd@localhost/app_db"
+SERVICE_DB_URL="postgres://app_user:dev_only_pwd@127.0.0.1:5432/app_db?sslmode=disable"
 
 SERVICE_PWD_KEY="CKUGFOD9_2Qf6Pn3ZFRYgPYb8ht4vKqEG9PGMXTB7497bT0367DjoaD6ydFnEVaIRda0kKeBZVCT5Hb62m2sCA"
 
@@ -30,3 +30,13 @@ SERVICE_TOKEN_DURATION_SEC="1800" # 30 minutes
 # This will be relative to Cargo.toml
 # In deployed images, probably use absolute path.
 SERVICE_WEB_FOLDER="web-folder/"
+
+# Skip dev database init (use Docker PostgreSQL instead)
+# Set to "0" if you want init_dev() to run
+SKIP_DEV_INIT="1"
+
+# Database role settings (moved from .env)
+# E2BR3_DB_ROLE="e2br3_app_role"  # Disabled - needs proper grants for all tables
+E2BR3_DB_ROLE=""
+E2BR3_DB_ROLE_STRICT="0"
+E2BR3_DEVDB_SKIP_ROLE_SETUP="1"

@@ -32,7 +32,7 @@ async fn main() -> Result<()> {
 		.with_env_filter(EnvFilter::from_default_env())
 		.init();
 
-	// -- FOR DEV ONLY
+	// -- FOR DEV ONLY (skips automatically if SKIP_DEV_INIT=1)
 	_dev_utils::init_dev().await;
 
 	let mm = ModelManager::new().await?;
@@ -52,7 +52,9 @@ async fn main() -> Result<()> {
 
 	// region:    --- Start Server
 	// Note: For this block, ok to unwrap.
-	let listener = TcpListener::bind("127.0.0.1:8080").await.unwrap();
+	// Use 0.0.0.0 in Docker, 127.0.0.1 for local dev
+	let bind_addr = std::env::var("SERVICE_BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:8080".to_string());
+	let listener = TcpListener::bind(&bind_addr).await.unwrap();
 	info!("{:<12} - {:?}\n", "LISTENING", listener.local_addr());
 	axum::serve(listener, routes_all.into_make_service())
 		.await
