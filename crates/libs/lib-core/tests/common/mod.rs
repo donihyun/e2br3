@@ -13,6 +13,11 @@ pub async fn init_test_mm() -> ModelManager {
 }
 
 #[allow(dead_code)]
+pub fn unique_suffix() -> String {
+	Uuid::new_v4().to_string()
+}
+
+#[allow(dead_code)]
 pub fn demo_org_id() -> Uuid {
 	// NOTE: Seeded by sql/dev_initial/00-recreate-db.sql
 	uuid::uuid!("00000000-0000-0000-0000-000000000001")

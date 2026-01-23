@@ -1,6 +1,6 @@
 mod common;
 
-use common::{init_test_mm, Result};
+use common::{init_test_mm, unique_suffix, Result};
 use lib_core::ctx::Ctx;
 use lib_core::model::organization::{
 	OrganizationBmc, OrganizationForCreate, OrganizationForUpdate,
@@ -12,16 +12,17 @@ use serial_test::serial;
 async fn test_organization_crud() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = Ctx::root_ctx();
+	let suffix = unique_suffix();
 	let org_c = OrganizationForCreate {
-		name: "Test Org".to_string(),
+		name: format!("Test Org {suffix}"),
 		org_type: Some("internal".to_string()),
 		address: Some("123 Test St".to_string()),
-		contact_email: Some("test-org@example.com".to_string()),
+		contact_email: Some(format!("test-org-{suffix}@example.com")),
 	};
 
 	let org_id = OrganizationBmc::create(&ctx, &mm, org_c).await?;
 	let org = OrganizationBmc::get(&ctx, &mm, org_id).await?;
-	assert_eq!(org.name, "Test Org");
+	assert_eq!(org.name, format!("Test Org {suffix}"));
 
 	let orgs = OrganizationBmc::list(&ctx, &mm, None, None).await?;
 	assert!(orgs.iter().any(|o| o.id == org_id));

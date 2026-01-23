@@ -2,7 +2,7 @@ mod common;
 
 use common::{
 	audit_log_count, create_case_fixture, demo_org_id, demo_user_id, init_test_mm,
-	set_current_user, Result,
+	set_current_user, unique_suffix, Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::audit::AuditLogBmc;
@@ -233,15 +233,16 @@ async fn test_audit_trail_patient_information() -> Result<()> {
 async fn test_audit_trail_organizations() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = Ctx::root_ctx();
+	let suffix = unique_suffix();
 
 	set_current_user(&mm, demo_user_id()).await?;
 
 	// CREATE
 	let org_c = OrganizationForCreate {
-		name: "Audit Test Org".to_string(),
+		name: format!("Audit Test Org {suffix}"),
 		org_type: Some("internal".to_string()),
 		address: None,
-		contact_email: Some("audit@test.com".to_string()),
+		contact_email: Some(format!("audit-{suffix}@test.com")),
 	};
 	let org_id = OrganizationBmc::create(&ctx, &mm, org_c).await?;
 	assert_eq!(
@@ -292,14 +293,15 @@ async fn test_audit_trail_organizations() -> Result<()> {
 async fn test_audit_trail_users() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = Ctx::root_ctx();
+	let suffix = unique_suffix();
 
 	set_current_user(&mm, demo_user_id()).await?;
 
 	// CREATE (note: UserBmc::create also calls update_pwd which creates an UPDATE log)
 	let user_c = UserForCreate {
 		organization_id: demo_org_id(),
-		email: "audit_test_user@example.com".to_string(),
-		username: "audit_test_user".to_string(),
+		email: format!("audit_test_user-{suffix}@example.com"),
+		username: format!("audit_test_user-{suffix}"),
 		pwd_clear: "password123".to_string(),
 		role: Some("user".to_string()),
 		first_name: Some("Audit".to_string()),

@@ -2,7 +2,7 @@ mod common;
 
 use common::{
 	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
-	Result,
+	unique_suffix, Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::case::{CaseBmc, CaseForUpdate};
@@ -395,7 +395,8 @@ async fn test_reaction_delete_not_found() -> Result<()> {
 async fn test_user_duplicate_username() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = Ctx::root_ctx();
-	let fx_username = "test_dup_username_user";
+	let suffix = unique_suffix();
+	let fx_username = format!("test_dup_username_user-{suffix}");
 
 	let user_c_1 = UserForCreate {
 		organization_id: demo_org_id(),
@@ -408,7 +409,7 @@ async fn test_user_duplicate_username() -> Result<()> {
 	};
 	let user_c_2 = UserForCreate {
 		organization_id: demo_org_id(),
-		email: "different@example.com".to_string(),
+		email: format!("different-{suffix}@example.com"),
 		username: fx_username.to_string(), // Same username
 		pwd_clear: "password456".to_string(),
 		role: Some("user".to_string()),
@@ -449,11 +450,12 @@ async fn test_user_create_invalid_organization() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = Ctx::root_ctx();
 	let fake_org_id = Uuid::new_v4();
+	let suffix = unique_suffix();
 
 	let user_c = UserForCreate {
 		organization_id: fake_org_id,
-		email: "fk_test@example.com".to_string(),
-		username: "fk_test_user".to_string(),
+		email: format!("fk_test-{suffix}@example.com"),
+		username: format!("fk_test_user-{suffix}"),
 		pwd_clear: "password123".to_string(),
 		role: Some("user".to_string()),
 		first_name: Some("Test".to_string()),

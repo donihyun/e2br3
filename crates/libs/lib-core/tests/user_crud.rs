@@ -1,6 +1,6 @@
 mod common;
 
-use common::{demo_org_id, demo_user_id, init_test_mm, Result};
+use common::{demo_org_id, demo_user_id, init_test_mm, unique_suffix, Result};
 use lib_auth::pwd::{self, ContentToHash};
 use lib_core::ctx::Ctx;
 use lib_core::model::user::{
@@ -14,7 +14,8 @@ use serial_test::serial;
 async fn test_user_create_ok() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = Ctx::root_ctx();
-	let fx_username = "test_create_ok-user-01";
+	let suffix = unique_suffix();
+	let fx_username = format!("test_create_ok-user-01-{suffix}");
 	let fx_pwd_clear = "test_create_ok pwd 01";
 	let user_c = UserForCreate {
 		organization_id: demo_org_id(),
@@ -47,8 +48,9 @@ async fn test_user_create_ok() -> Result<()> {
 async fn test_user_create_duplicate_email() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = Ctx::root_ctx();
-	let fx_username_1 = "test_create_dup_email-user-01";
-	let fx_username_2 = "test_create_dup_email-user-02";
+	let suffix = unique_suffix();
+	let fx_username_1 = format!("test_create_dup_email-user-01-{suffix}");
+	let fx_username_2 = format!("test_create_dup_email-user-02-{suffix}");
 	let fx_email = format!("{fx_username_1}@example.com");
 	let user_c_1 = UserForCreate {
 		organization_id: demo_org_id(),
@@ -90,7 +92,8 @@ async fn test_user_create_duplicate_email() -> Result<()> {
 async fn test_user_update_pwd_ok() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = Ctx::root_ctx();
-	let fx_username = "test_update_pwd-user-01";
+	let suffix = unique_suffix();
+	let fx_username = format!("test_update_pwd-user-01-{suffix}");
 	let fx_pwd_clear_1 = "test_update_pwd pwd 01";
 	let fx_pwd_clear_2 = "test_update_pwd pwd 02";
 	let user_c = UserForCreate {
@@ -145,7 +148,8 @@ async fn test_user_first_by_email_seeded() -> Result<()> {
 async fn test_user_update_ok() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = Ctx::root_ctx();
-	let fx_username = "test_update-user-01";
+	let suffix = unique_suffix();
+	let fx_username = format!("test_update-user-01-{suffix}");
 	let fx_email = format!("{fx_username}@example.com");
 	let user_c = UserForCreate {
 		organization_id: demo_org_id(),
