@@ -13,7 +13,7 @@ _*
 
 # -- Rust
 target/
-# !Cargo.lock # commented by default
+!Cargo.lock
 !.cargo/
 
 # -- Devai
