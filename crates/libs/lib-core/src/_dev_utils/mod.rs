@@ -2,11 +2,7 @@
 
 mod dev_db;
 
-use crate::ctx::Ctx;
-use crate::model::agent::{AgentBmc, AgentFilter, AgentForCreate};
-use crate::model::conv::{ConvBmc, ConvForCreate};
-use crate::model::{self, ModelManager};
-use modql::filter::OpValString;
+use crate::model::ModelManager;
 use tokio::sync::OnceCell;
 use tracing::info;
 
@@ -14,7 +10,17 @@ use tracing::info;
 
 /// Initialize environment for local development.
 /// (for early development, will be called from main()).
+/// Skip if SKIP_DEV_INIT=1 (e.g., when using Docker PostgreSQL).
 pub async fn init_dev() {
+	// Skip if using Docker PostgreSQL (already initialized)
+	if std::env::var("SKIP_DEV_INIT").unwrap_or_default() == "1" {
+		info!(
+			"{:<12} - init_dev() SKIPPED (SKIP_DEV_INIT=1)",
+			"FOR-DEV-ONLY"
+		);
+		return;
+	}
+
 	static INIT: OnceCell<()> = OnceCell::const_new();
 
 	INIT.get_or_init(|| async {
@@ -40,189 +46,11 @@ pub async fn init_test() -> ModelManager {
 	mm.clone()
 }
 
-// region:    --- User seed/clean
+// NOTE: Test seed/clean helpers for user/agent/conv have been removed
+// as those models were replaced with the E2B(R3) SafetyDB models.
+// Add new test helpers here as needed for User, Organization, Case, etc.
 
-pub async fn seed_users(
-	ctx: &Ctx,
-	mm: &ModelManager,
-	usernames: &[&str],
-) -> model::Result<Vec<i64>> {
-	let mut ids = Vec::new();
-
-	for name in usernames {
-		let id = seed_user(ctx, mm, name).await?;
-		ids.push(id);
-	}
-
-	Ok(ids)
+pub fn fx_org_id() -> uuid::Uuid {
+	// NOTE: This org_id is created via sql/dev_initial/00-recreate-db.sql
+	uuid::uuid!("00000000-0000-0000-0000-000000000001")
 }
-
-pub async fn seed_user(
-	ctx: &Ctx,
-	mm: &ModelManager,
-	username: &str,
-) -> model::Result<i64> {
-	let pwd_clear = "seed-user-pwd";
-
-	let id = model::user::UserBmc::create(
-		ctx,
-		mm,
-		model::user::UserForCreate {
-			username: username.to_string(),
-			pwd_clear: pwd_clear.to_string(),
-		},
-	)
-	.await?;
-
-	Ok(id)
-}
-
-pub async fn clean_users(
-	ctx: &Ctx,
-	mm: &ModelManager,
-	contains_username: &str,
-) -> model::Result<usize> {
-	let users = model::user::UserBmc::list(
-		ctx,
-		mm,
-		Some(vec![model::user::UserFilter {
-			username: Some(
-				OpValString::Contains(contains_username.to_string()).into(),
-			),
-			..Default::default()
-		}]),
-		None,
-	)
-	.await?;
-	let count = users.len();
-
-	for user in users {
-		model::user::UserBmc::delete(ctx, mm, user.id).await?;
-	}
-
-	Ok(count)
-}
-
-// endregion: --- User seed/clean
-
-// region:    --- Conv seed/clean
-
-pub async fn seed_convs(
-	ctx: &Ctx,
-	mm: &ModelManager,
-	agent_id: i64,
-	titles: &[&str],
-) -> model::Result<Vec<i64>> {
-	let mut ids = Vec::new();
-
-	for title in titles {
-		let id = seed_conv(ctx, mm, agent_id, title).await?;
-		ids.push(id);
-	}
-
-	Ok(ids)
-}
-
-pub async fn seed_conv(
-	ctx: &Ctx,
-	mm: &ModelManager,
-	agent_id: i64,
-	title: &str,
-) -> model::Result<i64> {
-	ConvBmc::create(
-		ctx,
-		mm,
-		ConvForCreate {
-			agent_id,
-			title: Some(title.to_string()),
-			..Default::default()
-		},
-	)
-	.await
-}
-
-pub async fn clean_convs(
-	ctx: &Ctx,
-	mm: &ModelManager,
-	contains_title: &str,
-) -> model::Result<usize> {
-	let convs = ConvBmc::list(
-		ctx,
-		mm,
-		Some(vec![model::conv::ConvFilter {
-			title: Some(OpValString::Contains(contains_title.to_string()).into()),
-			..Default::default()
-		}]),
-		None,
-	)
-	.await?;
-
-	let count = convs.len();
-
-	for conv in convs {
-		ConvBmc::delete(ctx, mm, conv.id).await?;
-	}
-
-	Ok(count)
-}
-
-// endregion: --- Conv seed/clean
-
-// region:    --- Agent seed/clean
-
-pub async fn seed_agents(
-	ctx: &Ctx,
-	mm: &ModelManager,
-	names: &[&str],
-) -> model::Result<Vec<i64>> {
-	let mut ids = Vec::new();
-
-	for name in names {
-		let id = seed_agent(ctx, mm, name).await?;
-		ids.push(id);
-	}
-
-	Ok(ids)
-}
-
-pub async fn seed_agent(
-	ctx: &Ctx,
-	mm: &ModelManager,
-	name: &str,
-) -> model::Result<i64> {
-	AgentBmc::create(
-		ctx,
-		mm,
-		AgentForCreate {
-			name: name.to_string(),
-		},
-	)
-	.await
-}
-
-/// Delete all agents that have their title contains contains_name
-pub async fn clean_agents(
-	ctx: &Ctx,
-	mm: &ModelManager,
-	contains_name: &str,
-) -> model::Result<usize> {
-	let agents = AgentBmc::list(
-		ctx,
-		mm,
-		Some(vec![AgentFilter {
-			name: Some(OpValString::Contains(contains_name.to_string()).into()),
-			..Default::default()
-		}]),
-		None,
-	)
-	.await?;
-	let count = agents.len();
-
-	for agent in agents {
-		AgentBmc::delete(ctx, mm, agent.id).await?;
-	}
-
-	Ok(count)
-}
-
-// endregion: --- Agent seed/clean

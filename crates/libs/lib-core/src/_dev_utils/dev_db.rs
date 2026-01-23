@@ -1,6 +1,3 @@
-use crate::ctx::Ctx;
-use crate::model::user::{User, UserBmc};
-use crate::model::ModelManager;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
 use std::fs;
@@ -16,9 +13,7 @@ const PG_DEV_APP_URL: &str = "postgres://app_user:dev_only_pwd@localhost/app_db"
 
 // sql files
 const SQL_RECREATE_DB_FILE_NAME: &str = "00-recreate-db.sql";
-const SQL_DIR: &str = "sql/dev_initial";
-
-const DEMO_PWD: &str = "welcome";
+const SQL_DIR: &str = "docs/dev_initial";
 
 pub async fn init_dev_db() -> Result<(), Box<dyn std::error::Error>> {
 	info!("{:<12} - init_dev_db()", "FOR-DEV-ONLY");
@@ -62,16 +57,7 @@ pub async fn init_dev_db() -> Result<(), Box<dyn std::error::Error>> {
 		}
 	}
 
-	// -- Init model layer.
-	let mm = ModelManager::new().await?;
-	let ctx = Ctx::root_ctx();
-
-	// -- Set demo1 pwd
-	let demo1_user: User = UserBmc::first_by_username(&ctx, &mm, "demo1")
-		.await?
-		.unwrap();
-	UserBmc::update_pwd(&ctx, &mm, demo1_user.id, DEMO_PWD).await?;
-	info!("{:<12} - init_dev_db - set demo1 pwd", "FOR-DEV-ONLY");
+	// NOTE: Demo user data and passwords are set via SQL seed files (13-e2br3-seed.sql)
 
 	Ok(())
 }
@@ -86,11 +72,33 @@ async fn pexec(db: &Db, file: &Path) -> Result<(), sqlx::Error> {
 	let sqls = split_sql(&content);
 
 	for sql in sqls {
-		sqlx::query(&sql).execute(db).await.map_err(|e| {
+		if let Err(e) = sqlx::query(&sql).execute(db).await {
+			if should_skip_role_setup() && should_ignore_role_error(&sql, &e) {
+				println!(
+					"pexec warning: skipping role creation due to permission error:\n{sql}\nreason:\n{e}"
+				);
+				continue;
+			}
+
+			if should_skip_role_setup() && should_ignore_policy_role_error(&sql, &e)
+			{
+				println!(
+					"pexec warning: skipping policy creation due to missing role:\n{sql}\nreason:\n{e}"
+				);
+				continue;
+			}
+
+			if should_skip_role_setup() && should_ignore_grant_role_error(&sql, &e) {
+				println!(
+					"pexec warning: skipping grant due to missing role:\n{sql}\nreason:\n{e}"
+				);
+				continue;
+			}
+
 			println!("pexec error while running:\n{sql}");
 			println!("cause:\n{e}");
-			e
-		})?;
+			return Err(e);
+		}
 	}
 
 	Ok(())
@@ -116,7 +124,12 @@ fn split_sql(content: &str) -> Vec<String> {
 	while let Some(c) = chars.next() {
 		let next = chars.peek().copied();
 
-		if !in_dollar && !in_single && !in_block_comment && c == '-' && next == Some('-') {
+		if !in_dollar
+			&& !in_single
+			&& !in_block_comment
+			&& c == '-'
+			&& next == Some('-')
+		{
 			in_line_comment = true;
 			buf.push(c);
 			buf.push(chars.next().unwrap());
@@ -131,7 +144,12 @@ fn split_sql(content: &str) -> Vec<String> {
 			continue;
 		}
 
-		if !in_dollar && !in_single && !in_line_comment && c == '/' && next == Some('*') {
+		if !in_dollar
+			&& !in_single
+			&& !in_line_comment
+			&& c == '/'
+			&& next == Some('*')
+		{
 			in_block_comment = true;
 			buf.push(c);
 			buf.push(chars.next().unwrap());
@@ -185,4 +203,52 @@ fn split_sql(content: &str) -> Vec<String> {
 	}
 
 	statements
+}
+
+fn should_ignore_role_error(sql: &str, err: &sqlx::Error) -> bool {
+	let has_create_role = sql.to_ascii_lowercase().contains("create role");
+	if !has_create_role {
+		return false;
+	}
+
+	match err {
+		sqlx::Error::Database(db_err) => {
+			matches!(db_err.code().as_deref(), Some("42501"))
+		}
+		_ => false,
+	}
+}
+
+fn should_ignore_policy_role_error(sql: &str, err: &sqlx::Error) -> bool {
+	let has_create_policy = sql.to_ascii_lowercase().contains("create policy");
+	if !has_create_policy {
+		return false;
+	}
+
+	match err {
+		sqlx::Error::Database(db_err) => {
+			matches!(db_err.code().as_deref(), Some("42704"))
+		}
+		_ => false,
+	}
+}
+
+fn should_ignore_grant_role_error(sql: &str, err: &sqlx::Error) -> bool {
+	let has_grant = sql.to_ascii_lowercase().contains("grant ");
+	if !has_grant {
+		return false;
+	}
+
+	match err {
+		sqlx::Error::Database(db_err) => {
+			matches!(db_err.code().as_deref(), Some("42704"))
+		}
+		_ => false,
+	}
+}
+
+fn should_skip_role_setup() -> bool {
+	std::env::var("E2BR3_DEVDB_SKIP_ROLE_SETUP")
+		.map(|v| v != "0")
+		.unwrap_or(true)
 }

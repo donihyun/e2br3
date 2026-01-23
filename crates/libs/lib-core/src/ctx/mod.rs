@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 // region:    --- Modules
 
 mod error;
@@ -6,51 +8,45 @@ pub use self::error::{Error, Result};
 
 // endregion: --- Modules
 
+#[allow(unexpected_cfgs)]
 #[cfg_attr(feature = "with-rpc", derive(rpc_router::RpcResource))]
 #[derive(Clone, Debug)]
 pub struct Ctx {
-	user_id: i64,
-
-	/// Note: For the future ACS (Access Control System)
-	conv_id: Option<i64>,
+	user_id: uuid::Uuid,
 }
 
 // Constructors.
 impl Ctx {
+	/// Creates a root context with the system user ID.
+	/// Used for migrations, background jobs, and system operations.
 	pub fn root_ctx() -> Self {
 		Ctx {
-			user_id: 0,
-			conv_id: None,
+			// System user UUID from database schema
+			user_id: uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000001")
+				.expect("Invalid system UUID"),
 		}
 	}
 
-	pub fn new(user_id: i64) -> Result<Self> {
-		if user_id == 0 {
-			Err(Error::CtxCannotNewRootCtx)
-		} else {
-			Ok(Self {
-				user_id,
-				conv_id: None,
-			})
+	/// Creates a new context with the given user UUID.
+	/// This is the primary constructor for user-initiated operations.
+	pub fn new(user_id: uuid::Uuid) -> Result<Self> {
+		if user_id.is_nil() {
+			return Err(Error::CtxCannotNewNilUuid);
 		}
+
+		Ok(Self { user_id })
 	}
 
-	/// Note: For the future ACS (Access Control System)
-	pub fn add_conv_id(&self, conv_id: i64) -> Ctx {
-		let mut ctx = self.clone();
-		ctx.conv_id = Some(conv_id);
-		ctx
+	/// Alias for `new()` - kept for backwards compatibility.
+	#[deprecated(since = "0.2.0", note = "Use `Ctx::new()` instead")]
+	pub fn new_with_uuid(user_id: uuid::Uuid) -> Result<Self> {
+		Self::new(user_id)
 	}
 }
 
 // Property Accessors.
 impl Ctx {
-	pub fn user_id(&self) -> i64 {
+	pub fn user_id(&self) -> uuid::Uuid {
 		self.user_id
-	}
-
-	//. /// Note: For the future ACS (Access Control System)
-	pub fn conv_id(&self) -> Option<i64> {
-		self.conv_id
 	}
 }

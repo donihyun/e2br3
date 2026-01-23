@@ -1,6 +1,7 @@
 # -- Base
 .*
 !.gitignore
+!.github/
 
 _*
 # '_' in src dir, ok.
@@ -80,7 +81,7 @@ __pycache__/
 
 # -- others
 # Allows .env (make sure only dev info) 
-# !.env # Commented by default
+!.env
 
 # Allow vscode
 # !.vscode # Commented by default

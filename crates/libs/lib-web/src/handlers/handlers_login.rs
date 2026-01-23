@@ -4,7 +4,7 @@ use axum::extract::State;
 use axum::Json;
 use lib_auth::pwd::{self, ContentToHash, SchemeStatus};
 use lib_core::ctx::Ctx;
-use lib_core::model::user::{UserBmc, UserForLogin};
+use lib_core::model::user::{UserBmc, UserForAuth, UserForLogin};
 use lib_core::model::ModelManager;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -20,16 +20,18 @@ pub async fn api_login_handler(
 	debug!("{:<12} - api_login_handler", "HANDLER");
 
 	let LoginPayload {
-		username,
+		email,
 		pwd: pwd_clear,
 	} = payload;
 	let root_ctx = Ctx::root_ctx();
 
 	// -- Get the user.
-	let user: UserForLogin = UserBmc::first_by_username(&root_ctx, &mm, &username)
+	let user: UserForLogin = UserBmc::first_by_email(&root_ctx, &mm, &email)
 		.await?
-		.ok_or(Error::LoginFailUsernameNotFound)?;
+		.ok_or(Error::LoginFailEmailNotFound)?;
 	let user_id = user.id;
+	let user_ctx =
+		Ctx::new(user.id).map_err(|_| Error::LoginFailUserCtxCreate { user_id })?;
 
 	// -- Validate the password.
 	let Some(pwd) = user.pwd else {
@@ -49,11 +51,11 @@ pub async fn api_login_handler(
 	// -- Update password scheme if needed
 	if let SchemeStatus::Outdated = scheme_status {
 		debug!("pwd encrypt scheme outdated, upgrading.");
-		UserBmc::update_pwd(&root_ctx, &mm, user.id, &pwd_clear).await?;
+		UserBmc::update_pwd(&user_ctx, &mm, user.id, &pwd_clear).await?;
 	}
 
 	// -- Set web token.
-	token::set_token_cookie(&cookies, &user.username, user.token_salt)?;
+	token::set_token_cookie(&cookies, &user.email, user.token_salt)?;
 
 	// Create the success body.
 	let body = Json(json!({
@@ -67,7 +69,7 @@ pub async fn api_login_handler(
 
 #[derive(Debug, Deserialize)]
 pub struct LoginPayload {
-	username: String,
+	email: String,
 	pwd: String,
 }
 // endregion: --- Login
@@ -99,3 +101,34 @@ pub struct LogoffPayload {
 	logoff: bool,
 }
 // endregion: --- Logoff
+
+// region:    --- Token Refresh
+pub async fn api_refresh_handler(
+	State(mm): State<ModelManager>,
+	ctx_w: crate::middleware::mw_auth::CtxW,
+	cookies: Cookies,
+) -> Result<Json<Value>> {
+	debug!("{:<12} - api_refresh_handler", "HANDLER");
+
+	let ctx = ctx_w.0;
+	let user_id = ctx.user_id();
+
+	// Get the user to refresh token
+	let user: UserForAuth = UserBmc::get(&ctx, &mm, user_id).await?;
+
+	// Set new web token
+	token::set_token_cookie(&cookies, &user.email, user.token_salt)?;
+
+	// Calculate expiration time (15 minutes from now)
+	let expires_at = time::OffsetDateTime::now_utc() + time::Duration::minutes(15);
+
+	// Create the success body with expiration info
+	let body = Json(json!({
+		"data": {
+			"expiresAt": expires_at.format(&time::format_description::well_known::Rfc3339).unwrap_or_default()
+		}
+	}));
+
+	Ok(body)
+}
+// endregion: --- Token Refresh
