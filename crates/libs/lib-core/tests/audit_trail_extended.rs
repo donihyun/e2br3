@@ -366,7 +366,7 @@ async fn test_audit_log_list_all() -> Result<()> {
 			case_id,
 			sequence_number: i,
 			drug_characterization: "1".to_string(),
-			medicinal_product: format!("Query Test Drug {}", i),
+			medicinal_product: format!("Query Test Drug {i}"),
 		};
 		let drug_id = DrugInformationBmc::create(&ctx, &mm, drug_c).await?;
 		drug_ids.push(drug_id);

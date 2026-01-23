@@ -85,7 +85,7 @@ async fn test_substance_list_with_limit() -> Result<()> {
 		let substance_c = DrugActiveSubstanceForCreate {
 			drug_id,
 			sequence_number: i,
-			substance_name: Some(format!("Substance {}", i)),
+			substance_name: Some(format!("Substance {i}")),
 		};
 		let substance_id =
 			DrugActiveSubstanceBmc::create(&ctx, &mm, substance_c).await?;
@@ -136,7 +136,7 @@ async fn test_substance_list_with_offset() -> Result<()> {
 		let substance_c = DrugActiveSubstanceForCreate {
 			drug_id,
 			sequence_number: i,
-			substance_name: Some(format!("Offset Substance {}", i)),
+			substance_name: Some(format!("Offset Substance {i}")),
 		};
 		let substance_id =
 			DrugActiveSubstanceBmc::create(&ctx, &mm, substance_c).await?;

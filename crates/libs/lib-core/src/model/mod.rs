@@ -10,6 +10,7 @@
 //!   (e.g., db_pool, S3 client, redis client).
 //! - Model Controllers (e.g., `CaseBmc`, `UserBmc`) implement
 //!   CRUD and other data access methods on a given "entity"
+#![allow(unexpected_cfgs)]
 //!   (e.g., `Case`, `User`).
 //!   (`Bmc` is short for Backend Model Controller).
 //! - In frameworks like Axum, Tauri, `ModelManager` are typically used as App State.
@@ -83,6 +84,7 @@ use crate::model::store::new_db_pool;
 
 // region:    --- ModelManager
 
+#[allow(unexpected_cfgs)]
 #[cfg_attr(feature = "with-rpc", derive(rpc_router::RpcResource))]
 #[derive(Clone)]
 pub struct ModelManager {

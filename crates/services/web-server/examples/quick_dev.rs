@@ -166,8 +166,8 @@ async fn main() -> Result<()> {
 
 	// -- Get Organization
 	if !new_org_id.is_empty() {
-		println!(">> Getting organization {}...", new_org_id);
-		hc.do_get(&format!("/api/organizations/{}", new_org_id))
+		println!(">> Getting organization {new_org_id}...");
+		hc.do_get(&format!("/api/organizations/{new_org_id}"))
 			.await?
 			.print()
 			.await?;
@@ -175,7 +175,7 @@ async fn main() -> Result<()> {
 		// -- Update Organization
 		println!(">> Updating organization...");
 		hc.do_put(
-			&format!("/api/organizations/{}", new_org_id),
+			&format!("/api/organizations/{new_org_id}"),
 			json!({
 				"data": {
 					"name": "Test Pharma Corp Updated",
@@ -251,8 +251,8 @@ async fn main() -> Result<()> {
 
 	if !case_id.is_empty() {
 		// -- Get Case
-		println!(">> Getting case {}...", case_id);
-		hc.do_get(&format!("/api/cases/{}", case_id))
+		println!(">> Getting case {case_id}...");
+		hc.do_get(&format!("/api/cases/{case_id}"))
 			.await?
 			.print()
 			.await?;
@@ -260,7 +260,7 @@ async fn main() -> Result<()> {
 		// -- Update Case
 		println!(">> Updating case status...");
 		hc.do_put(
-			&format!("/api/cases/{}", case_id),
+			&format!("/api/cases/{case_id}"),
 			json!({
 				"data": {
 					"status": "validated"
@@ -280,7 +280,7 @@ async fn main() -> Result<()> {
 		println!(">> Creating patient for case...");
 		let create_patient_res = hc
 			.do_post(
-				&format!("/api/cases/{}/patient", case_id),
+				&format!("/api/cases/{case_id}/patient"),
 				json!({
 					"data": {
 						"case_id": case_id,
@@ -294,7 +294,7 @@ async fn main() -> Result<()> {
 
 		// -- Get Patient
 		println!(">> Getting patient for case...");
-		hc.do_get(&format!("/api/cases/{}/patient", case_id))
+		hc.do_get(&format!("/api/cases/{case_id}/patient"))
 			.await?
 			.print()
 			.await?;
@@ -302,7 +302,7 @@ async fn main() -> Result<()> {
 		// -- Update Patient
 		println!(">> Updating patient information...");
 		hc.do_put(
-			&format!("/api/cases/{}/patient", case_id),
+			&format!("/api/cases/{case_id}/patient"),
 			json!({
 				"data": {
 					"patient_given_name": "John",
@@ -326,7 +326,7 @@ async fn main() -> Result<()> {
 		println!(">> Creating a reaction...");
 		let create_reaction_res = hc
 			.do_post(
-				&format!("/api/cases/{}/reactions", case_id),
+				&format!("/api/cases/{case_id}/reactions"),
 				json!({
 					"data": {
 						"case_id": case_id,
@@ -343,15 +343,15 @@ async fn main() -> Result<()> {
 
 		// -- List Reactions
 		println!(">> Listing reactions for case...");
-		hc.do_get(&format!("/api/cases/{}/reactions", case_id))
+		hc.do_get(&format!("/api/cases/{case_id}/reactions"))
 			.await?
 			.print()
 			.await?;
 
 		if !reaction_id.is_empty() {
 			// -- Get Reaction
-			println!(">> Getting reaction {}...", reaction_id);
-			hc.do_get(&format!("/api/cases/{}/reactions/{}", case_id, reaction_id))
+			println!(">> Getting reaction {reaction_id}...");
+			hc.do_get(&format!("/api/cases/{case_id}/reactions/{reaction_id}"))
 				.await?
 				.print()
 				.await?;
@@ -359,7 +359,7 @@ async fn main() -> Result<()> {
 			// -- Update Reaction
 			println!(">> Updating reaction...");
 			hc.do_put(
-				&format!("/api/cases/{}/reactions/{}", case_id, reaction_id),
+				&format!("/api/cases/{case_id}/reactions/{reaction_id}"),
 				json!({
 					"data": {
 						"serious": true,
@@ -382,7 +382,7 @@ async fn main() -> Result<()> {
 		println!(">> Creating a drug...");
 		let create_drug_res = hc
 			.do_post(
-				&format!("/api/cases/{}/drugs", case_id),
+				&format!("/api/cases/{case_id}/drugs"),
 				json!({
 					"data": {
 						"case_id": case_id,
@@ -400,15 +400,15 @@ async fn main() -> Result<()> {
 
 		// -- List Drugs
 		println!(">> Listing drugs for case...");
-		hc.do_get(&format!("/api/cases/{}/drugs", case_id))
+		hc.do_get(&format!("/api/cases/{case_id}/drugs"))
 			.await?
 			.print()
 			.await?;
 
 		if !drug_id.is_empty() {
 			// -- Get Drug
-			println!(">> Getting drug {}...", drug_id);
-			hc.do_get(&format!("/api/cases/{}/drugs/{}", case_id, drug_id))
+			println!(">> Getting drug {drug_id}...");
+			hc.do_get(&format!("/api/cases/{case_id}/drugs/{drug_id}"))
 				.await?
 				.print()
 				.await?;
@@ -416,7 +416,7 @@ async fn main() -> Result<()> {
 			// -- Update Drug
 			println!(">> Updating drug...");
 			hc.do_put(
-				&format!("/api/cases/{}/drugs/{}", case_id, drug_id),
+				&format!("/api/cases/{case_id}/drugs/{drug_id}"),
 				json!({
 					"data": {
 						"action_taken": "1",
@@ -438,7 +438,7 @@ async fn main() -> Result<()> {
 		println!(">> Creating a test result...");
 		let create_test_res = hc
 			.do_post(
-				&format!("/api/cases/{}/test-results", case_id),
+				&format!("/api/cases/{case_id}/test-results"),
 				json!({
 					"data": {
 						"case_id": case_id,
@@ -456,7 +456,7 @@ async fn main() -> Result<()> {
 
 		// -- List Test Results
 		println!(">> Listing test results for case...");
-		hc.do_get(&format!("/api/cases/{}/test-results", case_id))
+		hc.do_get(&format!("/api/cases/{case_id}/test-results"))
 			.await?
 			.print()
 			.await?;
@@ -470,7 +470,7 @@ async fn main() -> Result<()> {
 		println!(">> Creating narrative for case...");
 		let create_narrative_res = hc
 			.do_post(
-				&format!("/api/cases/{}/narrative", case_id),
+				&format!("/api/cases/{case_id}/narrative"),
 				json!({
 					"data": {
 						"case_id": case_id,
@@ -485,7 +485,7 @@ async fn main() -> Result<()> {
 
 		// -- Get Narrative
 		println!(">> Getting narrative for case...");
-		hc.do_get(&format!("/api/cases/{}/narrative", case_id))
+		hc.do_get(&format!("/api/cases/{case_id}/narrative"))
 			.await?
 			.print()
 			.await?;
@@ -499,7 +499,7 @@ async fn main() -> Result<()> {
 		println!(">> Creating message header for case...");
 		let create_header_res = hc
 			.do_post(
-				&format!("/api/cases/{}/message-header", case_id),
+				&format!("/api/cases/{case_id}/message-header"),
 				json!({
 					"data": {
 						"case_id": case_id,
@@ -519,7 +519,7 @@ async fn main() -> Result<()> {
 
 		// -- Get Message Header
 		println!(">> Getting message header for case...");
-		hc.do_get(&format!("/api/cases/{}/message-header", case_id))
+		hc.do_get(&format!("/api/cases/{case_id}/message-header"))
 			.await?
 			.print()
 			.await?;
@@ -533,7 +533,7 @@ async fn main() -> Result<()> {
 		println!(">> Creating safety report identification for case...");
 		let create_safety_res = hc
 			.do_post(
-				&format!("/api/cases/{}/safety-report", case_id),
+				&format!("/api/cases/{case_id}/safety-report"),
 				json!({
 					"data": {
 						"case_id": case_id,
@@ -550,7 +550,7 @@ async fn main() -> Result<()> {
 
 		// -- Get Safety Report
 		println!(">> Getting safety report for case...");
-		hc.do_get(&format!("/api/cases/{}/safety-report", case_id))
+		hc.do_get(&format!("/api/cases/{case_id}/safety-report"))
 			.await?
 			.print()
 			.await?;
@@ -568,14 +568,14 @@ async fn main() -> Result<()> {
 	// -- List Audit Logs by Record (if case was created)
 	if !case_id.is_empty() {
 		println!(">> Listing audit logs for cases table...");
-		hc.do_get(&format!("/api/audit-logs/by-record/cases/{}", case_id))
+		hc.do_get(&format!("/api/audit-logs/by-record/cases/{case_id}"))
 			.await?
 			.print()
 			.await?;
 
 		// -- List Case Versions
 		println!(">> Listing case versions (admin only)...");
-		hc.do_get(&format!("/api/cases/{}/versions", case_id))
+		hc.do_get(&format!("/api/cases/{case_id}/versions"))
 			.await?
 			.print()
 			.await?;
@@ -626,7 +626,7 @@ async fn main() -> Result<()> {
 
 	if !case_id.is_empty() {
 		println!(">> Deleting test case...");
-		hc.do_delete(&format!("/api/cases/{}", case_id))
+		hc.do_delete(&format!("/api/cases/{case_id}"))
 			.await?
 			.print()
 			.await?;
@@ -634,7 +634,7 @@ async fn main() -> Result<()> {
 
 	if !new_org_id.is_empty() {
 		println!(">> Deleting test organization...");
-		hc.do_delete(&format!("/api/organizations/{}", new_org_id))
+		hc.do_delete(&format!("/api/organizations/{new_org_id}"))
 			.await?
 			.print()
 			.await?;
@@ -642,7 +642,7 @@ async fn main() -> Result<()> {
 
 	if !new_user_id.is_empty() {
 		println!(">> Deleting test user...");
-		hc.do_delete(&format!("/api/users/{}", new_user_id))
+		hc.do_delete(&format!("/api/users/{new_user_id}"))
 			.await?
 			.print()
 			.await?;

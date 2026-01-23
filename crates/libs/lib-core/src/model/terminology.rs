@@ -141,7 +141,7 @@ impl MeddraTermBmc {
 			)
 		};
 
-		let search_pattern = format!("%{}%", query);
+		let search_pattern = format!("%{query}%");
 
 		let terms = if let Some(ver) = version {
 			sqlx::query_as::<_, MeddraTerm>(&sql)
@@ -150,14 +150,14 @@ impl MeddraTermBmc {
 				.bind(limit)
 				.fetch_all(mm.dbx().db())
 				.await
-				.map_err(|e| dbx::Error::from(e))?
+				.map_err(dbx::Error::from)?
 		} else {
 			sqlx::query_as::<_, MeddraTerm>(&sql)
 				.bind(&search_pattern)
 				.bind(limit)
 				.fetch_all(mm.dbx().db())
 				.await
-				.map_err(|e| dbx::Error::from(e))?
+				.map_err(dbx::Error::from)?
 		};
 
 		Ok(terms)
@@ -181,13 +181,13 @@ impl WhodrugProductBmc {
 			Self::TABLE
 		);
 
-		let search_pattern = format!("%{}%", query);
+		let search_pattern = format!("%{query}%");
 		let products = sqlx::query_as::<_, WhodrugProduct>(&sql)
 			.bind(&search_pattern)
 			.bind(limit)
 			.fetch_all(mm.dbx().db())
 			.await
-			.map_err(|e| dbx::Error::from(e))?;
+			.map_err(dbx::Error::from)?;
 
 		Ok(products)
 	}
@@ -207,7 +207,7 @@ impl IsoCountryBmc {
 		let countries = sqlx::query_as::<_, IsoCountry>(&sql)
 			.fetch_all(mm.dbx().db())
 			.await
-			.map_err(|e| dbx::Error::from(e))?;
+			.map_err(dbx::Error::from)?;
 		Ok(countries)
 	}
 }
@@ -231,7 +231,7 @@ impl E2bCodeListBmc {
 			.bind(list_name)
 			.fetch_all(mm.dbx().db())
 			.await
-			.map_err(|e| dbx::Error::from(e))?;
+			.map_err(dbx::Error::from)?;
 		Ok(codes)
 	}
 }

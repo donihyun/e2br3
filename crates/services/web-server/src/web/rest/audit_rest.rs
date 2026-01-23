@@ -21,7 +21,7 @@ async fn require_admin_role(
 ) -> Result<()> {
 	let user: User = UserBmc::get(ctx, mm, ctx.user_id())
 		.await
-		.map_err(|e| WebError::Model(e))?;
+		.map_err(WebError::Model)?;
 
 	if user.role != "admin" {
 		return Err(WebError::AccessDenied {
@@ -48,7 +48,7 @@ pub async fn list_audit_logs(
 
 	let logs = AuditLogBmc::list(&ctx, &mm, params.filters, params.list_options)
 		.await
-		.map_err(|e| WebError::Model(e))?;
+		.map_err(WebError::Model)?;
 
 	Ok((StatusCode::OK, Json(DataRestResult { data: logs })))
 }
@@ -74,7 +74,7 @@ pub async fn list_audit_logs_by_record(
 
 	let logs = AuditLogBmc::list_by_record(&ctx, &mm, &table_name, record_id)
 		.await
-		.map_err(|e| WebError::Model(e))?;
+		.map_err(WebError::Model)?;
 
 	Ok((StatusCode::OK, Json(DataRestResult { data: logs })))
 }
@@ -99,7 +99,7 @@ pub async fn list_case_versions(
 
 	let versions = CaseVersionBmc::list_by_case(&ctx, &mm, case_id)
 		.await
-		.map_err(|e| WebError::Model(e))?;
+		.map_err(WebError::Model)?;
 
 	Ok((StatusCode::OK, Json(DataRestResult { data: versions })))
 }

@@ -12,7 +12,7 @@ use crate::model::store::set_user_context_dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::HasSeaFields;
-use sea_query::{Expr, Iden, PostgresQueryBuilder, Query};
+use sea_query::{Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use sqlx::postgres::PgRow;
 use sqlx::types::Uuid;

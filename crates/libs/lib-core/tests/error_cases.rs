@@ -399,7 +399,7 @@ async fn test_user_duplicate_username() -> Result<()> {
 
 	let user_c_1 = UserForCreate {
 		organization_id: demo_org_id(),
-		email: format!("{}@example.com", fx_username),
+		email: format!("{fx_username}@example.com"),
 		username: fx_username.to_string(),
 		pwd_clear: "password123".to_string(),
 		role: Some("user".to_string()),

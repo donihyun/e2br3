@@ -18,7 +18,7 @@ async fn test_user_create_ok() -> Result<()> {
 	let fx_pwd_clear = "test_create_ok pwd 01";
 	let user_c = UserForCreate {
 		organization_id: demo_org_id(),
-		email: format!("{}@example.com", fx_username),
+		email: format!("{fx_username}@example.com"),
 		username: fx_username.to_string(),
 		pwd_clear: fx_pwd_clear.to_string(),
 		role: Some("user".to_string()),
@@ -30,7 +30,7 @@ async fn test_user_create_ok() -> Result<()> {
 
 	let user: UserForLogin = UserBmc::get(&ctx, &mm, user_id).await?;
 
-	assert_eq!(user.email, format!("{}@example.com", fx_username));
+	assert_eq!(user.email, format!("{fx_username}@example.com"));
 	assert_eq!(user.username, fx_username);
 	assert!(user.pwd.is_some());
 
@@ -49,7 +49,7 @@ async fn test_user_create_duplicate_email() -> Result<()> {
 	let ctx = Ctx::root_ctx();
 	let fx_username_1 = "test_create_dup_email-user-01";
 	let fx_username_2 = "test_create_dup_email-user-02";
-	let fx_email = format!("{}@example.com", fx_username_1);
+	let fx_email = format!("{fx_username_1}@example.com");
 	let user_c_1 = UserForCreate {
 		organization_id: demo_org_id(),
 		email: fx_email.clone(),
@@ -95,7 +95,7 @@ async fn test_user_update_pwd_ok() -> Result<()> {
 	let fx_pwd_clear_2 = "test_update_pwd pwd 02";
 	let user_c = UserForCreate {
 		organization_id: demo_org_id(),
-		email: format!("{}@example.com", fx_username),
+		email: format!("{fx_username}@example.com"),
 		username: fx_username.to_string(),
 		pwd_clear: fx_pwd_clear_1.to_string(),
 		role: Some("user".to_string()),
@@ -131,7 +131,7 @@ async fn test_user_first_by_email_seeded() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = Ctx::root_ctx();
 	let fx_email = "demo.user@example.com";
-	let user: UserForLogin = UserBmc::first_by_email(&ctx, &mm, &fx_email)
+	let user: UserForLogin = UserBmc::first_by_email(&ctx, &mm, fx_email)
 		.await?
 		.ok_or("expected user by email")?;
 
@@ -146,7 +146,7 @@ async fn test_user_update_ok() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = Ctx::root_ctx();
 	let fx_username = "test_update-user-01";
-	let fx_email = format!("{}@example.com", fx_username);
+	let fx_email = format!("{fx_username}@example.com");
 	let user_c = UserForCreate {
 		organization_id: demo_org_id(),
 		email: fx_email.clone(),

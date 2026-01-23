@@ -4,6 +4,7 @@ pub mod base_uuid;
 mod macro_utils;
 mod utils;
 // -- Flatten hierarchy for user code.
+#[allow(unused_imports)]
 pub use base_uuid::*;
 pub use utils::*;
 
@@ -11,13 +12,6 @@ use modql::SIden;
 use sea_query::{Iden, IntoIden, TableRef};
 
 // endregion: --- Modules
-
-// region:    --- Consts
-
-const LIST_LIMIT_DEFAULT: i64 = 1000;
-const LIST_LIMIT_MAX: i64 = 5000;
-
-// endregion: --- Consts
 
 // region:    --- SeaQuery Idens
 

@@ -22,7 +22,7 @@ async fn test_message_header_crud() -> Result<()> {
 
 	let header_c = MessageHeaderForCreate {
 		case_id,
-		message_number: format!("MSG-{}", case_id),
+		message_number: format!("MSG-{case_id}"),
 		message_sender_identifier: "SENDER-1".to_string(),
 		message_receiver_identifier: "RECEIVER-1".to_string(),
 		message_date: "20240101120000".to_string(),

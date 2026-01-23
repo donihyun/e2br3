@@ -51,7 +51,7 @@ async fn test_case_delete_cascades_to_message_header() -> Result<()> {
 	// Create message header
 	let header_c = MessageHeaderForCreate {
 		case_id,
-		message_number: format!("MSG-CASCADE-{}", case_id),
+		message_number: format!("MSG-CASCADE-{case_id}"),
 		message_sender_identifier: "SENDER-1".to_string(),
 		message_receiver_identifier: "RECEIVER-1".to_string(),
 		message_date: "20240101120000".to_string(),
@@ -475,7 +475,7 @@ async fn test_case_delete_cascades_all_children_comprehensive() -> Result<()> {
 	// Create message header
 	let header_c = MessageHeaderForCreate {
 		case_id,
-		message_number: format!("MSG-FULL-{}", case_id),
+		message_number: format!("MSG-FULL-{case_id}"),
 		message_sender_identifier: "SENDER-1".to_string(),
 		message_receiver_identifier: "RECEIVER-1".to_string(),
 		message_date: "20240101120000".to_string(),

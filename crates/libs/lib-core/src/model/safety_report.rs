@@ -313,7 +313,7 @@ impl SafetyReportIdentificationBmc {
 		data: SafetyReportIdentificationForCreate,
 	) -> Result<Uuid> {
 		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
+		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
 		set_user_context(&mut tx, ctx.user_id()).await?;
 
 		let sql = format!(
@@ -332,8 +332,8 @@ impl SafetyReportIdentificationBmc {
 			.bind(ctx.user_id())
 			.fetch_one(&mut *tx)
 			.await
-			.map_err(|e| dbx::Error::from(e))?;
-		tx.commit().await.map_err(|e| dbx::Error::from(e))?;
+			.map_err(dbx::Error::from)?;
+		tx.commit().await.map_err(dbx::Error::from)?;
 		Ok(id)
 	}
 
@@ -347,7 +347,7 @@ impl SafetyReportIdentificationBmc {
 			.bind(case_id)
 			.fetch_optional(mm.dbx().db())
 			.await
-			.map_err(|e| dbx::Error::from(e))?;
+			.map_err(dbx::Error::from)?;
 		report.ok_or(crate::model::Error::EntityUuidNotFound {
 			entity: Self::TABLE,
 			id: case_id,
@@ -361,7 +361,7 @@ impl SafetyReportIdentificationBmc {
 		data: SafetyReportIdentificationForUpdate,
 	) -> Result<()> {
 		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
+		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
 		set_user_context(&mut tx, ctx.user_id()).await?;
 
 		let sql = format!(
@@ -386,14 +386,14 @@ impl SafetyReportIdentificationBmc {
 			.bind(ctx.user_id())
 			.execute(&mut *tx)
 			.await
-			.map_err(|e| dbx::Error::from(e))?;
+			.map_err(dbx::Error::from)?;
 		if result.rows_affected() == 0 {
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id: case_id,
 			});
 		}
-		tx.commit().await.map_err(|e| dbx::Error::from(e))?;
+		tx.commit().await.map_err(dbx::Error::from)?;
 		Ok(())
 	}
 
@@ -403,7 +403,7 @@ impl SafetyReportIdentificationBmc {
 		case_id: Uuid,
 	) -> Result<()> {
 		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(|e| dbx::Error::from(e))?;
+		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
 		set_user_context(&mut tx, ctx.user_id()).await?;
 
 		let sql = format!("DELETE FROM {} WHERE case_id = $1", Self::TABLE);
@@ -411,14 +411,14 @@ impl SafetyReportIdentificationBmc {
 			.bind(case_id)
 			.execute(&mut *tx)
 			.await
-			.map_err(|e| dbx::Error::from(e))?;
+			.map_err(dbx::Error::from)?;
 		if result.rows_affected() == 0 {
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id: case_id,
 			});
 		}
-		tx.commit().await.map_err(|e| dbx::Error::from(e))?;
+		tx.commit().await.map_err(dbx::Error::from)?;
 		Ok(())
 	}
 }

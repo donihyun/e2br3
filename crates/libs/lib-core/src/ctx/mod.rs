@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 // region:    --- Modules
 
 mod error;
@@ -6,6 +8,7 @@ pub use self::error::{Error, Result};
 
 // endregion: --- Modules
 
+#[allow(unexpected_cfgs)]
 #[cfg_attr(feature = "with-rpc", derive(rpc_router::RpcResource))]
 #[derive(Clone, Debug)]
 pub struct Ctx {

@@ -31,13 +31,12 @@ pub async fn new_db_pool() -> sqlx::Result<Db> {
 				}
 				if let Ok(role) = env::var("E2BR3_DB_ROLE") {
 					if !role.is_empty() && is_safe_role_name(&role) {
-						let sql = format!("SET ROLE {}", role);
+						let sql = format!("SET ROLE {role}");
 						if let Err(err) = sqlx::query(&sql).execute(&mut *conn).await
 						{
 							if should_ignore_role_set_error(&err) {
 								println!(
-									"db warning: skipping SET ROLE due to missing/permission error: {}",
-									role
+									"db warning: skipping SET ROLE due to missing/permission error: {role}"
 								);
 							} else {
 								return Err(err);
@@ -68,7 +67,7 @@ pub async fn set_user_context(
 		.bind(user_id)
 		.execute(&mut **tx)
 		.await
-		.map_err(|e| Error::Store(format!("Failed to set user context: {}", e)))?;
+		.map_err(|e| Error::Store(format!("Failed to set user context: {e}")))?;
 
 	Ok(())
 }
@@ -81,7 +80,7 @@ pub async fn set_user_context_dbx(
 	let query = sqlx::query("SELECT set_current_user_context($1)").bind(user_id);
 	dbx.execute(query)
 		.await
-		.map_err(|e| Error::Store(format!("Failed to set user context: {}", e)))?;
+		.map_err(|e| Error::Store(format!("Failed to set user context: {e}")))?;
 
 	Ok(())
 }
@@ -95,7 +94,7 @@ pub async fn get_user_context(
 	let row: (Uuid,) = sqlx::query_as("SELECT get_current_user_context()")
 		.fetch_one(&mut **tx)
 		.await
-		.map_err(|e| Error::Store(format!("Failed to get user context: {}", e)))?;
+		.map_err(|e| Error::Store(format!("Failed to get user context: {e}")))?;
 
 	Ok(row.0)
 }

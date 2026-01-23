@@ -90,7 +90,7 @@ impl CaseVersionBmc {
 			.bind(user_id)
 			.fetch_one(mm.dbx().db())
 			.await
-			.map_err(|e| dbx::Error::from(e))?;
+			.map_err(dbx::Error::from)?;
 
 		Ok(id)
 	}
@@ -108,7 +108,7 @@ impl CaseVersionBmc {
 			.bind(case_id)
 			.fetch_all(mm.dbx().db())
 			.await
-			.map_err(|e| dbx::Error::from(e))?;
+			.map_err(dbx::Error::from)?;
 		Ok(versions)
 	}
 }
@@ -138,7 +138,7 @@ impl AuditLogBmc {
 			.bind(audit_c.user_agent)
 			.fetch_one(mm.dbx().db())
 			.await
-			.map_err(|e| dbx::Error::from(e))?;
+			.map_err(dbx::Error::from)?;
 
 		Ok(id)
 	}
@@ -154,7 +154,7 @@ impl AuditLogBmc {
 		let logs = sqlx::query_as::<_, AuditLog>(sql)
 			.fetch_all(mm.dbx().db())
 			.await
-			.map_err(|e| dbx::Error::from(e))?;
+			.map_err(dbx::Error::from)?;
 		Ok(logs)
 	}
 
@@ -173,7 +173,7 @@ impl AuditLogBmc {
 			.bind(record_id)
 			.fetch_all(mm.dbx().db())
 			.await
-			.map_err(|e| dbx::Error::from(e))?;
+			.map_err(dbx::Error::from)?;
 		Ok(logs)
 	}
 }
