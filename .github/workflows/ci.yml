@@ -90,6 +90,8 @@ jobs:
         env:
           PGPASSWORD: dev_only_pwd
         run: |
+          psql -h localhost -U app_user -d app_db -v ON_ERROR_STOP=1 \
+            -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
           for f in \
             docs/dev_initial/03-safetydb-schema.sql \
             docs/dev_initial/04-e2br3_N.sql \
