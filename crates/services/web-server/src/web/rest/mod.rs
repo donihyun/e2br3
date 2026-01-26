@@ -206,15 +206,21 @@ pub fn routes_organizations(mm: ModelManager) -> Router {
 
 /// Routes for /api/users
 pub fn routes_users(mm: ModelManager) -> Router {
-	rest_collection_item_routes(
-		"/users",
-		"/users/{id}",
-		get(user_rest::list_users).post(user_rest::create_user),
-		get(user_rest::get_user)
-			.put(user_rest::update_user)
-			.delete(user_rest::delete_user),
-	)
-	.with_state(mm)
+	Router::new()
+		// GET /api/users/me - must be before /users/{id} to avoid matching
+		.route("/users/me", get(user_rest::get_current_user))
+		// Standard collection routes
+		.route(
+			"/users",
+			get(user_rest::list_users).post(user_rest::create_user),
+		)
+		.route(
+			"/users/{id}",
+			get(user_rest::get_user)
+				.put(user_rest::update_user)
+				.delete(user_rest::delete_user),
+		)
+		.with_state(mm)
 }
 
 /// Routes for /api/terminology

@@ -71,6 +71,7 @@ pub struct UserForLogin {
 	pub organization_id: Uuid,
 	pub email: String,
 	pub username: String,
+	pub role: String,
 
 	// -- pwd and token info
 	pub pwd: Option<String>, // encrypted
@@ -84,6 +85,7 @@ pub struct UserForAuth {
 	pub organization_id: Uuid,
 	pub email: String,
 	pub username: String,
+	pub role: String,
 
 	// -- token info
 	pub token_salt: Uuid,

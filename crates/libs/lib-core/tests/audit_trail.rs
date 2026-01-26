@@ -1,10 +1,9 @@
 mod common;
 
 use common::{
-	audit_log_count, create_case_fixture, delete_case_fixture, demo_org_id,
+	audit_log_count, create_case_fixture, delete_case_fixture, demo_ctx, demo_org_id,
 	demo_user_id, init_test_mm, set_current_user, Result,
 };
-use lib_core::ctx::Ctx;
 use lib_core::model::audit::AuditLogBmc;
 use lib_core::model::case::{CaseBmc, CaseForUpdate};
 use serial_test::serial;
@@ -13,7 +12,7 @@ use serial_test::serial;
 #[tokio::test]
 async fn test_audit_trail_cases() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::new(demo_user_id())?;
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;

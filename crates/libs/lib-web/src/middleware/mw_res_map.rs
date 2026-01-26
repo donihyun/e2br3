@@ -1,4 +1,4 @@
-use crate::error::{Error, Result};
+use crate::error::{ClientError, Error, Result};
 use crate::log::log_request;
 use crate::middleware::mw_auth::CtxW;
 use crate::middleware::mw_req_stamp::ReqStamp;
@@ -6,10 +6,12 @@ use crate::middleware::mw_req_stamp::ReqStamp;
 use axum::http::{Method, Uri};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
+use lib_core::model;
 use serde_json::{json, to_value};
 use std::sync::Arc;
 use tracing::{debug, error};
 use uuid::Uuid;
+use lib_rest_core::prelude::StatusCode;
 
 pub async fn mw_reponse_map(
 	ctx: Result<CtxW>, // Axum 0.8 does not seem to support Option anymore
@@ -25,7 +27,27 @@ pub async fn mw_reponse_map(
 
 	// -- Get the eventual response error.
 	let web_error = res.extensions().get::<Arc<Error>>().map(Arc::as_ref);
-	let client_status_error = web_error.map(|se| se.client_status_and_error());
+	let rest_error =
+		res.extensions().get::<Arc<lib_rest_core::Error>>().map(Arc::as_ref);
+	let client_status_error = if let Some(err) = web_error {
+		Some(err.client_status_and_error())
+	} else if let Some(err) = rest_error {
+		let client_error = match err {
+			lib_rest_core::Error::Model(model::Error::EntityNotFound { entity, id }) => {
+				ClientError::ENTITY_NOT_FOUND { entity, id: *id }
+			}
+			lib_rest_core::Error::Model(model::Error::EntityUuidNotFound { entity, id }) => {
+				ClientError::ENTITY_UUID_NOT_FOUND {
+					entity,
+					id: id.to_string(),
+				}
+			}
+			_ => ClientError::SERVICE_ERROR,
+		};
+		Some((StatusCode::BAD_REQUEST, client_error))
+	} else {
+		None
+	};
 
 	// -- If client error, build the new reponse.
 	let error_response =

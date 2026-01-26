@@ -1,14 +1,14 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
-	unique_suffix, Result,
+	create_case_fixture, demo_ctx, demo_org_id, demo_user_id, init_test_mm,
+	set_current_user, unique_suffix, Result,
 };
-use lib_core::ctx::Ctx;
 use lib_core::model::case::{CaseBmc, CaseForUpdate};
 use lib_core::model::drug::{
 	DrugInformationBmc, DrugInformationForCreate, DrugInformationForUpdate,
 };
+use lib_core::ctx::Ctx;
 use lib_core::model::organization::{OrganizationBmc, OrganizationForUpdate};
 use lib_core::model::patient::{PatientInformationBmc, PatientInformationForCreate};
 use lib_core::model::reaction::{ReactionBmc, ReactionForCreate};
@@ -169,7 +169,7 @@ async fn test_patient_get_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_case_update_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::new(demo_user_id())?;
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -273,7 +273,7 @@ async fn test_organization_update_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_case_delete_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::new(demo_user_id())?;
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	set_current_user(&mm, demo_user_id()).await?;

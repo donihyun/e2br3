@@ -20,10 +20,10 @@
 
 // region:    --- Modules
 
-mod acs;
+pub mod acs;
 mod base;
 mod error;
-mod store;
+pub mod store;
 
 // E2B(R3) SafetyDB Core Models
 pub mod case;

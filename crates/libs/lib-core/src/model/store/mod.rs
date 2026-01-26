@@ -85,6 +85,63 @@ pub async fn set_user_context_dbx(
 	Ok(())
 }
 
+// region:    --- Organization Context for RLS
+
+/// Sets the organization context for Row-Level Security (RLS).
+/// This enables the database to enforce organization isolation.
+///
+/// Call this at the start of each request to set up RLS context.
+#[allow(dead_code)]
+pub async fn set_org_context(
+	tx: &mut Transaction<'_, Postgres>,
+	organization_id: Uuid,
+	role: &str,
+) -> Result<(), Error> {
+	sqlx::query("SELECT set_org_context($1, $2)")
+		.bind(organization_id)
+		.bind(role)
+		.execute(&mut **tx)
+		.await
+		.map_err(|e| Error::Store(format!("Failed to set org context: {e}")))?;
+
+	Ok(())
+}
+
+/// Sets the organization context using Dbx (for non-transactional queries).
+#[allow(dead_code)]
+pub async fn set_org_context_dbx(
+	dbx: &dbx::Dbx,
+	organization_id: Uuid,
+	role: &str,
+) -> Result<(), Error> {
+	let query = sqlx::query("SELECT set_org_context($1, $2)")
+		.bind(organization_id)
+		.bind(role);
+	dbx.execute(query)
+		.await
+		.map_err(|e| Error::Store(format!("Failed to set org context: {e}")))?;
+
+	Ok(())
+}
+
+/// Sets both user context (for audit trail) and organization context (for RLS).
+/// This is the recommended function to call at the start of each request.
+#[allow(dead_code)]
+pub async fn set_full_context_dbx(
+	dbx: &dbx::Dbx,
+	user_id: Uuid,
+	organization_id: Uuid,
+	role: &str,
+) -> Result<(), Error> {
+	// Set user context for audit trail
+	set_user_context_dbx(dbx, user_id).await?;
+	// Set organization context for RLS
+	set_org_context_dbx(dbx, organization_id, role).await?;
+	Ok(())
+}
+
+// endregion: --- Organization Context for RLS
+
 /// Gets the current user context from PostgreSQL session.
 /// Used for verification and debugging purposes.
 #[allow(dead_code)]

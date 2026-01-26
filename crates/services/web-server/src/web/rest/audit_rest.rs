@@ -3,10 +3,10 @@
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
+use lib_core::model::acs::{has_permission, AUDIT_LIST};
 use lib_core::model::audit::{
 	AuditLog, AuditLogBmc, AuditLogFilter, CaseVersion, CaseVersionBmc,
 };
-use lib_core::model::user::{User, UserBmc};
 use lib_core::model::ModelManager;
 use lib_rest_core::rest_params::ParamsList;
 use lib_rest_core::rest_result::DataRestResult;
@@ -14,27 +14,19 @@ use lib_web::middleware::mw_auth::CtxW;
 use lib_web::{Error as WebError, Result};
 use uuid::Uuid;
 
-/// Verifies that the current user has admin role
-async fn require_admin_role(
-	ctx: &lib_core::ctx::Ctx,
-	mm: &ModelManager,
-) -> Result<()> {
-	let user: User = UserBmc::get(ctx, mm, ctx.user_id())
-		.await
-		.map_err(WebError::Model)?;
-
-	if user.role != "admin" {
-		return Err(WebError::AccessDenied {
-			required_role: "admin".to_string(),
+/// Verifies that the current user has audit list permission
+fn require_audit_permission(ctx: &lib_core::ctx::Ctx) -> Result<()> {
+	if !has_permission(ctx.role(), AUDIT_LIST) {
+		return Err(WebError::PermissionDenied {
+			required_permission: "AuditLog.List".to_string(),
 		});
 	}
-
 	Ok(())
 }
 
 /// GET /api/audit-logs
 /// List all audit logs with optional filtering
-/// **Requires admin role**
+/// **Requires AuditLog.List permission (admin or manager)**
 pub async fn list_audit_logs(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
@@ -43,8 +35,8 @@ pub async fn list_audit_logs(
 	let ctx = ctx_w.0;
 	tracing::debug!("{:<12} - rest list_audit_logs", "HANDLER");
 
-	// Verify admin role
-	require_admin_role(&ctx, &mm).await?;
+	// Verify audit permission
+	require_audit_permission(&ctx)?;
 
 	let logs = AuditLogBmc::list(&ctx, &mm, params.filters, params.list_options)
 		.await
@@ -55,7 +47,7 @@ pub async fn list_audit_logs(
 
 /// GET /api/audit-logs/by-record/{table_name}/{record_id}
 /// List audit logs for a specific record
-/// **Requires admin role**
+/// **Requires AuditLog.Read permission (admin or manager)**
 pub async fn list_audit_logs_by_record(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
@@ -69,8 +61,8 @@ pub async fn list_audit_logs_by_record(
 		record_id
 	);
 
-	// Verify admin role
-	require_admin_role(&ctx, &mm).await?;
+	// Verify audit permission
+	require_audit_permission(&ctx)?;
 
 	let logs = AuditLogBmc::list_by_record(&ctx, &mm, &table_name, record_id)
 		.await
@@ -81,7 +73,7 @@ pub async fn list_audit_logs_by_record(
 
 /// GET /api/cases/{case_id}/versions
 /// List all versions for a specific case
-/// **Requires admin role**
+/// **Requires AuditLog.Read permission (admin or manager)**
 pub async fn list_case_versions(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
@@ -94,8 +86,8 @@ pub async fn list_case_versions(
 		case_id
 	);
 
-	// Verify admin role
-	require_admin_role(&ctx, &mm).await?;
+	// Verify audit permission
+	require_audit_permission(&ctx)?;
 
 	let versions = CaseVersionBmc::list_by_case(&ctx, &mm, case_id)
 		.await

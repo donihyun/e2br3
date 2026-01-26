@@ -1,8 +1,8 @@
 mod common;
 
 use common::{
-	audit_log_count, create_case_fixture, demo_org_id, demo_user_id, init_test_mm,
-	set_current_user, unique_suffix, Result,
+	audit_log_count, create_case_fixture, demo_ctx, demo_org_id, demo_user_id,
+	init_test_mm, set_current_user, unique_suffix, Result,
 };
 use lib_core::ctx::Ctx;
 use lib_core::model::audit::AuditLogBmc;
@@ -28,7 +28,7 @@ use serial_test::serial;
 #[tokio::test]
 async fn test_audit_trail_drug_information() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::new(demo_user_id())?;
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -107,7 +107,7 @@ async fn test_audit_trail_drug_information() -> Result<()> {
 #[tokio::test]
 async fn test_audit_trail_reactions() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::new(demo_user_id())?;
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -169,7 +169,7 @@ async fn test_audit_trail_reactions() -> Result<()> {
 #[tokio::test]
 async fn test_audit_trail_patient_information() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::new(demo_user_id())?;
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -237,7 +237,7 @@ async fn test_audit_trail_organizations() -> Result<()> {
 
 	set_current_user(&mm, demo_user_id()).await?;
 
-	// CREATE
+	// CREAET
 	let org_c = OrganizationForCreate {
 		name: format!("Audit Test Org {suffix}"),
 		org_type: Some("internal".to_string()),
@@ -356,7 +356,7 @@ async fn test_audit_trail_users() -> Result<()> {
 #[tokio::test]
 async fn test_audit_log_list_all() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::new(demo_user_id())?;
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -403,7 +403,7 @@ async fn test_audit_log_list_all() -> Result<()> {
 #[tokio::test]
 async fn test_audit_log_chronological_order() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::new(demo_user_id())?;
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -467,7 +467,7 @@ async fn test_audit_log_chronological_order() -> Result<()> {
 #[tokio::test]
 async fn test_audit_log_captures_all_changed_fields() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::new(demo_user_id())?;
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
