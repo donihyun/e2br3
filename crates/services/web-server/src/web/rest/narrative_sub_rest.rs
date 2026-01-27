@@ -3,6 +3,11 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
+use lib_core::model::acs::{
+	CASE_SUMMARY_CREATE, CASE_SUMMARY_DELETE, CASE_SUMMARY_LIST, CASE_SUMMARY_READ,
+	CASE_SUMMARY_UPDATE, SENDER_DIAGNOSIS_CREATE, SENDER_DIAGNOSIS_DELETE,
+	SENDER_DIAGNOSIS_LIST, SENDER_DIAGNOSIS_READ, SENDER_DIAGNOSIS_UPDATE,
+};
 use lib_core::model::narrative::{
 	CaseSummaryInformation, CaseSummaryInformationBmc, CaseSummaryInformationFilter,
 	CaseSummaryInformationForCreate, CaseSummaryInformationForUpdate,
@@ -12,7 +17,7 @@ use lib_core::model::narrative::{
 use lib_core::model::ModelManager;
 use lib_rest_core::rest_params::{ParamsForCreate, ParamsForUpdate};
 use lib_rest_core::rest_result::DataRestResult;
-use lib_rest_core::Result;
+use lib_rest_core::{require_permission, Result};
 use lib_web::middleware::mw_auth::CtxW;
 use modql::filter::{ListOptions, OpValValue, OpValsValue};
 use serde_json::json;
@@ -37,6 +42,7 @@ pub async fn create_sender_diagnosis(
 	Json(params): Json<ParamsForCreate<SenderDiagnosisForCreate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<SenderDiagnosis>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, SENDER_DIAGNOSIS_CREATE)?;
 	let narrative_id = narrative_id_for_case(&ctx, &mm, case_id).await?;
 
 	let ParamsForCreate { data } = params;
@@ -55,6 +61,7 @@ pub async fn list_sender_diagnoses(
 	Path(case_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<DataRestResult<Vec<SenderDiagnosis>>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, SENDER_DIAGNOSIS_LIST)?;
 	let narrative_id = narrative_id_for_case(&ctx, &mm, case_id).await?;
 
 	let filter = SenderDiagnosisFilter {
@@ -80,6 +87,7 @@ pub async fn get_sender_diagnosis(
 	Path((_case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<SenderDiagnosis>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, SENDER_DIAGNOSIS_READ)?;
 	let entity = SenderDiagnosisBmc::get(&ctx, &mm, id).await?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
 }
@@ -92,6 +100,7 @@ pub async fn update_sender_diagnosis(
 	Json(params): Json<ParamsForUpdate<SenderDiagnosisForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<SenderDiagnosis>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, SENDER_DIAGNOSIS_UPDATE)?;
 	let ParamsForUpdate { data } = params;
 	SenderDiagnosisBmc::update(&ctx, &mm, id, data).await?;
 	let entity = SenderDiagnosisBmc::get(&ctx, &mm, id).await?;
@@ -105,6 +114,7 @@ pub async fn delete_sender_diagnosis(
 	Path((_case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, SENDER_DIAGNOSIS_DELETE)?;
 	SenderDiagnosisBmc::delete(&ctx, &mm, id).await?;
 	Ok(StatusCode::NO_CONTENT)
 }
@@ -119,6 +129,7 @@ pub async fn create_case_summary_information(
 	Json(params): Json<ParamsForCreate<CaseSummaryInformationForCreate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<CaseSummaryInformation>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, CASE_SUMMARY_CREATE)?;
 	let narrative_id = narrative_id_for_case(&ctx, &mm, case_id).await?;
 
 	let ParamsForCreate { data } = params;
@@ -137,6 +148,7 @@ pub async fn list_case_summary_information(
 	Path(case_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<DataRestResult<Vec<CaseSummaryInformation>>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, CASE_SUMMARY_LIST)?;
 	let narrative_id = narrative_id_for_case(&ctx, &mm, case_id).await?;
 
 	let filter = CaseSummaryInformationFilter {
@@ -162,6 +174,7 @@ pub async fn get_case_summary_information(
 	Path((_case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<CaseSummaryInformation>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, CASE_SUMMARY_READ)?;
 	let entity = CaseSummaryInformationBmc::get(&ctx, &mm, id).await?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
 }
@@ -174,6 +187,7 @@ pub async fn update_case_summary_information(
 	Json(params): Json<ParamsForUpdate<CaseSummaryInformationForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<CaseSummaryInformation>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, CASE_SUMMARY_UPDATE)?;
 	let ParamsForUpdate { data } = params;
 	CaseSummaryInformationBmc::update(&ctx, &mm, id, data).await?;
 	let entity = CaseSummaryInformationBmc::get(&ctx, &mm, id).await?;
@@ -187,6 +201,7 @@ pub async fn delete_case_summary_information(
 	Path((_case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, CASE_SUMMARY_DELETE)?;
 	CaseSummaryInformationBmc::delete(&ctx, &mm, id).await?;
 	Ok(StatusCode::NO_CONTENT)
 }

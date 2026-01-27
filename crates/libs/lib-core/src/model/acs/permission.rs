@@ -24,14 +24,24 @@ pub enum Resource {
 	DrugIndication,
 	DrugSubstance,
 	DrugReactionAssessment,
+	RelatednessAssessment,
+	DrugRecurrence,
 
 	// Other case resources
+	CaseIdentifier,
+	Receiver,
 	PrimarySource,
+	SenderInformation,
 	LiteratureReference,
+	StudyInformation,
 	StudyRegistration,
 	MedicalHistory,
 	PastDrug,
+	PatientDeath,
 	DeathCause,
+	ParentInformation,
+	ParentMedicalHistory,
+	ParentPastDrug,
 	SenderDiagnosis,
 	CaseSummary,
 
@@ -110,6 +120,7 @@ pub const PATIENT_CREATE: Permission = Permission::new(Resource::Patient, Action
 pub const PATIENT_READ: Permission = Permission::new(Resource::Patient, Action::Read);
 pub const PATIENT_UPDATE: Permission = Permission::new(Resource::Patient, Action::Update);
 pub const PATIENT_DELETE: Permission = Permission::new(Resource::Patient, Action::Delete);
+pub const PATIENT_LIST: Permission = Permission::new(Resource::Patient, Action::List);
 
 // Drug permissions
 pub const DRUG_CREATE: Permission = Permission::new(Resource::Drug, Action::Create);
@@ -117,6 +128,73 @@ pub const DRUG_READ: Permission = Permission::new(Resource::Drug, Action::Read);
 pub const DRUG_UPDATE: Permission = Permission::new(Resource::Drug, Action::Update);
 pub const DRUG_DELETE: Permission = Permission::new(Resource::Drug, Action::Delete);
 pub const DRUG_LIST: Permission = Permission::new(Resource::Drug, Action::List);
+
+// Drug sub-resources
+pub const DRUG_SUBSTANCE_CREATE: Permission =
+	Permission::new(Resource::DrugSubstance, Action::Create);
+pub const DRUG_SUBSTANCE_READ: Permission =
+	Permission::new(Resource::DrugSubstance, Action::Read);
+pub const DRUG_SUBSTANCE_UPDATE: Permission =
+	Permission::new(Resource::DrugSubstance, Action::Update);
+pub const DRUG_SUBSTANCE_DELETE: Permission =
+	Permission::new(Resource::DrugSubstance, Action::Delete);
+pub const DRUG_SUBSTANCE_LIST: Permission =
+	Permission::new(Resource::DrugSubstance, Action::List);
+
+pub const DRUG_DOSAGE_CREATE: Permission =
+	Permission::new(Resource::DrugDosage, Action::Create);
+pub const DRUG_DOSAGE_READ: Permission =
+	Permission::new(Resource::DrugDosage, Action::Read);
+pub const DRUG_DOSAGE_UPDATE: Permission =
+	Permission::new(Resource::DrugDosage, Action::Update);
+pub const DRUG_DOSAGE_DELETE: Permission =
+	Permission::new(Resource::DrugDosage, Action::Delete);
+pub const DRUG_DOSAGE_LIST: Permission =
+	Permission::new(Resource::DrugDosage, Action::List);
+
+pub const DRUG_INDICATION_CREATE: Permission =
+	Permission::new(Resource::DrugIndication, Action::Create);
+pub const DRUG_INDICATION_READ: Permission =
+	Permission::new(Resource::DrugIndication, Action::Read);
+pub const DRUG_INDICATION_UPDATE: Permission =
+	Permission::new(Resource::DrugIndication, Action::Update);
+pub const DRUG_INDICATION_DELETE: Permission =
+	Permission::new(Resource::DrugIndication, Action::Delete);
+pub const DRUG_INDICATION_LIST: Permission =
+	Permission::new(Resource::DrugIndication, Action::List);
+
+pub const DRUG_REACTION_ASSESSMENT_CREATE: Permission =
+	Permission::new(Resource::DrugReactionAssessment, Action::Create);
+pub const DRUG_REACTION_ASSESSMENT_READ: Permission =
+	Permission::new(Resource::DrugReactionAssessment, Action::Read);
+pub const DRUG_REACTION_ASSESSMENT_UPDATE: Permission =
+	Permission::new(Resource::DrugReactionAssessment, Action::Update);
+pub const DRUG_REACTION_ASSESSMENT_DELETE: Permission =
+	Permission::new(Resource::DrugReactionAssessment, Action::Delete);
+pub const DRUG_REACTION_ASSESSMENT_LIST: Permission =
+	Permission::new(Resource::DrugReactionAssessment, Action::List);
+
+pub const RELATEDNESS_ASSESSMENT_CREATE: Permission =
+	Permission::new(Resource::RelatednessAssessment, Action::Create);
+pub const RELATEDNESS_ASSESSMENT_READ: Permission =
+	Permission::new(Resource::RelatednessAssessment, Action::Read);
+pub const RELATEDNESS_ASSESSMENT_UPDATE: Permission =
+	Permission::new(Resource::RelatednessAssessment, Action::Update);
+pub const RELATEDNESS_ASSESSMENT_DELETE: Permission =
+	Permission::new(Resource::RelatednessAssessment, Action::Delete);
+pub const RELATEDNESS_ASSESSMENT_LIST: Permission =
+	Permission::new(Resource::RelatednessAssessment, Action::List);
+
+pub const DRUG_RECURRENCE_CREATE: Permission =
+	Permission::new(Resource::DrugRecurrence, Action::Create);
+pub const DRUG_RECURRENCE_READ: Permission =
+	Permission::new(Resource::DrugRecurrence, Action::Read);
+pub const DRUG_RECURRENCE_UPDATE: Permission =
+	Permission::new(Resource::DrugRecurrence, Action::Update);
+pub const DRUG_RECURRENCE_DELETE: Permission =
+	Permission::new(Resource::DrugRecurrence, Action::Delete);
+pub const DRUG_RECURRENCE_LIST: Permission =
+	Permission::new(Resource::DrugRecurrence, Action::List);
 
 // Reaction permissions
 pub const REACTION_CREATE: Permission = Permission::new(Resource::Reaction, Action::Create);
@@ -137,6 +215,7 @@ pub const NARRATIVE_CREATE: Permission = Permission::new(Resource::Narrative, Ac
 pub const NARRATIVE_READ: Permission = Permission::new(Resource::Narrative, Action::Read);
 pub const NARRATIVE_UPDATE: Permission = Permission::new(Resource::Narrative, Action::Update);
 pub const NARRATIVE_DELETE: Permission = Permission::new(Resource::Narrative, Action::Delete);
+pub const NARRATIVE_LIST: Permission = Permission::new(Resource::Narrative, Action::List);
 
 // MessageHeader permissions
 pub const MESSAGE_HEADER_CREATE: Permission =
@@ -146,6 +225,8 @@ pub const MESSAGE_HEADER_UPDATE: Permission =
 	Permission::new(Resource::MessageHeader, Action::Update);
 pub const MESSAGE_HEADER_DELETE: Permission =
 	Permission::new(Resource::MessageHeader, Action::Delete);
+pub const MESSAGE_HEADER_LIST: Permission =
+	Permission::new(Resource::MessageHeader, Action::List);
 
 // SafetyReport permissions
 pub const SAFETY_REPORT_CREATE: Permission =
@@ -155,6 +236,188 @@ pub const SAFETY_REPORT_UPDATE: Permission =
 	Permission::new(Resource::SafetyReport, Action::Update);
 pub const SAFETY_REPORT_DELETE: Permission =
 	Permission::new(Resource::SafetyReport, Action::Delete);
+pub const SAFETY_REPORT_LIST: Permission =
+	Permission::new(Resource::SafetyReport, Action::List);
+
+// SafetyReport sub-resources
+pub const SENDER_INFORMATION_CREATE: Permission =
+	Permission::new(Resource::SenderInformation, Action::Create);
+pub const SENDER_INFORMATION_READ: Permission =
+	Permission::new(Resource::SenderInformation, Action::Read);
+pub const SENDER_INFORMATION_UPDATE: Permission =
+	Permission::new(Resource::SenderInformation, Action::Update);
+pub const SENDER_INFORMATION_DELETE: Permission =
+	Permission::new(Resource::SenderInformation, Action::Delete);
+pub const SENDER_INFORMATION_LIST: Permission =
+	Permission::new(Resource::SenderInformation, Action::List);
+
+pub const PRIMARY_SOURCE_CREATE: Permission =
+	Permission::new(Resource::PrimarySource, Action::Create);
+pub const PRIMARY_SOURCE_READ: Permission =
+	Permission::new(Resource::PrimarySource, Action::Read);
+pub const PRIMARY_SOURCE_UPDATE: Permission =
+	Permission::new(Resource::PrimarySource, Action::Update);
+pub const PRIMARY_SOURCE_DELETE: Permission =
+	Permission::new(Resource::PrimarySource, Action::Delete);
+pub const PRIMARY_SOURCE_LIST: Permission =
+	Permission::new(Resource::PrimarySource, Action::List);
+
+pub const LITERATURE_REFERENCE_CREATE: Permission =
+	Permission::new(Resource::LiteratureReference, Action::Create);
+pub const LITERATURE_REFERENCE_READ: Permission =
+	Permission::new(Resource::LiteratureReference, Action::Read);
+pub const LITERATURE_REFERENCE_UPDATE: Permission =
+	Permission::new(Resource::LiteratureReference, Action::Update);
+pub const LITERATURE_REFERENCE_DELETE: Permission =
+	Permission::new(Resource::LiteratureReference, Action::Delete);
+pub const LITERATURE_REFERENCE_LIST: Permission =
+	Permission::new(Resource::LiteratureReference, Action::List);
+
+pub const STUDY_INFORMATION_CREATE: Permission =
+	Permission::new(Resource::StudyInformation, Action::Create);
+pub const STUDY_INFORMATION_READ: Permission =
+	Permission::new(Resource::StudyInformation, Action::Read);
+pub const STUDY_INFORMATION_UPDATE: Permission =
+	Permission::new(Resource::StudyInformation, Action::Update);
+pub const STUDY_INFORMATION_DELETE: Permission =
+	Permission::new(Resource::StudyInformation, Action::Delete);
+pub const STUDY_INFORMATION_LIST: Permission =
+	Permission::new(Resource::StudyInformation, Action::List);
+
+pub const STUDY_REGISTRATION_CREATE: Permission =
+	Permission::new(Resource::StudyRegistration, Action::Create);
+pub const STUDY_REGISTRATION_READ: Permission =
+	Permission::new(Resource::StudyRegistration, Action::Read);
+pub const STUDY_REGISTRATION_UPDATE: Permission =
+	Permission::new(Resource::StudyRegistration, Action::Update);
+pub const STUDY_REGISTRATION_DELETE: Permission =
+	Permission::new(Resource::StudyRegistration, Action::Delete);
+pub const STUDY_REGISTRATION_LIST: Permission =
+	Permission::new(Resource::StudyRegistration, Action::List);
+
+// Patient sub-resources
+pub const MEDICAL_HISTORY_CREATE: Permission =
+	Permission::new(Resource::MedicalHistory, Action::Create);
+pub const MEDICAL_HISTORY_READ: Permission =
+	Permission::new(Resource::MedicalHistory, Action::Read);
+pub const MEDICAL_HISTORY_UPDATE: Permission =
+	Permission::new(Resource::MedicalHistory, Action::Update);
+pub const MEDICAL_HISTORY_DELETE: Permission =
+	Permission::new(Resource::MedicalHistory, Action::Delete);
+pub const MEDICAL_HISTORY_LIST: Permission =
+	Permission::new(Resource::MedicalHistory, Action::List);
+
+pub const PAST_DRUG_CREATE: Permission =
+	Permission::new(Resource::PastDrug, Action::Create);
+pub const PAST_DRUG_READ: Permission =
+	Permission::new(Resource::PastDrug, Action::Read);
+pub const PAST_DRUG_UPDATE: Permission =
+	Permission::new(Resource::PastDrug, Action::Update);
+pub const PAST_DRUG_DELETE: Permission =
+	Permission::new(Resource::PastDrug, Action::Delete);
+pub const PAST_DRUG_LIST: Permission =
+	Permission::new(Resource::PastDrug, Action::List);
+
+pub const PATIENT_DEATH_CREATE: Permission =
+	Permission::new(Resource::PatientDeath, Action::Create);
+pub const PATIENT_DEATH_READ: Permission =
+	Permission::new(Resource::PatientDeath, Action::Read);
+pub const PATIENT_DEATH_UPDATE: Permission =
+	Permission::new(Resource::PatientDeath, Action::Update);
+pub const PATIENT_DEATH_DELETE: Permission =
+	Permission::new(Resource::PatientDeath, Action::Delete);
+pub const PATIENT_DEATH_LIST: Permission =
+	Permission::new(Resource::PatientDeath, Action::List);
+
+pub const DEATH_CAUSE_CREATE: Permission =
+	Permission::new(Resource::DeathCause, Action::Create);
+pub const DEATH_CAUSE_READ: Permission =
+	Permission::new(Resource::DeathCause, Action::Read);
+pub const DEATH_CAUSE_UPDATE: Permission =
+	Permission::new(Resource::DeathCause, Action::Update);
+pub const DEATH_CAUSE_DELETE: Permission =
+	Permission::new(Resource::DeathCause, Action::Delete);
+pub const DEATH_CAUSE_LIST: Permission =
+	Permission::new(Resource::DeathCause, Action::List);
+
+pub const PARENT_INFORMATION_CREATE: Permission =
+	Permission::new(Resource::ParentInformation, Action::Create);
+pub const PARENT_INFORMATION_READ: Permission =
+	Permission::new(Resource::ParentInformation, Action::Read);
+pub const PARENT_INFORMATION_UPDATE: Permission =
+	Permission::new(Resource::ParentInformation, Action::Update);
+pub const PARENT_INFORMATION_DELETE: Permission =
+	Permission::new(Resource::ParentInformation, Action::Delete);
+pub const PARENT_INFORMATION_LIST: Permission =
+	Permission::new(Resource::ParentInformation, Action::List);
+
+pub const PARENT_MEDICAL_HISTORY_CREATE: Permission =
+	Permission::new(Resource::ParentMedicalHistory, Action::Create);
+pub const PARENT_MEDICAL_HISTORY_READ: Permission =
+	Permission::new(Resource::ParentMedicalHistory, Action::Read);
+pub const PARENT_MEDICAL_HISTORY_UPDATE: Permission =
+	Permission::new(Resource::ParentMedicalHistory, Action::Update);
+pub const PARENT_MEDICAL_HISTORY_DELETE: Permission =
+	Permission::new(Resource::ParentMedicalHistory, Action::Delete);
+pub const PARENT_MEDICAL_HISTORY_LIST: Permission =
+	Permission::new(Resource::ParentMedicalHistory, Action::List);
+
+pub const PARENT_PAST_DRUG_CREATE: Permission =
+	Permission::new(Resource::ParentPastDrug, Action::Create);
+pub const PARENT_PAST_DRUG_READ: Permission =
+	Permission::new(Resource::ParentPastDrug, Action::Read);
+pub const PARENT_PAST_DRUG_UPDATE: Permission =
+	Permission::new(Resource::ParentPastDrug, Action::Update);
+pub const PARENT_PAST_DRUG_DELETE: Permission =
+	Permission::new(Resource::ParentPastDrug, Action::Delete);
+pub const PARENT_PAST_DRUG_LIST: Permission =
+	Permission::new(Resource::ParentPastDrug, Action::List);
+
+// Narrative sub-resources
+pub const SENDER_DIAGNOSIS_CREATE: Permission =
+	Permission::new(Resource::SenderDiagnosis, Action::Create);
+pub const SENDER_DIAGNOSIS_READ: Permission =
+	Permission::new(Resource::SenderDiagnosis, Action::Read);
+pub const SENDER_DIAGNOSIS_UPDATE: Permission =
+	Permission::new(Resource::SenderDiagnosis, Action::Update);
+pub const SENDER_DIAGNOSIS_DELETE: Permission =
+	Permission::new(Resource::SenderDiagnosis, Action::Delete);
+pub const SENDER_DIAGNOSIS_LIST: Permission =
+	Permission::new(Resource::SenderDiagnosis, Action::List);
+
+pub const CASE_SUMMARY_CREATE: Permission =
+	Permission::new(Resource::CaseSummary, Action::Create);
+pub const CASE_SUMMARY_READ: Permission =
+	Permission::new(Resource::CaseSummary, Action::Read);
+pub const CASE_SUMMARY_UPDATE: Permission =
+	Permission::new(Resource::CaseSummary, Action::Update);
+pub const CASE_SUMMARY_DELETE: Permission =
+	Permission::new(Resource::CaseSummary, Action::Delete);
+pub const CASE_SUMMARY_LIST: Permission =
+	Permission::new(Resource::CaseSummary, Action::List);
+
+// Case identifiers and receiver
+pub const CASE_IDENTIFIER_CREATE: Permission =
+	Permission::new(Resource::CaseIdentifier, Action::Create);
+pub const CASE_IDENTIFIER_READ: Permission =
+	Permission::new(Resource::CaseIdentifier, Action::Read);
+pub const CASE_IDENTIFIER_UPDATE: Permission =
+	Permission::new(Resource::CaseIdentifier, Action::Update);
+pub const CASE_IDENTIFIER_DELETE: Permission =
+	Permission::new(Resource::CaseIdentifier, Action::Delete);
+pub const CASE_IDENTIFIER_LIST: Permission =
+	Permission::new(Resource::CaseIdentifier, Action::List);
+
+pub const RECEIVER_CREATE: Permission =
+	Permission::new(Resource::Receiver, Action::Create);
+pub const RECEIVER_READ: Permission =
+	Permission::new(Resource::Receiver, Action::Read);
+pub const RECEIVER_UPDATE: Permission =
+	Permission::new(Resource::Receiver, Action::Update);
+pub const RECEIVER_DELETE: Permission =
+	Permission::new(Resource::Receiver, Action::Delete);
+pub const RECEIVER_LIST: Permission =
+	Permission::new(Resource::Receiver, Action::List);
 
 // User permissions
 pub const USER_CREATE: Permission = Permission::new(Resource::User, Action::Create);
@@ -200,12 +463,44 @@ fn admin_permissions() -> &'static [Permission] {
 		PATIENT_READ,
 		PATIENT_UPDATE,
 		PATIENT_DELETE,
+		PATIENT_LIST,
 		// Drug
 		DRUG_CREATE,
 		DRUG_READ,
 		DRUG_UPDATE,
 		DRUG_DELETE,
 		DRUG_LIST,
+		// Drug sub-resources
+		DRUG_SUBSTANCE_CREATE,
+		DRUG_SUBSTANCE_READ,
+		DRUG_SUBSTANCE_UPDATE,
+		DRUG_SUBSTANCE_DELETE,
+		DRUG_SUBSTANCE_LIST,
+		DRUG_DOSAGE_CREATE,
+		DRUG_DOSAGE_READ,
+		DRUG_DOSAGE_UPDATE,
+		DRUG_DOSAGE_DELETE,
+		DRUG_DOSAGE_LIST,
+		DRUG_INDICATION_CREATE,
+		DRUG_INDICATION_READ,
+		DRUG_INDICATION_UPDATE,
+		DRUG_INDICATION_DELETE,
+		DRUG_INDICATION_LIST,
+		DRUG_REACTION_ASSESSMENT_CREATE,
+		DRUG_REACTION_ASSESSMENT_READ,
+		DRUG_REACTION_ASSESSMENT_UPDATE,
+		DRUG_REACTION_ASSESSMENT_DELETE,
+		DRUG_REACTION_ASSESSMENT_LIST,
+		RELATEDNESS_ASSESSMENT_CREATE,
+		RELATEDNESS_ASSESSMENT_READ,
+		RELATEDNESS_ASSESSMENT_UPDATE,
+		RELATEDNESS_ASSESSMENT_DELETE,
+		RELATEDNESS_ASSESSMENT_LIST,
+		DRUG_RECURRENCE_CREATE,
+		DRUG_RECURRENCE_READ,
+		DRUG_RECURRENCE_UPDATE,
+		DRUG_RECURRENCE_DELETE,
+		DRUG_RECURRENCE_LIST,
 		// Reaction
 		REACTION_CREATE,
 		REACTION_READ,
@@ -223,16 +518,103 @@ fn admin_permissions() -> &'static [Permission] {
 		NARRATIVE_READ,
 		NARRATIVE_UPDATE,
 		NARRATIVE_DELETE,
+		NARRATIVE_LIST,
+		// Narrative sub-resources
+		SENDER_DIAGNOSIS_CREATE,
+		SENDER_DIAGNOSIS_READ,
+		SENDER_DIAGNOSIS_UPDATE,
+		SENDER_DIAGNOSIS_DELETE,
+		SENDER_DIAGNOSIS_LIST,
+		CASE_SUMMARY_CREATE,
+		CASE_SUMMARY_READ,
+		CASE_SUMMARY_UPDATE,
+		CASE_SUMMARY_DELETE,
+		CASE_SUMMARY_LIST,
 		// MessageHeader
 		MESSAGE_HEADER_CREATE,
 		MESSAGE_HEADER_READ,
 		MESSAGE_HEADER_UPDATE,
 		MESSAGE_HEADER_DELETE,
+		MESSAGE_HEADER_LIST,
 		// SafetyReport
 		SAFETY_REPORT_CREATE,
 		SAFETY_REPORT_READ,
 		SAFETY_REPORT_UPDATE,
 		SAFETY_REPORT_DELETE,
+		SAFETY_REPORT_LIST,
+		// SafetyReport sub-resources
+		SENDER_INFORMATION_CREATE,
+		SENDER_INFORMATION_READ,
+		SENDER_INFORMATION_UPDATE,
+		SENDER_INFORMATION_DELETE,
+		SENDER_INFORMATION_LIST,
+		PRIMARY_SOURCE_CREATE,
+		PRIMARY_SOURCE_READ,
+		PRIMARY_SOURCE_UPDATE,
+		PRIMARY_SOURCE_DELETE,
+		PRIMARY_SOURCE_LIST,
+		LITERATURE_REFERENCE_CREATE,
+		LITERATURE_REFERENCE_READ,
+		LITERATURE_REFERENCE_UPDATE,
+		LITERATURE_REFERENCE_DELETE,
+		LITERATURE_REFERENCE_LIST,
+		STUDY_INFORMATION_CREATE,
+		STUDY_INFORMATION_READ,
+		STUDY_INFORMATION_UPDATE,
+		STUDY_INFORMATION_DELETE,
+		STUDY_INFORMATION_LIST,
+		STUDY_REGISTRATION_CREATE,
+		STUDY_REGISTRATION_READ,
+		STUDY_REGISTRATION_UPDATE,
+		STUDY_REGISTRATION_DELETE,
+		STUDY_REGISTRATION_LIST,
+		// Patient sub-resources
+		MEDICAL_HISTORY_CREATE,
+		MEDICAL_HISTORY_READ,
+		MEDICAL_HISTORY_UPDATE,
+		MEDICAL_HISTORY_DELETE,
+		MEDICAL_HISTORY_LIST,
+		PAST_DRUG_CREATE,
+		PAST_DRUG_READ,
+		PAST_DRUG_UPDATE,
+		PAST_DRUG_DELETE,
+		PAST_DRUG_LIST,
+		PATIENT_DEATH_CREATE,
+		PATIENT_DEATH_READ,
+		PATIENT_DEATH_UPDATE,
+		PATIENT_DEATH_DELETE,
+		PATIENT_DEATH_LIST,
+		DEATH_CAUSE_CREATE,
+		DEATH_CAUSE_READ,
+		DEATH_CAUSE_UPDATE,
+		DEATH_CAUSE_DELETE,
+		DEATH_CAUSE_LIST,
+		PARENT_INFORMATION_CREATE,
+		PARENT_INFORMATION_READ,
+		PARENT_INFORMATION_UPDATE,
+		PARENT_INFORMATION_DELETE,
+		PARENT_INFORMATION_LIST,
+		PARENT_MEDICAL_HISTORY_CREATE,
+		PARENT_MEDICAL_HISTORY_READ,
+		PARENT_MEDICAL_HISTORY_UPDATE,
+		PARENT_MEDICAL_HISTORY_DELETE,
+		PARENT_MEDICAL_HISTORY_LIST,
+		PARENT_PAST_DRUG_CREATE,
+		PARENT_PAST_DRUG_READ,
+		PARENT_PAST_DRUG_UPDATE,
+		PARENT_PAST_DRUG_DELETE,
+		PARENT_PAST_DRUG_LIST,
+		// Case identifiers and receiver
+		CASE_IDENTIFIER_CREATE,
+		CASE_IDENTIFIER_READ,
+		CASE_IDENTIFIER_UPDATE,
+		CASE_IDENTIFIER_DELETE,
+		CASE_IDENTIFIER_LIST,
+		RECEIVER_CREATE,
+		RECEIVER_READ,
+		RECEIVER_UPDATE,
+		RECEIVER_DELETE,
+		RECEIVER_LIST,
 		// User - full access
 		USER_CREATE,
 		USER_READ,
@@ -271,12 +653,44 @@ fn manager_permissions() -> &'static [Permission] {
 		PATIENT_READ,
 		PATIENT_UPDATE,
 		PATIENT_DELETE,
+		PATIENT_LIST,
 		// Drug
 		DRUG_CREATE,
 		DRUG_READ,
 		DRUG_UPDATE,
 		DRUG_DELETE,
 		DRUG_LIST,
+		// Drug sub-resources
+		DRUG_SUBSTANCE_CREATE,
+		DRUG_SUBSTANCE_READ,
+		DRUG_SUBSTANCE_UPDATE,
+		DRUG_SUBSTANCE_DELETE,
+		DRUG_SUBSTANCE_LIST,
+		DRUG_DOSAGE_CREATE,
+		DRUG_DOSAGE_READ,
+		DRUG_DOSAGE_UPDATE,
+		DRUG_DOSAGE_DELETE,
+		DRUG_DOSAGE_LIST,
+		DRUG_INDICATION_CREATE,
+		DRUG_INDICATION_READ,
+		DRUG_INDICATION_UPDATE,
+		DRUG_INDICATION_DELETE,
+		DRUG_INDICATION_LIST,
+		DRUG_REACTION_ASSESSMENT_CREATE,
+		DRUG_REACTION_ASSESSMENT_READ,
+		DRUG_REACTION_ASSESSMENT_UPDATE,
+		DRUG_REACTION_ASSESSMENT_DELETE,
+		DRUG_REACTION_ASSESSMENT_LIST,
+		RELATEDNESS_ASSESSMENT_CREATE,
+		RELATEDNESS_ASSESSMENT_READ,
+		RELATEDNESS_ASSESSMENT_UPDATE,
+		RELATEDNESS_ASSESSMENT_DELETE,
+		RELATEDNESS_ASSESSMENT_LIST,
+		DRUG_RECURRENCE_CREATE,
+		DRUG_RECURRENCE_READ,
+		DRUG_RECURRENCE_UPDATE,
+		DRUG_RECURRENCE_DELETE,
+		DRUG_RECURRENCE_LIST,
 		// Reaction
 		REACTION_CREATE,
 		REACTION_READ,
@@ -294,16 +708,103 @@ fn manager_permissions() -> &'static [Permission] {
 		NARRATIVE_READ,
 		NARRATIVE_UPDATE,
 		NARRATIVE_DELETE,
+		NARRATIVE_LIST,
+		// Narrative sub-resources
+		SENDER_DIAGNOSIS_CREATE,
+		SENDER_DIAGNOSIS_READ,
+		SENDER_DIAGNOSIS_UPDATE,
+		SENDER_DIAGNOSIS_DELETE,
+		SENDER_DIAGNOSIS_LIST,
+		CASE_SUMMARY_CREATE,
+		CASE_SUMMARY_READ,
+		CASE_SUMMARY_UPDATE,
+		CASE_SUMMARY_DELETE,
+		CASE_SUMMARY_LIST,
 		// MessageHeader
 		MESSAGE_HEADER_CREATE,
 		MESSAGE_HEADER_READ,
 		MESSAGE_HEADER_UPDATE,
 		MESSAGE_HEADER_DELETE,
+		MESSAGE_HEADER_LIST,
 		// SafetyReport
 		SAFETY_REPORT_CREATE,
 		SAFETY_REPORT_READ,
 		SAFETY_REPORT_UPDATE,
 		SAFETY_REPORT_DELETE,
+		SAFETY_REPORT_LIST,
+		// SafetyReport sub-resources
+		SENDER_INFORMATION_CREATE,
+		SENDER_INFORMATION_READ,
+		SENDER_INFORMATION_UPDATE,
+		SENDER_INFORMATION_DELETE,
+		SENDER_INFORMATION_LIST,
+		PRIMARY_SOURCE_CREATE,
+		PRIMARY_SOURCE_READ,
+		PRIMARY_SOURCE_UPDATE,
+		PRIMARY_SOURCE_DELETE,
+		PRIMARY_SOURCE_LIST,
+		LITERATURE_REFERENCE_CREATE,
+		LITERATURE_REFERENCE_READ,
+		LITERATURE_REFERENCE_UPDATE,
+		LITERATURE_REFERENCE_DELETE,
+		LITERATURE_REFERENCE_LIST,
+		STUDY_INFORMATION_CREATE,
+		STUDY_INFORMATION_READ,
+		STUDY_INFORMATION_UPDATE,
+		STUDY_INFORMATION_DELETE,
+		STUDY_INFORMATION_LIST,
+		STUDY_REGISTRATION_CREATE,
+		STUDY_REGISTRATION_READ,
+		STUDY_REGISTRATION_UPDATE,
+		STUDY_REGISTRATION_DELETE,
+		STUDY_REGISTRATION_LIST,
+		// Patient sub-resources
+		MEDICAL_HISTORY_CREATE,
+		MEDICAL_HISTORY_READ,
+		MEDICAL_HISTORY_UPDATE,
+		MEDICAL_HISTORY_DELETE,
+		MEDICAL_HISTORY_LIST,
+		PAST_DRUG_CREATE,
+		PAST_DRUG_READ,
+		PAST_DRUG_UPDATE,
+		PAST_DRUG_DELETE,
+		PAST_DRUG_LIST,
+		PATIENT_DEATH_CREATE,
+		PATIENT_DEATH_READ,
+		PATIENT_DEATH_UPDATE,
+		PATIENT_DEATH_DELETE,
+		PATIENT_DEATH_LIST,
+		DEATH_CAUSE_CREATE,
+		DEATH_CAUSE_READ,
+		DEATH_CAUSE_UPDATE,
+		DEATH_CAUSE_DELETE,
+		DEATH_CAUSE_LIST,
+		PARENT_INFORMATION_CREATE,
+		PARENT_INFORMATION_READ,
+		PARENT_INFORMATION_UPDATE,
+		PARENT_INFORMATION_DELETE,
+		PARENT_INFORMATION_LIST,
+		PARENT_MEDICAL_HISTORY_CREATE,
+		PARENT_MEDICAL_HISTORY_READ,
+		PARENT_MEDICAL_HISTORY_UPDATE,
+		PARENT_MEDICAL_HISTORY_DELETE,
+		PARENT_MEDICAL_HISTORY_LIST,
+		PARENT_PAST_DRUG_CREATE,
+		PARENT_PAST_DRUG_READ,
+		PARENT_PAST_DRUG_UPDATE,
+		PARENT_PAST_DRUG_DELETE,
+		PARENT_PAST_DRUG_LIST,
+		// Case identifiers and receiver
+		CASE_IDENTIFIER_CREATE,
+		CASE_IDENTIFIER_READ,
+		CASE_IDENTIFIER_UPDATE,
+		CASE_IDENTIFIER_DELETE,
+		CASE_IDENTIFIER_LIST,
+		RECEIVER_CREATE,
+		RECEIVER_READ,
+		RECEIVER_UPDATE,
+		RECEIVER_DELETE,
+		RECEIVER_LIST,
 		// User - read only
 		USER_READ,
 		USER_LIST,
@@ -332,11 +833,37 @@ fn user_permissions() -> &'static [Permission] {
 		PATIENT_CREATE,
 		PATIENT_READ,
 		PATIENT_UPDATE,
+		PATIENT_LIST,
 		// Drug
 		DRUG_CREATE,
 		DRUG_READ,
 		DRUG_UPDATE,
 		DRUG_LIST,
+		// Drug sub-resources
+		DRUG_SUBSTANCE_CREATE,
+		DRUG_SUBSTANCE_READ,
+		DRUG_SUBSTANCE_UPDATE,
+		DRUG_SUBSTANCE_LIST,
+		DRUG_DOSAGE_CREATE,
+		DRUG_DOSAGE_READ,
+		DRUG_DOSAGE_UPDATE,
+		DRUG_DOSAGE_LIST,
+		DRUG_INDICATION_CREATE,
+		DRUG_INDICATION_READ,
+		DRUG_INDICATION_UPDATE,
+		DRUG_INDICATION_LIST,
+		DRUG_REACTION_ASSESSMENT_CREATE,
+		DRUG_REACTION_ASSESSMENT_READ,
+		DRUG_REACTION_ASSESSMENT_UPDATE,
+		DRUG_REACTION_ASSESSMENT_LIST,
+		RELATEDNESS_ASSESSMENT_CREATE,
+		RELATEDNESS_ASSESSMENT_READ,
+		RELATEDNESS_ASSESSMENT_UPDATE,
+		RELATEDNESS_ASSESSMENT_LIST,
+		DRUG_RECURRENCE_CREATE,
+		DRUG_RECURRENCE_READ,
+		DRUG_RECURRENCE_UPDATE,
+		DRUG_RECURRENCE_LIST,
 		// Reaction
 		REACTION_CREATE,
 		REACTION_READ,
@@ -351,14 +878,85 @@ fn user_permissions() -> &'static [Permission] {
 		NARRATIVE_CREATE,
 		NARRATIVE_READ,
 		NARRATIVE_UPDATE,
+		NARRATIVE_LIST,
+		// Narrative sub-resources
+		SENDER_DIAGNOSIS_CREATE,
+		SENDER_DIAGNOSIS_READ,
+		SENDER_DIAGNOSIS_UPDATE,
+		SENDER_DIAGNOSIS_LIST,
+		CASE_SUMMARY_CREATE,
+		CASE_SUMMARY_READ,
+		CASE_SUMMARY_UPDATE,
+		CASE_SUMMARY_LIST,
 		// MessageHeader
 		MESSAGE_HEADER_CREATE,
 		MESSAGE_HEADER_READ,
 		MESSAGE_HEADER_UPDATE,
+		MESSAGE_HEADER_LIST,
 		// SafetyReport
 		SAFETY_REPORT_CREATE,
 		SAFETY_REPORT_READ,
 		SAFETY_REPORT_UPDATE,
+		SAFETY_REPORT_LIST,
+		// SafetyReport sub-resources
+		SENDER_INFORMATION_CREATE,
+		SENDER_INFORMATION_READ,
+		SENDER_INFORMATION_UPDATE,
+		SENDER_INFORMATION_LIST,
+		PRIMARY_SOURCE_CREATE,
+		PRIMARY_SOURCE_READ,
+		PRIMARY_SOURCE_UPDATE,
+		PRIMARY_SOURCE_LIST,
+		LITERATURE_REFERENCE_CREATE,
+		LITERATURE_REFERENCE_READ,
+		LITERATURE_REFERENCE_UPDATE,
+		LITERATURE_REFERENCE_LIST,
+		STUDY_INFORMATION_CREATE,
+		STUDY_INFORMATION_READ,
+		STUDY_INFORMATION_UPDATE,
+		STUDY_INFORMATION_LIST,
+		STUDY_REGISTRATION_CREATE,
+		STUDY_REGISTRATION_READ,
+		STUDY_REGISTRATION_UPDATE,
+		STUDY_REGISTRATION_LIST,
+		// Patient sub-resources
+		MEDICAL_HISTORY_CREATE,
+		MEDICAL_HISTORY_READ,
+		MEDICAL_HISTORY_UPDATE,
+		MEDICAL_HISTORY_LIST,
+		PAST_DRUG_CREATE,
+		PAST_DRUG_READ,
+		PAST_DRUG_UPDATE,
+		PAST_DRUG_LIST,
+		PATIENT_DEATH_CREATE,
+		PATIENT_DEATH_READ,
+		PATIENT_DEATH_UPDATE,
+		PATIENT_DEATH_LIST,
+		DEATH_CAUSE_CREATE,
+		DEATH_CAUSE_READ,
+		DEATH_CAUSE_UPDATE,
+		DEATH_CAUSE_LIST,
+		PARENT_INFORMATION_CREATE,
+		PARENT_INFORMATION_READ,
+		PARENT_INFORMATION_UPDATE,
+		PARENT_INFORMATION_LIST,
+		PARENT_MEDICAL_HISTORY_CREATE,
+		PARENT_MEDICAL_HISTORY_READ,
+		PARENT_MEDICAL_HISTORY_UPDATE,
+		PARENT_MEDICAL_HISTORY_LIST,
+		PARENT_PAST_DRUG_CREATE,
+		PARENT_PAST_DRUG_READ,
+		PARENT_PAST_DRUG_UPDATE,
+		PARENT_PAST_DRUG_LIST,
+		// Case identifiers and receiver
+		CASE_IDENTIFIER_CREATE,
+		CASE_IDENTIFIER_READ,
+		CASE_IDENTIFIER_UPDATE,
+		CASE_IDENTIFIER_LIST,
+		RECEIVER_CREATE,
+		RECEIVER_READ,
+		RECEIVER_UPDATE,
+		RECEIVER_LIST,
 		// User - read self only (handled at endpoint level)
 		USER_READ,
 		// Organization - read own
@@ -378,9 +976,23 @@ fn viewer_permissions() -> &'static [Permission] {
 		CASE_LIST,
 		// Patient
 		PATIENT_READ,
+		PATIENT_LIST,
 		// Drug
 		DRUG_READ,
 		DRUG_LIST,
+		// Drug sub-resources
+		DRUG_SUBSTANCE_READ,
+		DRUG_SUBSTANCE_LIST,
+		DRUG_DOSAGE_READ,
+		DRUG_DOSAGE_LIST,
+		DRUG_INDICATION_READ,
+		DRUG_INDICATION_LIST,
+		DRUG_REACTION_ASSESSMENT_READ,
+		DRUG_REACTION_ASSESSMENT_LIST,
+		RELATEDNESS_ASSESSMENT_READ,
+		RELATEDNESS_ASSESSMENT_LIST,
+		DRUG_RECURRENCE_READ,
+		DRUG_RECURRENCE_LIST,
 		// Reaction
 		REACTION_READ,
 		REACTION_LIST,
@@ -389,10 +1001,49 @@ fn viewer_permissions() -> &'static [Permission] {
 		TEST_RESULT_LIST,
 		// Narrative
 		NARRATIVE_READ,
+		NARRATIVE_LIST,
+		// Narrative sub-resources
+		SENDER_DIAGNOSIS_READ,
+		SENDER_DIAGNOSIS_LIST,
+		CASE_SUMMARY_READ,
+		CASE_SUMMARY_LIST,
 		// MessageHeader
 		MESSAGE_HEADER_READ,
+		MESSAGE_HEADER_LIST,
 		// SafetyReport
 		SAFETY_REPORT_READ,
+		SAFETY_REPORT_LIST,
+		// SafetyReport sub-resources
+		SENDER_INFORMATION_READ,
+		SENDER_INFORMATION_LIST,
+		PRIMARY_SOURCE_READ,
+		PRIMARY_SOURCE_LIST,
+		LITERATURE_REFERENCE_READ,
+		LITERATURE_REFERENCE_LIST,
+		STUDY_INFORMATION_READ,
+		STUDY_INFORMATION_LIST,
+		STUDY_REGISTRATION_READ,
+		STUDY_REGISTRATION_LIST,
+		// Patient sub-resources
+		MEDICAL_HISTORY_READ,
+		MEDICAL_HISTORY_LIST,
+		PAST_DRUG_READ,
+		PAST_DRUG_LIST,
+		PATIENT_DEATH_READ,
+		PATIENT_DEATH_LIST,
+		DEATH_CAUSE_READ,
+		DEATH_CAUSE_LIST,
+		PARENT_INFORMATION_READ,
+		PARENT_INFORMATION_LIST,
+		PARENT_MEDICAL_HISTORY_READ,
+		PARENT_MEDICAL_HISTORY_LIST,
+		PARENT_PAST_DRUG_READ,
+		PARENT_PAST_DRUG_LIST,
+		// Case identifiers and receiver
+		CASE_IDENTIFIER_READ,
+		CASE_IDENTIFIER_LIST,
+		RECEIVER_READ,
+		RECEIVER_LIST,
 		// User - read only
 		USER_READ,
 		USER_LIST,

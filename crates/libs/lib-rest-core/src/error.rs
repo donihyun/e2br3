@@ -17,6 +17,11 @@ pub enum Error {
 	#[from]
 	Model(lib_core::model::Error),
 
+	// -- Authorization
+	PermissionDenied {
+		required_permission: String,
+	},
+
 	// -- External Modules
 	#[from]
 	SerdeJson(#[serde_as(as = "DisplayFromStr")] serde_json::Error),

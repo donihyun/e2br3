@@ -12,7 +12,12 @@ macro_rules! generate_common_rest_fns {
         ForCreate: $for_create:ty,
         ForUpdate: $for_update:ty,
         Filter: $filter:ty,
-        Suffix: $suffix:ident
+        Suffix: $suffix:ident,
+        PermCreate: $perm_create:path,
+        PermRead: $perm_read:path,
+        PermUpdate: $perm_update:path,
+        PermDelete: $perm_delete:path,
+        PermList: $perm_list:path
     ) => {
         paste! {
             pub async fn [<create_ $suffix>](
@@ -21,6 +26,7 @@ macro_rules! generate_common_rest_fns {
                 Json(params): Json<ParamsForCreate<$for_create>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_create)?;
                 tracing::debug!("{:<12} - rest create {}", "HANDLER", stringify!($suffix));
                 let ParamsForCreate { data } = params;
                 let id = $bmc::create(&ctx, &mm, data).await?;
@@ -34,6 +40,7 @@ macro_rules! generate_common_rest_fns {
                 Path(id): Path<Uuid>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_read)?;
                 tracing::debug!(
                     "{:<12} - rest get {} id={}",
                     "HANDLER",
@@ -51,6 +58,7 @@ macro_rules! generate_common_rest_fns {
                 Query(params): Query<ParamsList<$filter>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<Vec<$entity>>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_list)?;
                 tracing::debug!("{:<12} - rest list {}s", "HANDLER", stringify!($suffix));
                 let entities = $bmc::list(&ctx, &mm, params.filters, params.list_options).await?;
                 Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entities })))
@@ -63,6 +71,7 @@ macro_rules! generate_common_rest_fns {
                 Json(params): Json<ParamsForUpdate<$for_update>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_update)?;
                 tracing::debug!(
                     "{:<12} - rest update {} id={}",
                     "HANDLER",
@@ -81,6 +90,7 @@ macro_rules! generate_common_rest_fns {
                 Path(id): Path<Uuid>,
             ) -> Result<axum::http::StatusCode> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_delete)?;
                 tracing::debug!(
                     "{:<12} - rest delete {} id={}",
                     "HANDLER",
@@ -99,7 +109,12 @@ macro_rules! generate_common_rest_fns {
         Entity: $entity:ty,
         ForCreate: $for_create:ty,
         Filter: $filter:ty,
-        Suffix: $suffix:ident
+        Suffix: $suffix:ident,
+        PermCreate: $perm_create:path,
+        PermRead: $perm_read:path,
+        PermUpdate: $perm_update:path,
+        PermDelete: $perm_delete:path,
+        PermList: $perm_list:path
     ) => {
         paste! {
             pub async fn [<create_ $suffix>](
@@ -108,6 +123,7 @@ macro_rules! generate_common_rest_fns {
                 Json(params): Json<ParamsForCreate<$for_create>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_create)?;
                 tracing::debug!("{:<12} - rest create {}", "HANDLER", stringify!($suffix));
                 let ParamsForCreate { data } = params;
                 let id = $bmc::create(&ctx, &mm, data).await?;
@@ -121,6 +137,7 @@ macro_rules! generate_common_rest_fns {
                 Path(id): Path<Uuid>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_read)?;
                 tracing::debug!(
                     "{:<12} - rest get {} id={}",
                     "HANDLER",
@@ -137,6 +154,7 @@ macro_rules! generate_common_rest_fns {
                 Query(params): Query<ParamsList<$filter>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<Vec<$entity>>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_list)?;
                 tracing::debug!("{:<12} - rest list {}s", "HANDLER", stringify!($suffix));
                 let entities = $bmc::list(&ctx, &mm, params.filters, params.list_options).await?;
                 Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entities })))
@@ -148,6 +166,7 @@ macro_rules! generate_common_rest_fns {
                 Path(id): Path<Uuid>,
             ) -> Result<axum::http::StatusCode> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_delete)?;
                 tracing::debug!(
                     "{:<12} - rest delete {} id={}",
                     "HANDLER",
@@ -166,7 +185,12 @@ macro_rules! generate_common_rest_fns {
         Entity: $entity:ty,
         ForCreate: $for_create:ty,
         ForUpdate: $for_update:ty,
-        Suffix: $suffix:ident
+        Suffix: $suffix:ident,
+        PermCreate: $perm_create:path,
+        PermRead: $perm_read:path,
+        PermUpdate: $perm_update:path,
+        PermDelete: $perm_delete:path,
+        PermList: $perm_list:path
     ) => {
         paste! {
             pub async fn [<create_ $suffix>](
@@ -175,6 +199,7 @@ macro_rules! generate_common_rest_fns {
                 Json(params): Json<ParamsForCreate<$for_create>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_create)?;
                 tracing::debug!("{:<12} - rest create {}", "HANDLER", stringify!($suffix));
                 let ParamsForCreate { data } = params;
                 let id = $bmc::create(&ctx, &mm, data).await?;
@@ -188,6 +213,7 @@ macro_rules! generate_common_rest_fns {
                 Path(id): Path<Uuid>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_read)?;
                 tracing::debug!(
                     "{:<12} - rest get {} id={}",
                     "HANDLER",
@@ -203,6 +229,7 @@ macro_rules! generate_common_rest_fns {
                 ctx_w: lib_web::middleware::mw_auth::CtxW,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<Vec<$entity>>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_list)?;
                 tracing::debug!("{:<12} - rest list {}s", "HANDLER", stringify!($suffix));
                 let entities = $bmc::list(&ctx, &mm, None, None).await?;
                 Ok((axum::http::StatusCode::OK, Json(DataRestResult { data: entities })))
@@ -215,6 +242,7 @@ macro_rules! generate_common_rest_fns {
                 Json(params): Json<ParamsForUpdate<$for_update>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_update)?;
                 tracing::debug!(
                     "{:<12} - rest update {} id={}",
                     "HANDLER",
@@ -233,6 +261,7 @@ macro_rules! generate_common_rest_fns {
                 Path(id): Path<Uuid>,
             ) -> Result<axum::http::StatusCode> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_delete)?;
                 tracing::debug!(
                     "{:<12} - rest delete {} id={}",
                     "HANDLER",
@@ -254,7 +283,12 @@ macro_rules! generate_case_rest_fns {
         Entity: $entity:ty,
         ForCreate: $for_create:ty,
         ForUpdate: $for_update:ty,
-        Suffix: $suffix:ident
+        Suffix: $suffix:ident,
+        PermCreate: $perm_create:path,
+        PermRead: $perm_read:path,
+        PermUpdate: $perm_update:path,
+        PermDelete: $perm_delete:path,
+        PermList: $perm_list:path
     ) => {
         paste! {
             pub async fn [<create_ $suffix>](
@@ -264,6 +298,7 @@ macro_rules! generate_case_rest_fns {
                 Json(params): Json<ParamsForCreate<$for_create>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_create)?;
                 tracing::debug!(
                     "{:<12} - rest create {} case_id={}",
                     "HANDLER",
@@ -284,6 +319,7 @@ macro_rules! generate_case_rest_fns {
                 Path((case_id, id)): Path<(Uuid, Uuid)>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_read)?;
                 tracing::debug!(
                     "{:<12} - rest get {} case_id={} id={}",
                     "HANDLER",
@@ -301,6 +337,7 @@ macro_rules! generate_case_rest_fns {
                 Path(case_id): Path<Uuid>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<Vec<$entity>>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_list)?;
                 tracing::debug!(
                     "{:<12} - rest list {}s case_id={}",
                     "HANDLER",
@@ -318,6 +355,7 @@ macro_rules! generate_case_rest_fns {
                 Json(params): Json<ParamsForUpdate<$for_update>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_update)?;
                 tracing::debug!(
                     "{:<12} - rest update {} case_id={} id={}",
                     "HANDLER",
@@ -337,6 +375,7 @@ macro_rules! generate_case_rest_fns {
                 Path((case_id, id)): Path<(Uuid, Uuid)>,
             ) -> Result<axum::http::StatusCode> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_delete)?;
                 tracing::debug!(
                     "{:<12} - rest delete {} case_id={} id={}",
                     "HANDLER",
@@ -359,7 +398,11 @@ macro_rules! generate_case_single_rest_fns {
         Entity: $entity:ty,
         ForCreate: $for_create:ty,
         ForUpdate: $for_update:ty,
-        Suffix: $suffix:ident
+        Suffix: $suffix:ident,
+        PermCreate: $perm_create:path,
+        PermRead: $perm_read:path,
+        PermUpdate: $perm_update:path,
+        PermDelete: $perm_delete:path
     ) => {
         paste! {
             pub async fn [<create_ $suffix>](
@@ -369,6 +412,7 @@ macro_rules! generate_case_single_rest_fns {
                 Json(params): Json<ParamsForCreate<$for_create>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_create)?;
                 tracing::debug!(
                     "{:<12} - rest create {} case_id={}",
                     "HANDLER",
@@ -389,6 +433,7 @@ macro_rules! generate_case_single_rest_fns {
                 Path(case_id): Path<Uuid>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_read)?;
                 tracing::debug!(
                     "{:<12} - rest get {} case_id={}",
                     "HANDLER",
@@ -406,6 +451,7 @@ macro_rules! generate_case_single_rest_fns {
                 Json(params): Json<ParamsForUpdate<$for_update>>,
             ) -> Result<(axum::http::StatusCode, Json<DataRestResult<$entity>>)> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_update)?;
                 tracing::debug!(
                     "{:<12} - rest update {} case_id={}",
                     "HANDLER",
@@ -424,6 +470,7 @@ macro_rules! generate_case_single_rest_fns {
                 Path(case_id): Path<Uuid>,
             ) -> Result<axum::http::StatusCode> {
                 let ctx = ctx_w.0;
+                $crate::require_permission(&ctx, $perm_delete)?;
                 tracing::debug!(
                     "{:<12} - rest delete {} case_id={}",
                     "HANDLER",

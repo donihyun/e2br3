@@ -3,6 +3,11 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
+use lib_core::model::acs::{
+	DRUG_REACTION_ASSESSMENT_CREATE, DRUG_REACTION_ASSESSMENT_DELETE,
+	DRUG_REACTION_ASSESSMENT_LIST, DRUG_REACTION_ASSESSMENT_READ,
+	DRUG_REACTION_ASSESSMENT_UPDATE,
+};
 use lib_core::model::drug_reaction_assessment::{
 	DrugReactionAssessment, DrugReactionAssessmentBmc,
 	DrugReactionAssessmentForCreate, DrugReactionAssessmentForUpdate,
@@ -10,7 +15,7 @@ use lib_core::model::drug_reaction_assessment::{
 use lib_core::model::ModelManager;
 use lib_rest_core::rest_params::{ParamsForCreate, ParamsForUpdate};
 use lib_rest_core::rest_result::DataRestResult;
-use lib_rest_core::Result;
+use lib_rest_core::{require_permission, Result};
 use lib_web::middleware::mw_auth::CtxW;
 use uuid::Uuid;
 
@@ -23,6 +28,7 @@ pub async fn create_drug_reaction_assessment(
 	Json(params): Json<ParamsForCreate<DrugReactionAssessmentForCreate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<DrugReactionAssessment>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, DRUG_REACTION_ASSESSMENT_CREATE)?;
 	tracing::debug!(
 		"{:<12} - rest create_drug_reaction_assessment drug_id={}",
 		"HANDLER",
@@ -50,6 +56,7 @@ pub async fn list_drug_reaction_assessments(
 	Json<DataRestResult<Vec<DrugReactionAssessment>>>,
 )> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, DRUG_REACTION_ASSESSMENT_LIST)?;
 	tracing::debug!(
 		"{:<12} - rest list_drug_reaction_assessments drug_id={}",
 		"HANDLER",
@@ -70,6 +77,7 @@ pub async fn get_drug_reaction_assessment(
 	Path((_case_id, _drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<DrugReactionAssessment>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, DRUG_REACTION_ASSESSMENT_READ)?;
 	tracing::debug!(
 		"{:<12} - rest get_drug_reaction_assessment id={}",
 		"HANDLER",
@@ -90,6 +98,7 @@ pub async fn update_drug_reaction_assessment(
 	Json(params): Json<ParamsForUpdate<DrugReactionAssessmentForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<DrugReactionAssessment>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, DRUG_REACTION_ASSESSMENT_UPDATE)?;
 	tracing::debug!(
 		"{:<12} - rest update_drug_reaction_assessment id={}",
 		"HANDLER",
@@ -111,6 +120,7 @@ pub async fn delete_drug_reaction_assessment(
 	Path((_case_id, _drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, DRUG_REACTION_ASSESSMENT_DELETE)?;
 	tracing::debug!(
 		"{:<12} - rest delete_drug_reaction_assessment id={}",
 		"HANDLER",

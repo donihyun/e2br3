@@ -3,6 +3,12 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
+use lib_core::model::acs::{
+	PARENT_MEDICAL_HISTORY_CREATE, PARENT_MEDICAL_HISTORY_DELETE,
+	PARENT_MEDICAL_HISTORY_LIST, PARENT_MEDICAL_HISTORY_READ, PARENT_MEDICAL_HISTORY_UPDATE,
+	PARENT_PAST_DRUG_CREATE, PARENT_PAST_DRUG_DELETE, PARENT_PAST_DRUG_LIST,
+	PARENT_PAST_DRUG_READ, PARENT_PAST_DRUG_UPDATE,
+};
 use lib_core::model::parent_history::{
 	ParentMedicalHistory, ParentMedicalHistoryBmc, ParentMedicalHistoryFilter,
 	ParentMedicalHistoryForCreate, ParentMedicalHistoryForUpdate,
@@ -12,7 +18,7 @@ use lib_core::model::parent_history::{
 use lib_core::model::ModelManager;
 use lib_rest_core::rest_params::{ParamsForCreate, ParamsForUpdate};
 use lib_rest_core::rest_result::DataRestResult;
-use lib_rest_core::Result;
+use lib_rest_core::{require_permission, Result};
 use lib_web::middleware::mw_auth::CtxW;
 use modql::filter::{ListOptions, OpValValue, OpValsValue};
 use serde_json::json;
@@ -28,6 +34,7 @@ pub async fn create_parent_medical_history(
 	Json(params): Json<ParamsForCreate<ParentMedicalHistoryForCreate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<ParentMedicalHistory>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, PARENT_MEDICAL_HISTORY_CREATE)?;
 	tracing::debug!(
 		"{:<12} - rest create_parent_medical_history parent_id={}",
 		"HANDLER",
@@ -51,6 +58,7 @@ pub async fn list_parent_medical_history(
 	Path((_case_id, parent_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<Vec<ParentMedicalHistory>>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, PARENT_MEDICAL_HISTORY_LIST)?;
 	tracing::debug!(
 		"{:<12} - rest list_parent_medical_history parent_id={}",
 		"HANDLER",
@@ -81,6 +89,7 @@ pub async fn get_parent_medical_history(
 	Path((_case_id, _parent_id, id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<ParentMedicalHistory>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, PARENT_MEDICAL_HISTORY_READ)?;
 	tracing::debug!(
 		"{:<12} - rest get_parent_medical_history id={}",
 		"HANDLER",
@@ -100,6 +109,7 @@ pub async fn update_parent_medical_history(
 	Json(params): Json<ParamsForUpdate<ParentMedicalHistoryForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<ParentMedicalHistory>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, PARENT_MEDICAL_HISTORY_UPDATE)?;
 	tracing::debug!(
 		"{:<12} - rest update_parent_medical_history id={}",
 		"HANDLER",
@@ -120,6 +130,7 @@ pub async fn delete_parent_medical_history(
 	Path((_case_id, _parent_id, id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, PARENT_MEDICAL_HISTORY_DELETE)?;
 	tracing::debug!(
 		"{:<12} - rest delete_parent_medical_history id={}",
 		"HANDLER",
@@ -141,6 +152,7 @@ pub async fn create_parent_past_drug_history(
 	Json(params): Json<ParamsForCreate<ParentPastDrugHistoryForCreate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<ParentPastDrugHistory>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, PARENT_PAST_DRUG_CREATE)?;
 	tracing::debug!(
 		"{:<12} - rest create_parent_past_drug_history parent_id={}",
 		"HANDLER",
@@ -164,6 +176,7 @@ pub async fn list_parent_past_drug_history(
 	Path((_case_id, parent_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<Vec<ParentPastDrugHistory>>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, PARENT_PAST_DRUG_LIST)?;
 	tracing::debug!(
 		"{:<12} - rest list_parent_past_drug_history parent_id={}",
 		"HANDLER",
@@ -194,6 +207,7 @@ pub async fn get_parent_past_drug_history(
 	Path((_case_id, _parent_id, id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<ParentPastDrugHistory>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, PARENT_PAST_DRUG_READ)?;
 	tracing::debug!(
 		"{:<12} - rest get_parent_past_drug_history id={}",
 		"HANDLER",
@@ -213,6 +227,7 @@ pub async fn update_parent_past_drug_history(
 	Json(params): Json<ParamsForUpdate<ParentPastDrugHistoryForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<ParentPastDrugHistory>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, PARENT_PAST_DRUG_UPDATE)?;
 	tracing::debug!(
 		"{:<12} - rest update_parent_past_drug_history id={}",
 		"HANDLER",
@@ -233,6 +248,7 @@ pub async fn delete_parent_past_drug_history(
 	Path((_case_id, _parent_id, id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, PARENT_PAST_DRUG_DELETE)?;
 	tracing::debug!(
 		"{:<12} - rest delete_parent_past_drug_history id={}",
 		"HANDLER",

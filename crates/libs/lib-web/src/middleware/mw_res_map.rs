@@ -39,19 +39,27 @@ pub async fn mw_reponse_map(
 		if debug_errors {
 			debug_detail = Some(serde_json::Value::String(format!("{err:?}")));
 		}
-		let client_error = match err {
-			lib_rest_core::Error::Model(model::Error::EntityNotFound { entity, id }) => {
-				ClientError::ENTITY_NOT_FOUND { entity, id: *id }
-			}
-			lib_rest_core::Error::Model(model::Error::EntityUuidNotFound { entity, id }) => {
+		let (status_code, client_error) = match err {
+			lib_rest_core::Error::PermissionDenied { required_permission } => (
+				StatusCode::FORBIDDEN,
+				ClientError::PERMISSION_DENIED {
+					required_permission: required_permission.clone(),
+				},
+			),
+			lib_rest_core::Error::Model(model::Error::EntityNotFound { entity, id }) => (
+				StatusCode::BAD_REQUEST,
+				ClientError::ENTITY_NOT_FOUND { entity, id: *id },
+			),
+			lib_rest_core::Error::Model(model::Error::EntityUuidNotFound { entity, id }) => (
+				StatusCode::BAD_REQUEST,
 				ClientError::ENTITY_UUID_NOT_FOUND {
 					entity,
 					id: id.to_string(),
-				}
-			}
-			_ => ClientError::SERVICE_ERROR,
+				},
+			),
+			_ => (StatusCode::BAD_REQUEST, ClientError::SERVICE_ERROR),
 		};
-		Some((StatusCode::BAD_REQUEST, client_error))
+		Some((status_code, client_error))
 	} else {
 		None
 	};

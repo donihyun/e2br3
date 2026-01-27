@@ -3,6 +3,7 @@
 pub use crate::rest_params::{ParamsForCreate, ParamsForUpdate, ParamsList};
 pub use crate::rest_result::{created, no_content, ok, DataRestResult};
 pub use crate::Result;
+pub use crate::require_permission;
 pub use crate::{
 	generate_case_rest_fns, generate_case_single_rest_fns, generate_common_rest_fns,
 };

@@ -1,3 +1,6 @@
+use lib_core::model::acs::{
+	PATIENT_CREATE, PATIENT_DELETE, PATIENT_READ, PATIENT_UPDATE,
+};
 use lib_core::model::patient::{
 	PatientInformationBmc, PatientInformationForCreate, PatientInformationForUpdate,
 };
@@ -13,5 +16,9 @@ generate_case_single_rest_fns! {
 	Entity: lib_core::model::patient::PatientInformation,
 	ForCreate: PatientInformationForCreate,
 	ForUpdate: PatientInformationForUpdate,
-	Suffix: patient
+	Suffix: patient,
+	PermCreate: PATIENT_CREATE,
+	PermRead: PATIENT_READ,
+	PermUpdate: PATIENT_UPDATE,
+	PermDelete: PATIENT_DELETE
 }

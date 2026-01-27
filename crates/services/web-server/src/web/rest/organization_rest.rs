@@ -1,6 +1,8 @@
+use lib_core::model::acs::{
+	ORG_CREATE, ORG_DELETE, ORG_LIST, ORG_READ, ORG_UPDATE,
+};
 use lib_core::model::organization::{
-	OrganizationBmc, OrganizationFilter, OrganizationForCreate,
-	OrganizationForUpdate,
+	OrganizationBmc, OrganizationFilter, OrganizationForCreate, OrganizationForUpdate,
 };
 use lib_rest_core::prelude::*;
 
@@ -16,5 +18,10 @@ generate_common_rest_fns! {
 	ForCreate: OrganizationForCreate,
 	ForUpdate: OrganizationForUpdate,
 	Filter: OrganizationFilter,
-	Suffix: organization
+	Suffix: organization,
+	PermCreate: ORG_CREATE,
+	PermRead: ORG_READ,
+	PermUpdate: ORG_UPDATE,
+	PermDelete: ORG_DELETE,
+	PermList: ORG_LIST
 }
