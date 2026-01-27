@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgRow;
 use sqlx::types::time::OffsetDateTime;
 use sqlx::types::Uuid;
-use sqlx::FromRow;
+use sqlx::{FromRow, query};
 
 // -- Types
 
@@ -157,12 +157,10 @@ impl UserBmc {
 			last_name,
 		};
 
-		// Start the transaction
-		let mm = mm.new_with_txn()?;
-
+		// Start (or reuse) the transaction on the current dbx so request context is preserved.
 		mm.dbx().begin_txn().await?;
 
-		let user_id = match base_uuid::create::<Self, _>(ctx, &mm, user_fi)
+		let user_id = match base_uuid::create::<Self, _>(ctx, mm, user_fi)
 			.await
 			.map_err(|model_error| {
 				Error::resolve_unique_violation(
@@ -184,7 +182,7 @@ impl UserBmc {
 		};
 
 		// -- Update the password
-		if let Err(err) = Self::update_pwd(ctx, &mm, user_id, &pwd_clear).await {
+		if let Err(err) = Self::update_pwd(ctx, mm, user_id, &pwd_clear).await {
 			mm.dbx().rollback_txn().await?;
 			return Err(err);
 		}
@@ -292,6 +290,52 @@ impl UserBmc {
 		dbx.commit_txn().await.map_err(Error::Dbx)?;
 
 		Ok(())
+	}
+
+	pub async fn auth_by_email(
+		mm: &ModelManager, 
+		email: &str,
+	) -> Result<Option<UserForAuth>> {
+		let mm = mm.new_with_txn()?;
+		mm.dbx().begin_txn().await.map_err(Error::Dbx)?;
+		if let Err(err) = mm.dbx().execute(query("SELECT set_config('app.auth_email', $1, true)").bind(email)).await {
+			mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
+			return Err(err.into());
+		}
+		let user = match Self::first_by_email::<UserForAuth>(&Ctx::root_ctx(), &mm, email).await {
+			Ok(user) => user,
+			Err(err) => {
+				mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
+				return Err(err);
+			}
+		};
+		mm.dbx().commit_txn().await.map_err(Error::Dbx)?;
+		Ok(user)
+	}
+
+	pub async fn auth_login_by_email(
+		mm: &ModelManager,
+		email: &str,
+	) -> Result<Option<UserForLogin>> {
+		let mm = mm.new_with_txn()?;
+		mm.dbx().begin_txn().await.map_err(Error::Dbx)?;
+		if let Err(err) = mm
+			.dbx()
+			.execute(query("SELECT set_config('app.auth_email', $1, true)").bind(email))
+			.await
+		{
+			mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
+			return Err(err.into());
+		}
+		let user = match Self::first_by_email::<UserForLogin>(&Ctx::root_ctx(), &mm, email).await {
+			Ok(user) => user,
+			Err(err) => {
+				mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
+				return Err(err);
+			}
+		};
+		mm.dbx().commit_txn().await.map_err(Error::Dbx)?;
+		Ok(user)
 	}
 }
 

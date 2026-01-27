@@ -8,7 +8,6 @@ use lib_core::model::case::{CaseBmc, CaseForUpdate};
 use lib_core::model::drug::{
 	DrugInformationBmc, DrugInformationForCreate, DrugInformationForUpdate,
 };
-use lib_core::ctx::Ctx;
 use lib_core::model::organization::{OrganizationBmc, OrganizationForUpdate};
 use lib_core::model::patient::{PatientInformationBmc, PatientInformationForCreate};
 use lib_core::model::reaction::{ReactionBmc, ReactionForCreate};
@@ -25,7 +24,7 @@ use sqlx::types::Uuid;
 #[tokio::test]
 async fn test_case_get_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	let result = CaseBmc::get(&ctx, &mm, fake_id).await;
@@ -48,7 +47,7 @@ async fn test_case_get_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_user_get_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	let result =
@@ -72,7 +71,7 @@ async fn test_user_get_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_organization_get_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	let result = OrganizationBmc::get(&ctx, &mm, fake_id).await;
@@ -95,7 +94,7 @@ async fn test_organization_get_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_drug_information_get_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	let result = DrugInformationBmc::get(&ctx, &mm, fake_id).await;
@@ -118,7 +117,7 @@ async fn test_drug_information_get_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_reaction_get_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	let result = ReactionBmc::get(&ctx, &mm, fake_id).await;
@@ -141,7 +140,7 @@ async fn test_reaction_get_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_patient_get_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	let result = PatientInformationBmc::get(&ctx, &mm, fake_id).await;
@@ -201,7 +200,7 @@ async fn test_case_update_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_user_update_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	let user_u = UserForUpdate {
@@ -233,7 +232,7 @@ async fn test_user_update_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_organization_update_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	let org_u = OrganizationForUpdate {
@@ -298,7 +297,7 @@ async fn test_case_delete_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_user_delete_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	let result = UserBmc::delete(&ctx, &mm, fake_id).await;
@@ -321,7 +320,7 @@ async fn test_user_delete_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_organization_delete_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	let result = OrganizationBmc::delete(&ctx, &mm, fake_id).await;
@@ -344,7 +343,7 @@ async fn test_organization_delete_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_drug_delete_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	let result = DrugInformationBmc::delete(&ctx, &mm, fake_id).await;
@@ -367,7 +366,7 @@ async fn test_drug_delete_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_reaction_delete_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	let result = ReactionBmc::delete(&ctx, &mm, fake_id).await;
@@ -394,7 +393,7 @@ async fn test_reaction_delete_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_user_duplicate_username() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let suffix = unique_suffix();
 	let fx_username = format!("test_dup_username_user-{suffix}");
 
@@ -448,7 +447,7 @@ async fn test_user_duplicate_username() -> Result<()> {
 #[tokio::test]
 async fn test_user_create_invalid_organization() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_org_id = Uuid::new_v4();
 	let suffix = unique_suffix();
 
@@ -474,7 +473,7 @@ async fn test_user_create_invalid_organization() -> Result<()> {
 #[tokio::test]
 async fn test_drug_create_invalid_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_case_id = Uuid::new_v4();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -501,7 +500,7 @@ async fn test_drug_create_invalid_case() -> Result<()> {
 #[tokio::test]
 async fn test_reaction_create_invalid_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_case_id = Uuid::new_v4();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -527,7 +526,7 @@ async fn test_reaction_create_invalid_case() -> Result<()> {
 #[tokio::test]
 async fn test_patient_create_invalid_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_case_id = Uuid::new_v4();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -557,7 +556,7 @@ async fn test_patient_create_invalid_case() -> Result<()> {
 #[tokio::test]
 async fn test_drug_get_in_wrong_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 
@@ -592,7 +591,7 @@ async fn test_drug_get_in_wrong_case() -> Result<()> {
 #[tokio::test]
 async fn test_drug_update_in_wrong_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 
@@ -643,7 +642,7 @@ async fn test_drug_update_in_wrong_case() -> Result<()> {
 #[tokio::test]
 async fn test_reaction_get_in_wrong_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 

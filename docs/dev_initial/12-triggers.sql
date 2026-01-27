@@ -314,6 +314,7 @@ CREATE TRIGGER update_relatedness_assessments_updated_at BEFORE UPDATE ON relate
 
 -- Patient Information
 ALTER TABLE patient_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patient_information FORCE ROW LEVEL SECURITY;
 CREATE POLICY patient_info_via_case ON patient_information
     FOR ALL TO e2br3_app_role
     USING (
@@ -333,6 +334,7 @@ CREATE POLICY patient_info_via_case ON patient_information
 
 -- Drug Information
 ALTER TABLE drug_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE drug_information FORCE ROW LEVEL SECURITY;
 CREATE POLICY drug_info_via_case ON drug_information
     FOR ALL TO e2br3_app_role
     USING (
@@ -352,6 +354,7 @@ CREATE POLICY drug_info_via_case ON drug_information
 
 -- Reactions
 ALTER TABLE reactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reactions FORCE ROW LEVEL SECURITY;
 CREATE POLICY reactions_via_case ON reactions
     FOR ALL TO e2br3_app_role
     USING (
@@ -371,6 +374,7 @@ CREATE POLICY reactions_via_case ON reactions
 
 -- Test Results
 ALTER TABLE test_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE test_results FORCE ROW LEVEL SECURITY;
 CREATE POLICY test_results_via_case ON test_results
     FOR ALL TO e2br3_app_role
     USING (
@@ -390,6 +394,7 @@ CREATE POLICY test_results_via_case ON test_results
 
 -- Message Headers
 ALTER TABLE message_headers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE message_headers FORCE ROW LEVEL SECURITY;
 CREATE POLICY message_headers_via_case ON message_headers
     FOR ALL TO e2br3_app_role
     USING (
@@ -409,6 +414,7 @@ CREATE POLICY message_headers_via_case ON message_headers
 
 -- Safety Report Identification
 ALTER TABLE safety_report_identification ENABLE ROW LEVEL SECURITY;
+ALTER TABLE safety_report_identification FORCE ROW LEVEL SECURITY;
 CREATE POLICY safety_report_id_via_case ON safety_report_identification
     FOR ALL TO e2br3_app_role
     USING (
@@ -428,6 +434,7 @@ CREATE POLICY safety_report_id_via_case ON safety_report_identification
 
 -- Narrative Information
 ALTER TABLE narrative_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE narrative_information FORCE ROW LEVEL SECURITY;
 CREATE POLICY narrative_info_via_case ON narrative_information
     FOR ALL TO e2br3_app_role
     USING (
@@ -447,6 +454,7 @@ CREATE POLICY narrative_info_via_case ON narrative_information
 
 -- Drug Reaction Assessments (via drug_information)
 ALTER TABLE drug_reaction_assessments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE drug_reaction_assessments FORCE ROW LEVEL SECURITY;
 CREATE POLICY drug_reaction_assessments_via_case ON drug_reaction_assessments
     FOR ALL TO e2br3_app_role
     USING (
@@ -468,6 +476,7 @@ CREATE POLICY drug_reaction_assessments_via_case ON drug_reaction_assessments
 
 -- Other Case Identifiers
 ALTER TABLE other_case_identifiers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE other_case_identifiers FORCE ROW LEVEL SECURITY;
 CREATE POLICY other_case_ids_via_case ON other_case_identifiers
     FOR ALL TO e2br3_app_role
     USING (
@@ -487,6 +496,7 @@ CREATE POLICY other_case_ids_via_case ON other_case_identifiers
 
 -- Linked Report Numbers
 ALTER TABLE linked_report_numbers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE linked_report_numbers FORCE ROW LEVEL SECURITY;
 CREATE POLICY linked_reports_via_case ON linked_report_numbers
     FOR ALL TO e2br3_app_role
     USING (
@@ -506,6 +516,7 @@ CREATE POLICY linked_reports_via_case ON linked_report_numbers
 
 -- Primary Sources
 ALTER TABLE primary_sources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE primary_sources FORCE ROW LEVEL SECURITY;
 CREATE POLICY primary_sources_via_case ON primary_sources
     FOR ALL TO e2br3_app_role
     USING (
@@ -525,6 +536,7 @@ CREATE POLICY primary_sources_via_case ON primary_sources
 
 -- Literature References
 ALTER TABLE literature_references ENABLE ROW LEVEL SECURITY;
+ALTER TABLE literature_references FORCE ROW LEVEL SECURITY;
 CREATE POLICY literature_refs_via_case ON literature_references
     FOR ALL TO e2br3_app_role
     USING (
@@ -544,6 +556,7 @@ CREATE POLICY literature_refs_via_case ON literature_references
 
 -- Study Information
 ALTER TABLE study_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE study_information FORCE ROW LEVEL SECURITY;
 CREATE POLICY study_info_via_case ON study_information
     FOR ALL TO e2br3_app_role
     USING (
@@ -563,6 +576,7 @@ CREATE POLICY study_info_via_case ON study_information
 
 -- Sender Information
 ALTER TABLE sender_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sender_information FORCE ROW LEVEL SECURITY;
 CREATE POLICY sender_info_via_case ON sender_information
     FOR ALL TO e2br3_app_role
     USING (
@@ -582,6 +596,7 @@ CREATE POLICY sender_info_via_case ON sender_information
 
 -- Receiver Information
 ALTER TABLE receiver_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE receiver_information FORCE ROW LEVEL SECURITY;
 CREATE POLICY receiver_info_via_message ON receiver_information
     FOR ALL TO e2br3_app_role
     USING (
@@ -598,3 +613,7 @@ CREATE POLICY receiver_info_via_message ON receiver_information
             AND (c.organization_id = current_organization_id() OR is_current_user_admin())
         )
     );
+
+-- Ensure application role has access to all tables created after initial grants.
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO e2br3_app_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO e2br3_app_role;

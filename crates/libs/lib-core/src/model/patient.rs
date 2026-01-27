@@ -3,7 +3,8 @@
 use crate::ctx::Ctx;
 use crate::model::base::base_uuid;
 use crate::model::base::DbBmc;
-use crate::model::store::{dbx, set_user_context};
+use crate::model::modql_utils::uuid_to_sea_value;
+use crate::model::store::set_user_context_dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -124,6 +125,7 @@ pub struct MedicalHistoryEpisodeForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct MedicalHistoryEpisodeFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub patient_id: Option<OpValsValue>,
 	pub sequence_number: Option<OpValsValue>,
 }
@@ -181,6 +183,7 @@ pub struct PastDrugHistoryForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct PastDrugHistoryFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub patient_id: Option<OpValsValue>,
 	pub sequence_number: Option<OpValsValue>,
 }
@@ -219,6 +222,7 @@ pub struct PatientDeathInformationForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct PatientDeathInformationFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub patient_id: Option<OpValsValue>,
 }
 
@@ -252,6 +256,7 @@ pub struct ReportedCauseOfDeathForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct ReportedCauseOfDeathFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub death_info_id: Option<OpValsValue>,
 	pub sequence_number: Option<OpValsValue>,
 }
@@ -286,6 +291,7 @@ pub struct AutopsyCauseOfDeathForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct AutopsyCauseOfDeathFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub death_info_id: Option<OpValsValue>,
 	pub sequence_number: Option<OpValsValue>,
 }
@@ -333,6 +339,7 @@ pub struct ParentInformationForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct ParentInformationFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub patient_id: Option<OpValsValue>,
 }
 
@@ -349,9 +356,8 @@ impl PatientInformationBmc {
 		mm: &ModelManager,
 		data: PatientInformationForCreate,
 	) -> Result<Uuid> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
 
 		let sql = format!(
 			"INSERT INTO {} (case_id, patient_initials, sex, created_at, updated_at, created_by)
@@ -359,15 +365,17 @@ impl PatientInformationBmc {
 			 RETURNING id",
 			Self::TABLE
 		);
-		let id: Uuid = sqlx::query_scalar(&sql)
-			.bind(data.case_id)
-			.bind(data.patient_initials)
-			.bind(data.sex)
-			.bind(ctx.user_id())
-			.fetch_one(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		tx.commit().await.map_err(dbx::Error::from)?;
+		let (id,) = mm
+			.dbx()
+			.fetch_one(
+				sqlx::query_as::<_, (Uuid,)>(&sql)
+					.bind(data.case_id)
+					.bind(data.patient_initials)
+					.bind(data.sex)
+					.bind(ctx.user_id()),
+			)
+			.await?;
+		mm.dbx().commit_txn().await?;
 		Ok(id)
 	}
 
@@ -377,11 +385,10 @@ impl PatientInformationBmc {
 		id: Uuid,
 	) -> Result<PatientInformation> {
 		let sql = format!("SELECT * FROM {} WHERE id = $1", Self::TABLE);
-		let patient = sqlx::query_as::<_, PatientInformation>(&sql)
-			.bind(id)
-			.fetch_optional(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?
+		let patient = mm
+			.dbx()
+			.fetch_optional(sqlx::query_as::<_, PatientInformation>(&sql).bind(id))
+			.await?
 			.ok_or(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
@@ -404,9 +411,8 @@ impl PatientInformationBmc {
 		id: Uuid,
 		data: PatientInformationForUpdate,
 	) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -425,52 +431,49 @@ impl PatientInformationBmc {
 			 WHERE id = $1",
 			Self::TABLE
 		);
-		let result = sqlx::query(&sql)
-			.bind(id)
-			.bind(data.patient_initials)
-			.bind(data.patient_given_name)
-			.bind(data.patient_family_name)
-			.bind(data.birth_date)
-			.bind(data.age_at_time_of_onset)
-			.bind(data.age_unit)
-			.bind(data.weight_kg)
-			.bind(data.height_cm)
-			.bind(data.sex)
-			.bind(data.medical_history_text)
-			.bind(ctx.user_id())
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
+		let result = mm
+			.dbx()
+			.execute(
+				sqlx::query(&sql)
+					.bind(id)
+					.bind(data.patient_initials)
+					.bind(data.patient_given_name)
+					.bind(data.patient_family_name)
+					.bind(data.birth_date)
+					.bind(data.age_at_time_of_onset)
+					.bind(data.age_unit)
+					.bind(data.weight_kg)
+					.bind(data.height_cm)
+					.bind(data.sex)
+					.bind(data.medical_history_text)
+					.bind(ctx.user_id()),
+			)
+			.await?;
 
-		if result.rows_affected() == 0 {
+		if result == 0 {
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 
 	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
 
 		let sql = format!("DELETE FROM {} WHERE id = $1", Self::TABLE);
-		let result = sqlx::query(&sql)
-			.bind(id)
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
+		let result = mm.dbx().execute(sqlx::query(&sql).bind(id)).await?;
 
-		if result.rows_affected() == 0 {
+		if result == 0 {
 			return Err(crate::model::Error::EntityNotFound {
 				entity: Self::TABLE,
 				id: 0,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 
@@ -480,11 +483,12 @@ impl PatientInformationBmc {
 		case_id: Uuid,
 	) -> Result<PatientInformation> {
 		let sql = format!("SELECT * FROM {} WHERE case_id = $1", Self::TABLE);
-		let patient = sqlx::query_as::<_, PatientInformation>(&sql)
-			.bind(case_id)
-			.fetch_optional(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?;
+		let patient = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, PatientInformation>(&sql).bind(case_id),
+			)
+			.await?;
 		patient.ok_or(crate::model::Error::EntityUuidNotFound {
 			entity: Self::TABLE,
 			id: case_id,
@@ -497,9 +501,8 @@ impl PatientInformationBmc {
 		case_id: Uuid,
 		data: PatientInformationForUpdate,
 	) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -518,29 +521,31 @@ impl PatientInformationBmc {
 			 WHERE case_id = $1",
 			Self::TABLE
 		);
-		let result = sqlx::query(&sql)
-			.bind(case_id)
-			.bind(data.patient_initials)
-			.bind(data.patient_given_name)
-			.bind(data.patient_family_name)
-			.bind(data.birth_date)
-			.bind(data.age_at_time_of_onset)
-			.bind(data.age_unit)
-			.bind(data.weight_kg)
-			.bind(data.height_cm)
-			.bind(data.sex)
-			.bind(data.medical_history_text)
-			.bind(ctx.user_id())
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		if result.rows_affected() == 0 {
+		let result = mm
+			.dbx()
+			.execute(
+				sqlx::query(&sql)
+					.bind(case_id)
+					.bind(data.patient_initials)
+					.bind(data.patient_given_name)
+					.bind(data.patient_family_name)
+					.bind(data.birth_date)
+					.bind(data.age_at_time_of_onset)
+					.bind(data.age_unit)
+					.bind(data.weight_kg)
+					.bind(data.height_cm)
+					.bind(data.sex)
+					.bind(data.medical_history_text)
+					.bind(ctx.user_id()),
+			)
+			.await?;
+		if result == 0 {
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id: case_id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 
@@ -549,23 +554,18 @@ impl PatientInformationBmc {
 		mm: &ModelManager,
 		case_id: Uuid,
 	) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
 
 		let sql = format!("DELETE FROM {} WHERE case_id = $1", Self::TABLE);
-		let result = sqlx::query(&sql)
-			.bind(case_id)
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		if result.rows_affected() == 0 {
+		let result = mm.dbx().execute(sqlx::query(&sql).bind(case_id)).await?;
+		if result == 0 {
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id: case_id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 }

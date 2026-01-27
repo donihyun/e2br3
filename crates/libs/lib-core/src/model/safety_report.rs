@@ -3,7 +3,8 @@
 use crate::ctx::Ctx;
 use crate::model::base::base_uuid;
 use crate::model::base::DbBmc;
-use crate::model::store::{dbx, set_user_context};
+use crate::model::modql_utils::uuid_to_sea_value;
+use crate::model::store::set_user_context_dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -129,6 +130,7 @@ pub struct SenderInformationForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct SenderInformationFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub case_id: Option<OpValsValue>,
 }
 
@@ -190,6 +192,7 @@ pub struct PrimarySourceForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct PrimarySourceFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub case_id: Option<OpValsValue>,
 	pub sequence_number: Option<OpValsValue>,
 }
@@ -223,6 +226,7 @@ pub struct LiteratureReferenceForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct LiteratureReferenceFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub case_id: Option<OpValsValue>,
 	pub sequence_number: Option<OpValsValue>,
 }
@@ -260,6 +264,7 @@ pub struct StudyInformationForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct StudyInformationFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub case_id: Option<OpValsValue>,
 }
 
@@ -295,6 +300,7 @@ pub struct StudyRegistrationNumberForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct StudyRegistrationNumberFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub study_information_id: Option<OpValsValue>,
 	pub sequence_number: Option<OpValsValue>,
 }
@@ -312,9 +318,8 @@ impl SafetyReportIdentificationBmc {
 		mm: &ModelManager,
 		data: SafetyReportIdentificationForCreate,
 	) -> Result<Uuid> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
 
 		let sql = format!(
 			"INSERT INTO {} (case_id, transmission_date, report_type, date_first_received_from_source, date_of_most_recent_information, fulfil_expedited_criteria, created_at, updated_at, created_by)
@@ -322,18 +327,20 @@ impl SafetyReportIdentificationBmc {
 			 RETURNING id",
 			Self::TABLE
 		);
-		let id: Uuid = sqlx::query_scalar(&sql)
-			.bind(data.case_id)
-			.bind(data.transmission_date)
-			.bind(data.report_type)
-			.bind(data.date_first_received_from_source)
-			.bind(data.date_of_most_recent_information)
-			.bind(data.fulfil_expedited_criteria)
-			.bind(ctx.user_id())
-			.fetch_one(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		tx.commit().await.map_err(dbx::Error::from)?;
+		let (id,) = mm
+			.dbx()
+			.fetch_one(
+				sqlx::query_as::<_, (Uuid,)>(&sql)
+					.bind(data.case_id)
+					.bind(data.transmission_date)
+					.bind(data.report_type)
+					.bind(data.date_first_received_from_source)
+					.bind(data.date_of_most_recent_information)
+					.bind(data.fulfil_expedited_criteria)
+					.bind(ctx.user_id()),
+			)
+			.await?;
+		mm.dbx().commit_txn().await?;
 		Ok(id)
 	}
 
@@ -343,11 +350,12 @@ impl SafetyReportIdentificationBmc {
 		case_id: Uuid,
 	) -> Result<SafetyReportIdentification> {
 		let sql = format!("SELECT * FROM {} WHERE case_id = $1", Self::TABLE);
-		let report = sqlx::query_as::<_, SafetyReportIdentification>(&sql)
-			.bind(case_id)
-			.fetch_optional(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?;
+		let report = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, SafetyReportIdentification>(&sql).bind(case_id),
+			)
+			.await?;
 		report.ok_or(crate::model::Error::EntityUuidNotFound {
 			entity: Self::TABLE,
 			id: case_id,
@@ -360,9 +368,8 @@ impl SafetyReportIdentificationBmc {
 		case_id: Uuid,
 		data: SafetyReportIdentificationForUpdate,
 	) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -376,24 +383,26 @@ impl SafetyReportIdentificationBmc {
 			 WHERE case_id = $1",
 			Self::TABLE
 		);
-		let result = sqlx::query(&sql)
-			.bind(case_id)
-			.bind(data.transmission_date)
-			.bind(data.report_type)
-			.bind(data.worldwide_unique_id)
-			.bind(data.nullification_reason)
-			.bind(data.receiver_organization)
-			.bind(ctx.user_id())
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		if result.rows_affected() == 0 {
+		let result = mm
+			.dbx()
+			.execute(
+				sqlx::query(&sql)
+					.bind(case_id)
+					.bind(data.transmission_date)
+					.bind(data.report_type)
+					.bind(data.worldwide_unique_id)
+					.bind(data.nullification_reason)
+					.bind(data.receiver_organization)
+					.bind(ctx.user_id()),
+			)
+			.await?;
+		if result == 0 {
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id: case_id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 
@@ -402,23 +411,18 @@ impl SafetyReportIdentificationBmc {
 		mm: &ModelManager,
 		case_id: Uuid,
 	) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
 
 		let sql = format!("DELETE FROM {} WHERE case_id = $1", Self::TABLE);
-		let result = sqlx::query(&sql)
-			.bind(case_id)
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		if result.rows_affected() == 0 {
+		let result = mm.dbx().execute(sqlx::query(&sql).bind(case_id)).await?;
+		if result == 0 {
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id: case_id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 }

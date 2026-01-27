@@ -1,17 +1,20 @@
 mod common;
 
-use common::{init_test_mm, unique_suffix, Result};
-use lib_core::ctx::Ctx;
+use common::{demo_org_id, demo_user_id, init_test_mm, unique_suffix, DEMO_ROLE, Result};
 use lib_core::model::organization::{
 	OrganizationBmc, OrganizationForCreate, OrganizationForUpdate,
 };
+use lib_core::model::store::set_full_context_dbx;
 use serial_test::serial;
+
+use crate::common::demo_ctx;
 
 #[serial]
 #[tokio::test]
 async fn test_organization_crud() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	set_full_context_dbx(mm.dbx(), demo_user_id(), demo_org_id(), DEMO_ROLE).await?;
+	let ctx = demo_ctx();
 	let suffix = unique_suffix();
 	let org_c = OrganizationForCreate {
 		name: format!("Test Org {suffix}"),

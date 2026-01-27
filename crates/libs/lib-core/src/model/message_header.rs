@@ -1,7 +1,7 @@
 // Section N - Batch/Message Headers
 
 use crate::model::base::DbBmc;
-use crate::model::store::{dbx, set_user_context};
+use crate::model::store::set_user_context_dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -79,9 +79,8 @@ impl MessageHeaderBmc {
 		mm: &ModelManager,
 		data: MessageHeaderForCreate,
 	) -> Result<Uuid> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
 
 		let sql = format!(
 			"INSERT INTO {} (case_id, message_type, message_format_version, message_format_release, message_date_format, message_number, message_sender_identifier, message_receiver_identifier, message_date, created_at, updated_at, created_by)
@@ -89,21 +88,23 @@ impl MessageHeaderBmc {
 			 RETURNING id",
 			Self::TABLE
 		);
-		let id: Uuid = sqlx::query_scalar(&sql)
-			.bind(data.case_id)
-			.bind("ichicsr")
-			.bind("2.1")
-			.bind("2.0")
-			.bind("204")
-			.bind(data.message_number)
-			.bind(data.message_sender_identifier)
-			.bind(data.message_receiver_identifier)
-			.bind(data.message_date)
-			.bind(ctx.user_id())
-			.fetch_one(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		tx.commit().await.map_err(dbx::Error::from)?;
+		let (id,) = mm
+			.dbx()
+			.fetch_one(
+				sqlx::query_as::<_, (Uuid,)>(&sql)
+					.bind(data.case_id)
+					.bind("ichicsr")
+					.bind("2.1")
+					.bind("2.0")
+					.bind("204")
+					.bind(data.message_number)
+					.bind(data.message_sender_identifier)
+					.bind(data.message_receiver_identifier)
+					.bind(data.message_date)
+					.bind(ctx.user_id()),
+			)
+			.await?;
+		mm.dbx().commit_txn().await?;
 		Ok(id)
 	}
 
@@ -113,11 +114,12 @@ impl MessageHeaderBmc {
 		case_id: Uuid,
 	) -> Result<MessageHeader> {
 		let sql = format!("SELECT * FROM {} WHERE case_id = $1", Self::TABLE);
-		let header = sqlx::query_as::<_, MessageHeader>(&sql)
-			.bind(case_id)
-			.fetch_optional(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?;
+		let header = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, MessageHeader>(&sql).bind(case_id),
+			)
+			.await?;
 		header.ok_or(crate::model::Error::EntityUuidNotFound {
 			entity: Self::TABLE,
 			id: case_id,
@@ -130,9 +132,8 @@ impl MessageHeaderBmc {
 		case_id: Uuid,
 		data: MessageHeaderForUpdate,
 	) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -148,26 +149,28 @@ impl MessageHeaderBmc {
 			 WHERE case_id = $1",
 			Self::TABLE
 		);
-		let result = sqlx::query(&sql)
-			.bind(case_id)
-			.bind(data.batch_number)
-			.bind(data.batch_sender_identifier)
-			.bind(data.batch_receiver_identifier)
-			.bind(data.batch_transmission_date)
-			.bind(data.message_number)
-			.bind(data.message_sender_identifier)
-			.bind(data.message_receiver_identifier)
-			.bind(ctx.user_id())
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		if result.rows_affected() == 0 {
+		let result = mm
+			.dbx()
+			.execute(
+				sqlx::query(&sql)
+					.bind(case_id)
+					.bind(data.batch_number)
+					.bind(data.batch_sender_identifier)
+					.bind(data.batch_receiver_identifier)
+					.bind(data.batch_transmission_date)
+					.bind(data.message_number)
+					.bind(data.message_sender_identifier)
+					.bind(data.message_receiver_identifier)
+					.bind(ctx.user_id()),
+			)
+			.await?;
+		if result == 0 {
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id: case_id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 
@@ -176,23 +179,21 @@ impl MessageHeaderBmc {
 		mm: &ModelManager,
 		case_id: Uuid,
 	) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
 
 		let sql = format!("DELETE FROM {} WHERE case_id = $1", Self::TABLE);
-		let result = sqlx::query(&sql)
-			.bind(case_id)
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		if result.rows_affected() == 0 {
+		let result = mm
+			.dbx()
+			.execute(sqlx::query(&sql).bind(case_id))
+			.await?;
+		if result == 0 {
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id: case_id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 }

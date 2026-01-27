@@ -1,10 +1,6 @@
 mod common;
 
-use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
-	Result,
-};
-use lib_core::ctx::Ctx;
+use common::{demo_ctx, create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user, Result};
 use lib_core::model::case::CaseBmc;
 use lib_core::model::drug::{
 	DrugActiveSubstanceBmc, DrugActiveSubstanceForCreate, DrugInformationBmc,
@@ -23,7 +19,7 @@ use serial_test::serial;
 #[tokio::test]
 async fn test_drug_list_empty_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -42,7 +38,7 @@ async fn test_drug_list_empty_case() -> Result<()> {
 #[tokio::test]
 async fn test_reaction_list_empty_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -65,7 +61,7 @@ async fn test_reaction_list_empty_case() -> Result<()> {
 #[tokio::test]
 async fn test_substance_list_with_limit() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -116,7 +112,7 @@ async fn test_substance_list_with_limit() -> Result<()> {
 #[tokio::test]
 async fn test_substance_list_with_offset() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -179,7 +175,7 @@ async fn test_substance_list_with_offset() -> Result<()> {
 #[tokio::test]
 async fn test_list_limit_over_max() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	// Try to list with limit exceeding max (5000)
 	let list_options = ListOptions {
@@ -209,7 +205,7 @@ async fn test_list_limit_over_max() -> Result<()> {
 #[tokio::test]
 async fn test_list_limit_at_max() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	// List with limit exactly at max (5000) - should succeed
 	let list_options = ListOptions {
@@ -229,7 +225,7 @@ async fn test_list_limit_at_max() -> Result<()> {
 #[tokio::test]
 async fn test_list_default_limit() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	// List without specifying limit - should use default (1000)
 	let result = DrugActiveSubstanceBmc::list(&ctx, &mm, None, None).await;
@@ -249,7 +245,7 @@ async fn test_list_default_limit() -> Result<()> {
 #[tokio::test]
 async fn test_drug_list_by_nonexistent_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_case_id = sqlx::types::Uuid::new_v4();
 
 	// List drugs for non-existent case should return empty, not error
@@ -266,7 +262,7 @@ async fn test_drug_list_by_nonexistent_case() -> Result<()> {
 #[tokio::test]
 async fn test_reaction_list_by_nonexistent_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_case_id = sqlx::types::Uuid::new_v4();
 
 	// List reactions for non-existent case should return empty, not error
@@ -287,7 +283,7 @@ async fn test_reaction_list_by_nonexistent_case() -> Result<()> {
 #[tokio::test]
 async fn test_reaction_list_ordering() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -341,7 +337,7 @@ async fn test_reaction_list_ordering() -> Result<()> {
 #[tokio::test]
 async fn test_list_consistency_after_modifications() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;

@@ -1,10 +1,6 @@
 mod common;
 
-use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
-	Result,
-};
-use lib_core::ctx::Ctx;
+use common::{demo_ctx, create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user, Result};
 use lib_core::model::case::CaseBmc;
 use lib_core::model::drug::{
 	DosageInformationBmc, DosageInformationForCreate, DrugActiveSubstanceBmc,
@@ -43,7 +39,7 @@ use time::Month;
 #[tokio::test]
 async fn test_case_delete_cascades_to_message_header() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -79,7 +75,7 @@ async fn test_case_delete_cascades_to_message_header() -> Result<()> {
 #[tokio::test]
 async fn test_case_delete_cascades_to_drug_information() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -111,7 +107,7 @@ async fn test_case_delete_cascades_to_drug_information() -> Result<()> {
 #[tokio::test]
 async fn test_case_delete_cascades_to_reactions() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -145,7 +141,7 @@ async fn test_case_delete_cascades_to_reactions() -> Result<()> {
 #[tokio::test]
 async fn test_case_delete_cascades_to_patient_information() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -179,7 +175,7 @@ async fn test_case_delete_cascades_to_patient_information() -> Result<()> {
 #[tokio::test]
 async fn test_case_delete_cascades_to_test_results() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -213,7 +209,7 @@ async fn test_case_delete_cascades_to_test_results() -> Result<()> {
 #[tokio::test]
 async fn test_case_delete_cascades_to_safety_report_identification() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -261,7 +257,7 @@ async fn test_case_delete_cascades_to_safety_report_identification() -> Result<(
 #[tokio::test]
 async fn test_case_delete_cascades_to_narrative() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -299,7 +295,7 @@ async fn test_case_delete_cascades_to_narrative() -> Result<()> {
 #[tokio::test]
 async fn test_drug_delete_cascades_to_dosage_and_substances() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -367,7 +363,7 @@ async fn test_drug_delete_cascades_to_dosage_and_substances() -> Result<()> {
 #[tokio::test]
 async fn test_patient_delete_cascades_to_medical_history() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -408,7 +404,7 @@ async fn test_patient_delete_cascades_to_medical_history() -> Result<()> {
 #[tokio::test]
 async fn test_narrative_delete_cascades_to_sender_diagnosis() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -467,7 +463,7 @@ async fn test_narrative_delete_cascades_to_sender_diagnosis() -> Result<()> {
 #[tokio::test]
 async fn test_case_delete_cascades_all_children_comprehensive() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;

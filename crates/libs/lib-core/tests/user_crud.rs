@@ -1,19 +1,29 @@
 mod common;
 
-use common::{demo_org_id, demo_user_id, init_test_mm, unique_suffix, Result};
+use common::{
+	demo_ctx, demo_org_id, demo_user_id, init_test_mm, unique_suffix, DEMO_ROLE,
+	Result,
+};
 use lib_auth::pwd::{self, ContentToHash};
-use lib_core::ctx::Ctx;
+use lib_core::model::store::set_full_context_dbx;
 use lib_core::model::user::{
 	User, UserBmc, UserForCreate, UserForLogin, UserForUpdate,
 };
+use lib_core::model::ModelManager;
 use lib_core::model::Error as ModelError;
 use serial_test::serial;
+
+async fn set_demo_context(mm: &ModelManager) -> Result<()> {
+	set_full_context_dbx(mm.dbx(), demo_user_id(), demo_org_id(), DEMO_ROLE).await?;
+	Ok(())
+}
 
 #[serial]
 #[tokio::test]
 async fn test_user_create_ok() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	set_demo_context(&mm).await?;
+	let ctx = demo_ctx();
 	let suffix = unique_suffix();
 	let fx_username = format!("test_create_ok-user-01-{suffix}");
 	let fx_pwd_clear = "test_create_ok pwd 01";
@@ -47,7 +57,8 @@ async fn test_user_create_ok() -> Result<()> {
 #[tokio::test]
 async fn test_user_create_duplicate_email() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	set_demo_context(&mm).await?;
+	let ctx = demo_ctx();
 	let suffix = unique_suffix();
 	let fx_username_1 = format!("test_create_dup_email-user-01-{suffix}");
 	let fx_username_2 = format!("test_create_dup_email-user-02-{suffix}");
@@ -91,7 +102,8 @@ async fn test_user_create_duplicate_email() -> Result<()> {
 #[tokio::test]
 async fn test_user_update_pwd_ok() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	set_demo_context(&mm).await?;
+	let ctx = demo_ctx();
 	let suffix = unique_suffix();
 	let fx_username = format!("test_update_pwd-user-01-{suffix}");
 	let fx_pwd_clear_1 = "test_update_pwd pwd 01";
@@ -132,7 +144,8 @@ async fn test_user_update_pwd_ok() -> Result<()> {
 #[tokio::test]
 async fn test_user_first_by_email_seeded() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	set_demo_context(&mm).await?;
+	let ctx = demo_ctx();
 	let fx_email = "demo.user@example.com";
 	let user: UserForLogin = UserBmc::first_by_email(&ctx, &mm, fx_email)
 		.await?
@@ -147,7 +160,8 @@ async fn test_user_first_by_email_seeded() -> Result<()> {
 #[tokio::test]
 async fn test_user_update_ok() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	set_demo_context(&mm).await?;
+	let ctx = demo_ctx();
 	let suffix = unique_suffix();
 	let fx_username = format!("test_update-user-01-{suffix}");
 	let fx_email = format!("{fx_username}@example.com");

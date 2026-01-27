@@ -6,7 +6,6 @@ use crate::core_config;
 use crate::model::Error;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres, Transaction};
-use std::env;
 use uuid::Uuid;
 
 // endregion: --- Modules
@@ -21,29 +20,9 @@ pub async fn new_db_pool() -> sqlx::Result<Db> {
 		.max_connections(max_connections)
 		.after_connect(|conn, _meta| {
 			Box::pin(async move {
-				if let Ok(user_id) = env::var("E2BR3_TEST_CURRENT_USER_ID") {
-					sqlx::query(
-						"SELECT set_config('app.current_user_id', $1, false)",
-					)
-					.bind(user_id)
+				sqlx::query("SET ROLE e2br3_app_role")
 					.execute(&mut *conn)
 					.await?;
-				}
-				if let Ok(role) = env::var("E2BR3_DB_ROLE") {
-					if !role.is_empty() && is_safe_role_name(&role) {
-						let sql = format!("SET ROLE {role}");
-						if let Err(err) = sqlx::query(&sql).execute(&mut *conn).await
-						{
-							if should_ignore_role_set_error(&err) {
-								println!(
-									"db warning: skipping SET ROLE due to missing/permission error: {role}"
-								);
-							} else {
-								return Err(err);
-							}
-						}
-					}
-				}
 				Ok(())
 			})
 		})
@@ -157,26 +136,6 @@ pub async fn get_user_context(
 }
 
 // endregion: --- User Context Helpers
-
-fn is_safe_role_name(role: &str) -> bool {
-	role.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-}
-
-fn should_ignore_role_set_error(err: &sqlx::Error) -> bool {
-	let strict = env::var("E2BR3_DB_ROLE_STRICT")
-		.map(|v| v == "1")
-		.unwrap_or(false);
-	if strict {
-		return false;
-	}
-
-	match err {
-		sqlx::Error::Database(db_err) => {
-			matches!(db_err.code().as_deref(), Some("42704") | Some("42501"))
-		}
-		_ => false,
-	}
-}
 
 // NOTE 1) This is not an ideal situation; however, with sqlx 0.7.1, when executing `cargo test`, some tests that use sqlx fail at a
 //         rather low level (in the tokio scheduler). It appears to be a low-level thread/async issue, as removing/adding

@@ -11,7 +11,6 @@ use lib_core::ctx::Ctx;
 use lib_core::model::user::{UserBmc, UserForAuth};
 use lib_core::model::ModelManager;
 use serde::Serialize;
-use sqlx::query;
 use tower_cookies::{Cookie, Cookies};
 use tracing::debug;
 
@@ -66,37 +65,10 @@ async fn ctx_resolve(mm: ModelManager, cookies: &Cookies) -> CtxExtResult {
 	let token: Token = token.parse().map_err(|_| CtxExtError::TokenWrongFormat)?;
 
 	// -- Get UserForAuth (now includes role and organization_id)
-	let mm = mm
-		.new_with_txn()
-		.map_err(|ex| CtxExtError::ModelAccessError(ex.to_string()))?;
-	mm.dbx()
-		.begin_txn()
+	let user: UserForAuth = UserBmc::auth_by_email(&mm, &token.ident)
 		.await
-		.map_err(|ex| CtxExtError::ModelAccessError(ex.to_string()))?;
-	let query = query("SELECT set_config('app.auth_email', $1, true)")
-		.bind(&token.ident);
-	if let Err(ex) = mm.dbx().execute(query).await {
-		let _ = mm.dbx().rollback_txn().await;
-		return Err(CtxExtError::ModelAccessError(ex.to_string()));
-	}
-	let user: UserForAuth =
-		match UserBmc::first_by_email(&Ctx::root_ctx(), &mm, &token.ident).await
-		{
-			Ok(Some(user)) => user,
-			Ok(None) => {
-				let _ = mm.dbx().rollback_txn().await;
-				return Err(CtxExtError::UserNotFound);
-			}
-			Err(ex) => {
-				let _ = mm.dbx().rollback_txn().await;
-				return Err(CtxExtError::ModelAccessError(ex.to_string()));
-			}
-		};
-	if let Err(ex) = mm.dbx().commit_txn().await {
-		let _ = mm.dbx().rollback_txn().await;
-		return Err(CtxExtError::ModelAccessError(ex.to_string()));
-	}
-
+		.map_err(|ex| CtxExtError::ModelAccessError(ex.to_string()))?
+		.ok_or(CtxExtError::UserNotFound)?;
 	// -- Validate Token
 	validate_web_token(&token, user.token_salt)
 		.map_err(|_| CtxExtError::FailValidate)?;

@@ -4,7 +4,6 @@ use common::{
 	audit_log_count, create_case_fixture, demo_ctx, demo_org_id, demo_user_id,
 	init_test_mm, set_current_user, unique_suffix, Result,
 };
-use lib_core::ctx::Ctx;
 use lib_core::model::audit::AuditLogBmc;
 use lib_core::model::case::CaseBmc;
 use lib_core::model::drug::{
@@ -232,7 +231,7 @@ async fn test_audit_trail_patient_information() -> Result<()> {
 #[tokio::test]
 async fn test_audit_trail_organizations() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let suffix = unique_suffix();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -292,7 +291,7 @@ async fn test_audit_trail_organizations() -> Result<()> {
 #[tokio::test]
 async fn test_audit_trail_users() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let suffix = unique_suffix();
 
 	set_current_user(&mm, demo_user_id()).await?;

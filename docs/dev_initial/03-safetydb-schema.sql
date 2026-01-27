@@ -260,7 +260,7 @@ $$;
 
 -- Enable Row-Level Security on audit_logs
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
-
+ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;
 -- Create application role (used by API connections)
 DO $$
 BEGIN
@@ -354,7 +354,7 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO e2br3_app_role;
 -- 9.1 Cases Table RLS
 -- ============================================================================
 ALTER TABLE cases ENABLE ROW LEVEL SECURITY;
-
+ALTER TABLE cases FORCE ROW LEVEL SECURITY;
 CREATE POLICY cases_org_isolation ON cases
     FOR ALL
     TO e2br3_app_role
@@ -371,7 +371,7 @@ CREATE POLICY cases_org_isolation ON cases
 -- 9.2 Case Versions Table RLS
 -- ============================================================================
 ALTER TABLE case_versions ENABLE ROW LEVEL SECURITY;
-
+ALTER TABLE case_versions FORCE ROW LEVEL SECURITY;
 CREATE POLICY case_versions_via_case ON case_versions
     FOR ALL
     TO e2br3_app_role
@@ -394,7 +394,7 @@ CREATE POLICY case_versions_via_case ON case_versions
 -- 9.3 Users Table RLS
 -- ============================================================================
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-
+ALTER TABLE users FORCE ROW LEVEL SECURITY;
 -- Users can see users in their organization (or admins see all)
 CREATE POLICY users_org_isolation_select ON users
     FOR SELECT
@@ -416,7 +416,7 @@ CREATE POLICY users_org_isolation_modify ON users
 -- 9.4 Organizations Table RLS
 -- ============================================================================
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
-
+ALTER TABLE organizations FORCE ROW LEVEL SECURITY;
 -- Users can see their own organization (or admins see all)
 CREATE POLICY orgs_select ON organizations
     FOR SELECT

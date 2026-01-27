@@ -4,6 +4,7 @@
 use crate::ctx::Ctx;
 use crate::model::base::base_uuid;
 use crate::model::base::DbBmc;
+use crate::model::modql_utils::uuid_to_sea_value;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -66,6 +67,7 @@ pub struct ParentMedicalHistoryForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct ParentMedicalHistoryFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub parent_id: Option<OpValsValue>,
 	pub sequence_number: Option<OpValsValue>,
 }
@@ -135,6 +137,7 @@ pub struct ParentPastDrugHistoryForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct ParentPastDrugHistoryFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub parent_id: Option<OpValsValue>,
 	pub sequence_number: Option<OpValsValue>,
 }

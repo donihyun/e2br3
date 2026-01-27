@@ -2,7 +2,7 @@
 
 use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
-use crate::model::store::{dbx, set_user_context};
+use crate::model::store::set_user_context_dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -94,9 +94,8 @@ impl ReceiverInformationBmc {
 		mm: &ModelManager,
 		data: ReceiverInformationForCreate,
 	) -> Result<Uuid> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
 
 		let sql = format!(
 			"INSERT INTO {} (case_id, receiver_type, organization_name, created_at, updated_at, created_by)
@@ -104,16 +103,18 @@ impl ReceiverInformationBmc {
 			 RETURNING id",
 			Self::TABLE
 		);
-		let id: Uuid = sqlx::query_scalar(&sql)
-			.bind(data.case_id)
-			.bind(data.receiver_type)
-			.bind(data.organization_name)
-			.bind(ctx.user_id())
-			.fetch_one(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
+		let (id,) = mm
+			.dbx()
+			.fetch_one(
+				sqlx::query_as::<_, (Uuid,)>(&sql)
+					.bind(data.case_id)
+					.bind(data.receiver_type)
+					.bind(data.organization_name)
+					.bind(ctx.user_id()),
+			)
+			.await?;
 
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(id)
 	}
 
@@ -123,11 +124,12 @@ impl ReceiverInformationBmc {
 		case_id: Uuid,
 	) -> Result<ReceiverInformation> {
 		let sql = format!("SELECT * FROM {} WHERE case_id = $1", Self::TABLE);
-		let entity = sqlx::query_as::<_, ReceiverInformation>(&sql)
-			.bind(case_id)
-			.fetch_optional(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?;
+		let entity = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, ReceiverInformation>(&sql).bind(case_id),
+			)
+			.await?;
 		entity.ok_or(crate::model::Error::EntityUuidNotFound {
 			entity: Self::TABLE,
 			id: case_id,
@@ -140,11 +142,12 @@ impl ReceiverInformationBmc {
 		case_id: Uuid,
 	) -> Result<Option<ReceiverInformation>> {
 		let sql = format!("SELECT * FROM {} WHERE case_id = $1", Self::TABLE);
-		let entity = sqlx::query_as::<_, ReceiverInformation>(&sql)
-			.bind(case_id)
-			.fetch_optional(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?;
+		let entity = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, ReceiverInformation>(&sql).bind(case_id),
+			)
+			.await?;
 		Ok(entity)
 	}
 
@@ -154,9 +157,8 @@ impl ReceiverInformationBmc {
 		case_id: Uuid,
 		data: ReceiverInformationForUpdate,
 	) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -176,31 +178,33 @@ impl ReceiverInformationBmc {
 			 WHERE case_id = $1",
 			Self::TABLE
 		);
-		let result = sqlx::query(&sql)
-			.bind(case_id)
-			.bind(data.receiver_type)
-			.bind(data.organization_name)
-			.bind(data.department)
-			.bind(data.street_address)
-			.bind(data.city)
-			.bind(data.state_province)
-			.bind(data.postcode)
-			.bind(data.country_code)
-			.bind(data.telephone)
-			.bind(data.fax)
-			.bind(data.email)
-			.bind(ctx.user_id())
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
+		let result = mm
+			.dbx()
+			.execute(
+				sqlx::query(&sql)
+					.bind(case_id)
+					.bind(data.receiver_type)
+					.bind(data.organization_name)
+					.bind(data.department)
+					.bind(data.street_address)
+					.bind(data.city)
+					.bind(data.state_province)
+					.bind(data.postcode)
+					.bind(data.country_code)
+					.bind(data.telephone)
+					.bind(data.fax)
+					.bind(data.email)
+					.bind(ctx.user_id()),
+			)
+			.await?;
 
-		if result.rows_affected() == 0 {
+		if result == 0 {
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id: case_id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 
@@ -209,24 +213,19 @@ impl ReceiverInformationBmc {
 		mm: &ModelManager,
 		case_id: Uuid,
 	) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
 
 		let sql = format!("DELETE FROM {} WHERE case_id = $1", Self::TABLE);
-		let result = sqlx::query(&sql)
-			.bind(case_id)
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
+		let result = mm.dbx().execute(sqlx::query(&sql).bind(case_id)).await?;
 
-		if result.rows_affected() == 0 {
+		if result == 0 {
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id: case_id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 }

@@ -1,10 +1,6 @@
 mod common;
 
-use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
-	Result,
-};
-use lib_core::ctx::Ctx;
+use common::{demo_ctx, create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user, Result};
 use lib_core::model::case::CaseBmc;
 use lib_core::model::narrative::{
 	CaseSummaryInformationBmc, CaseSummaryInformationForCreate,
@@ -18,7 +14,7 @@ use serial_test::serial;
 #[tokio::test]
 async fn test_narrative_information_crud() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -50,7 +46,7 @@ async fn test_narrative_information_crud() -> Result<()> {
 #[tokio::test]
 async fn test_narrative_submodels_crud() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;

@@ -2,7 +2,6 @@
 
 use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
-use crate::model::store::dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -144,20 +143,22 @@ impl MeddraTermBmc {
 		let search_pattern = format!("%{query}%");
 
 		let terms = if let Some(ver) = version {
-			sqlx::query_as::<_, MeddraTerm>(&sql)
-				.bind(&search_pattern)
-				.bind(ver)
-				.bind(limit)
-				.fetch_all(mm.dbx().db())
-				.await
-				.map_err(dbx::Error::from)?
+			mm.dbx()
+				.fetch_all(
+					sqlx::query_as::<_, MeddraTerm>(&sql)
+						.bind(&search_pattern)
+						.bind(ver)
+						.bind(limit),
+				)
+				.await?
 		} else {
-			sqlx::query_as::<_, MeddraTerm>(&sql)
-				.bind(&search_pattern)
-				.bind(limit)
-				.fetch_all(mm.dbx().db())
-				.await
-				.map_err(dbx::Error::from)?
+			mm.dbx()
+				.fetch_all(
+					sqlx::query_as::<_, MeddraTerm>(&sql)
+						.bind(&search_pattern)
+						.bind(limit),
+				)
+				.await?
 		};
 
 		Ok(terms)
@@ -182,12 +183,14 @@ impl WhodrugProductBmc {
 		);
 
 		let search_pattern = format!("%{query}%");
-		let products = sqlx::query_as::<_, WhodrugProduct>(&sql)
-			.bind(&search_pattern)
-			.bind(limit)
-			.fetch_all(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?;
+		let products = mm
+			.dbx()
+			.fetch_all(
+				sqlx::query_as::<_, WhodrugProduct>(&sql)
+					.bind(&search_pattern)
+					.bind(limit),
+			)
+			.await?;
 
 		Ok(products)
 	}
@@ -204,10 +207,10 @@ impl IsoCountryBmc {
 			"SELECT * FROM {} WHERE active = true ORDER BY name",
 			Self::TABLE
 		);
-		let countries = sqlx::query_as::<_, IsoCountry>(&sql)
-			.fetch_all(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?;
+		let countries = mm
+			.dbx()
+			.fetch_all(sqlx::query_as::<_, IsoCountry>(&sql))
+			.await?;
 		Ok(countries)
 	}
 }
@@ -227,11 +230,10 @@ impl E2bCodeListBmc {
 			"SELECT * FROM {} WHERE list_name = $1 AND active = true ORDER BY sort_order, code",
 			Self::TABLE
 		);
-		let codes = sqlx::query_as::<_, E2bCodeList>(&sql)
-			.bind(list_name)
-			.fetch_all(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?;
+		let codes = mm
+			.dbx()
+			.fetch_all(sqlx::query_as::<_, E2bCodeList>(&sql).bind(list_name))
+			.await?;
 		Ok(codes)
 	}
 }

@@ -29,9 +29,16 @@ pub async fn mw_reponse_map(
 	let web_error = res.extensions().get::<Arc<Error>>().map(Arc::as_ref);
 	let rest_error =
 		res.extensions().get::<Arc<lib_rest_core::Error>>().map(Arc::as_ref);
+	let debug_errors = std::env::var("E2BR3_DEBUG_ERRORS")
+		.map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+		.unwrap_or(false);
+	let mut debug_detail: Option<serde_json::Value> = None;
 	let client_status_error = if let Some(err) = web_error {
 		Some(err.client_status_and_error())
 	} else if let Some(err) = rest_error {
+		if debug_errors {
+			debug_detail = Some(serde_json::Value::String(format!("{err:?}")));
+		}
 		let client_error = match err {
 			lib_rest_core::Error::Model(model::Error::EntityNotFound { entity, id }) => {
 				ClientError::ENTITY_NOT_FOUND { entity, id: *id }
@@ -56,7 +63,9 @@ pub async fn mw_reponse_map(
 			.map(|(status_code, client_error)| {
 				let client_error = to_value(client_error).ok();
 				let message = client_error.as_ref().and_then(|v| v.get("message"));
-				let detail = client_error.as_ref().and_then(|v| v.get("detail"));
+				let detail = debug_detail
+					.as_ref()
+					.or_else(|| client_error.as_ref().and_then(|v| v.get("detail")));
 
 				let client_error_body = json!({
 						"error": {
