@@ -630,8 +630,6 @@ fn admin_permissions() -> &'static [Permission] {
 		// AuditLog
 		AUDIT_READ,
 		AUDIT_LIST,
-		// Terminology
-		TERMINOLOGY_READ,
 		// XML
 		XML_EXPORT,
 		XML_IMPORT,
@@ -813,8 +811,6 @@ fn manager_permissions() -> &'static [Permission] {
 		// AuditLog - can view
 		AUDIT_READ,
 		AUDIT_LIST,
-		// Terminology
-		TERMINOLOGY_READ,
 		// XML
 		XML_EXPORT,
 		XML_IMPORT,
@@ -1049,8 +1045,6 @@ fn viewer_permissions() -> &'static [Permission] {
 		USER_LIST,
 		// Organization - read own
 		ORG_READ,
-		// Terminology
-		TERMINOLOGY_READ,
 		// XML - export only (viewing)
 		XML_EXPORT,
 	]

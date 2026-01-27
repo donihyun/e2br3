@@ -1,9 +1,6 @@
 mod common;
 
-use common::{
-	audit_log_count, create_case_fixture, demo_ctx, demo_org_id, demo_user_id,
-	init_test_mm, set_current_user, unique_suffix, Result,
-};
+use common::{audit_log_count, create_case_fixture, demo_ctx, demo_org_id, demo_user_id, init_test_mm, reset_role, set_auditor_role, set_current_user, unique_suffix, Result, begin_test_ctx, commit_test_ctx};
 use lib_core::model::audit::AuditLogBmc;
 use lib_core::model::case::CaseBmc;
 use lib_core::model::drug::{
@@ -27,9 +24,11 @@ use serial_test::serial;
 #[tokio::test]
 async fn test_audit_trail_drug_information() -> Result<()> {
 	let mm = init_test_mm().await;
+	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	// CREATE
@@ -68,8 +67,10 @@ async fn test_audit_trail_drug_information() -> Result<()> {
 	);
 
 	// Verify all audit logs
+	set_auditor_role(&mm).await?;
 	let logs =
 		AuditLogBmc::list_by_record(&ctx, &mm, "drug_information", drug_id).await?;
+	reset_role(&mm).await?;
 	assert_eq!(logs.len(), 3, "should have CREATE, UPDATE, DELETE logs");
 
 	// Verify user attribution
@@ -95,6 +96,8 @@ async fn test_audit_trail_drug_information() -> Result<()> {
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
+	mm.dbx().commit_txn().await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -106,9 +109,11 @@ async fn test_audit_trail_drug_information() -> Result<()> {
 #[tokio::test]
 async fn test_audit_trail_reactions() -> Result<()> {
 	let mm = init_test_mm().await;
+	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	// CREATE
@@ -150,13 +155,17 @@ async fn test_audit_trail_reactions() -> Result<()> {
 	);
 
 	// Verify
+	set_auditor_role(&mm).await?;
 	let logs =
 		AuditLogBmc::list_by_record(&ctx, &mm, "reactions", reaction_id).await?;
+	reset_role(&mm).await?;
 	assert_eq!(logs.len(), 3);
 
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
+	mm.dbx().commit_txn().await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -168,9 +177,11 @@ async fn test_audit_trail_reactions() -> Result<()> {
 #[tokio::test]
 async fn test_audit_trail_patient_information() -> Result<()> {
 	let mm = init_test_mm().await;
+	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	// CREATE
@@ -212,14 +223,18 @@ async fn test_audit_trail_patient_information() -> Result<()> {
 	);
 
 	// Verify
+	set_auditor_role(&mm).await?;
 	let logs =
 		AuditLogBmc::list_by_record(&ctx, &mm, "patient_information", patient_id)
 			.await?;
+	reset_role(&mm).await?;
 	assert_eq!(logs.len(), 3);
 
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
+	mm.dbx().commit_txn().await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -231,10 +246,12 @@ async fn test_audit_trail_patient_information() -> Result<()> {
 #[tokio::test]
 async fn test_audit_trail_organizations() -> Result<()> {
 	let mm = init_test_mm().await;
+	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 	let suffix = unique_suffix();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 
 	// CREAET
 	let org_c = OrganizationForCreate {
@@ -276,10 +293,14 @@ async fn test_audit_trail_organizations() -> Result<()> {
 	);
 
 	// Verify
+	set_auditor_role(&mm).await?;
 	let logs =
 		AuditLogBmc::list_by_record(&ctx, &mm, "organizations", org_id).await?;
+	reset_role(&mm).await?;
 	assert_eq!(logs.len(), 3);
 
+	mm.dbx().commit_txn().await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -291,10 +312,12 @@ async fn test_audit_trail_organizations() -> Result<()> {
 #[tokio::test]
 async fn test_audit_trail_users() -> Result<()> {
 	let mm = init_test_mm().await;
+	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 	let suffix = unique_suffix();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 
 	// CREATE (note: UserBmc::create also calls update_pwd which creates an UPDATE log)
 	let user_c = UserForCreate {
@@ -338,12 +361,16 @@ async fn test_audit_trail_users() -> Result<()> {
 	assert_eq!(audit_log_count(&mm, "users", user_id, "DELETE").await?, 1);
 
 	// Verify total logs (CREATE + UPDATE(s) + DELETE)
+	set_auditor_role(&mm).await?;
 	let logs = AuditLogBmc::list_by_record(&ctx, &mm, "users", user_id).await?;
+	reset_role(&mm).await?;
 	assert!(
 		logs.len() >= 3,
 		"should have at least CREATE, UPDATE, DELETE logs"
 	);
 
+	mm.dbx().commit_txn().await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -355,9 +382,11 @@ async fn test_audit_trail_users() -> Result<()> {
 #[tokio::test]
 async fn test_audit_log_list_all() -> Result<()> {
 	let mm = init_test_mm().await;
+	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	// Create multiple drugs to generate audit logs
@@ -374,7 +403,9 @@ async fn test_audit_log_list_all() -> Result<()> {
 	}
 
 	// List all audit logs
+	set_auditor_role(&mm).await?;
 	let logs = AuditLogBmc::list(&ctx, &mm, None, None).await?;
+	reset_role(&mm).await?;
 	assert!(!logs.is_empty(), "should have audit logs");
 
 	// Verify logs contain our drug records
@@ -395,6 +426,8 @@ async fn test_audit_log_list_all() -> Result<()> {
 	}
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
+	mm.dbx().commit_txn().await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -402,9 +435,11 @@ async fn test_audit_log_list_all() -> Result<()> {
 #[tokio::test]
 async fn test_audit_log_chronological_order() -> Result<()> {
 	let mm = init_test_mm().await;
+	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	// CREATE
@@ -434,8 +469,10 @@ async fn test_audit_log_chronological_order() -> Result<()> {
 	ReactionBmc::delete(&ctx, &mm, reaction_id).await?;
 
 	// Get logs - should be in chronological order
+	set_auditor_role(&mm).await?;
 	let logs =
 		AuditLogBmc::list_by_record(&ctx, &mm, "reactions", reaction_id).await?;
+	reset_role(&mm).await?;
 	assert_eq!(logs.len(), 3);
 
 	// Verify order: CREATE should have earliest timestamp
@@ -455,6 +492,8 @@ async fn test_audit_log_chronological_order() -> Result<()> {
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
+	mm.dbx().commit_txn().await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -466,9 +505,11 @@ async fn test_audit_log_chronological_order() -> Result<()> {
 #[tokio::test]
 async fn test_audit_log_captures_all_changed_fields() -> Result<()> {
 	let mm = init_test_mm().await;
+	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	// CREATE drug with minimal fields
@@ -492,8 +533,10 @@ async fn test_audit_log_captures_all_changed_fields() -> Result<()> {
 	DrugInformationBmc::update_in_case(&ctx, &mm, case_id, drug_id, drug_u).await?;
 
 	// Get UPDATE log
+	set_auditor_role(&mm).await?;
 	let logs =
 		AuditLogBmc::list_by_record(&ctx, &mm, "drug_information", drug_id).await?;
+	reset_role(&mm).await?;
 	let update_log = logs.iter().find(|l| l.action == "UPDATE").unwrap();
 
 	let new_values = update_log.new_values.as_ref().unwrap();
@@ -509,5 +552,7 @@ async fn test_audit_log_captures_all_changed_fields() -> Result<()> {
 	DrugInformationBmc::delete(&ctx, &mm, drug_id).await?;
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
+	mm.dbx().commit_txn().await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }

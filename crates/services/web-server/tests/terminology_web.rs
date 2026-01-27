@@ -9,7 +9,7 @@ use tower::ServiceExt;
 
 #[serial]
 #[tokio::test]
-async fn test_terminology_endpoints_ok() -> Result<()> {
+async fn test_admin_can_access_terminology_endpoints() -> Result<()> {
 	let mm = init_test_mm().await?;
 	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
 	let token = generate_web_token(&seed.admin.email, seed.admin.token_salt)?;
@@ -92,6 +92,27 @@ async fn test_terminology_endpoints_ok() -> Result<()> {
 			.into(),
 		);
 	}
+
+	Ok(())
+}
+
+#[serial]
+#[tokio::test]
+async fn test_viewer_cannot_access_terminology_endpoints() -> Result<()> {
+	let mm = init_test_mm().await?;
+	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
+	let token = generate_web_token(&seed.viewer.email, seed.viewer.token_salt)?;
+	let cookie = cookie_header(&token.to_string());
+
+	let app = web_server::app(mm);
+
+	let req = Request::builder()
+		.method("GET")
+		.uri("/api/terminology/meddra?q=test&limit=5")
+		.header("cookie", cookie)
+		.body(Body::empty())?;
+	let res = app.oneshot(req).await?;
+	assert_eq!(res.status(), StatusCode::FORBIDDEN);
 
 	Ok(())
 }

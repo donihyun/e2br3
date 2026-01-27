@@ -47,17 +47,20 @@ pub async fn mw_reponse_map(
 				},
 			),
 			lib_rest_core::Error::Model(model::Error::EntityNotFound { entity, id }) => (
-				StatusCode::BAD_REQUEST,
+				StatusCode::NOT_FOUND,
 				ClientError::ENTITY_NOT_FOUND { entity, id: *id },
 			),
 			lib_rest_core::Error::Model(model::Error::EntityUuidNotFound { entity, id }) => (
-				StatusCode::BAD_REQUEST,
+				StatusCode::NOT_FOUND,
 				ClientError::ENTITY_UUID_NOT_FOUND {
 					entity,
 					id: id.to_string(),
 				},
 			),
-			_ => (StatusCode::BAD_REQUEST, ClientError::SERVICE_ERROR),
+			lib_rest_core::Error::SerdeJson(_) => {
+				(StatusCode::BAD_REQUEST, ClientError::SERVICE_ERROR)
+			}
+			_ => (StatusCode::INTERNAL_SERVER_ERROR, ClientError::SERVICE_ERROR),
 		};
 		Some((status_code, client_error))
 	} else {

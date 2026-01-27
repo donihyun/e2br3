@@ -4,7 +4,7 @@ use crate::ctx::Ctx;
 use crate::model::base::base_uuid;
 use crate::model::base::DbBmc;
 use crate::model::modql_utils::uuid_to_sea_value;
-use crate::model::store::set_user_context_dbx;
+use crate::model::store::set_full_context_dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -130,7 +130,7 @@ impl DrugReactionAssessmentBmc {
 		data: DrugReactionAssessmentForCreate,
 	) -> Result<Uuid> {
 		mm.dbx().begin_txn().await?;
-		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
+		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
 
 		let sql = format!(
 			"INSERT INTO {} (drug_id, reaction_id, created_at, updated_at, created_by)
@@ -234,7 +234,7 @@ impl DrugReactionAssessmentBmc {
 		data: DrugReactionAssessmentForUpdate,
 	) -> Result<()> {
 		mm.dbx().begin_txn().await?;
-		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
+		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -276,7 +276,7 @@ impl DrugReactionAssessmentBmc {
 
 	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
 		mm.dbx().begin_txn().await?;
-		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
+		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
 
 		let sql = format!("DELETE FROM {} WHERE id = $1", Self::TABLE);
 		let result = mm

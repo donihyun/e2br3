@@ -1,6 +1,6 @@
 mod common;
 
-use common::{demo_ctx, create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user, Result};
+use common::{demo_ctx, create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user, Result, begin_test_ctx, commit_test_ctx};
 use lib_core::model::case::CaseBmc;
 use lib_core::model::safety_report::{
 	LiteratureReferenceBmc, LiteratureReferenceForCreate,
@@ -23,6 +23,7 @@ async fn test_safety_report_identification_crud() -> Result<()> {
 	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	let report_c = SafetyReportIdentificationForCreate {
@@ -62,6 +63,7 @@ async fn test_safety_report_identification_crud() -> Result<()> {
 
 	SafetyReportIdentificationBmc::delete_by_case(&ctx, &mm, case_id).await?;
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -72,6 +74,7 @@ async fn test_safety_report_submodels_crud() -> Result<()> {
 	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	let sender_c = SenderInformationForCreate {
@@ -178,5 +181,6 @@ async fn test_safety_report_submodels_crud() -> Result<()> {
 	PrimarySourceBmc::delete(&ctx, &mm, primary_id).await?;
 	SenderInformationBmc::delete(&ctx, &mm, sender_id).await?;
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }

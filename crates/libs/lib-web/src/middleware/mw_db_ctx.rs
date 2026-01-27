@@ -39,7 +39,9 @@ pub async fn mw_ctx_require_and_set_dbx(
 	let res = next.run(req).await;
 
 	let has_error = res.extensions().get::<Arc<Error>>().is_some()
-		|| res.extensions().get::<Arc<rest::Error>>().is_some();
+		|| res.extensions().get::<Arc<rest::Error>>().is_some()
+		|| res.status().is_client_error()
+		|| res.status().is_server_error();
 	if has_error {
 		let _ = dbx.rollback_txn().await;
 	} else {

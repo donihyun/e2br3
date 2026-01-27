@@ -2,7 +2,7 @@
 
 use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
-use crate::model::store::set_user_context_dbx;
+use crate::model::store::set_full_context_dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -95,7 +95,7 @@ impl ReceiverInformationBmc {
 		data: ReceiverInformationForCreate,
 	) -> Result<Uuid> {
 		mm.dbx().begin_txn().await?;
-		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
+		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
 
 		let sql = format!(
 			"INSERT INTO {} (case_id, receiver_type, organization_name, created_at, updated_at, created_by)
@@ -158,7 +158,7 @@ impl ReceiverInformationBmc {
 		data: ReceiverInformationForUpdate,
 	) -> Result<()> {
 		mm.dbx().begin_txn().await?;
-		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
+		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -214,7 +214,7 @@ impl ReceiverInformationBmc {
 		case_id: Uuid,
 	) -> Result<()> {
 		mm.dbx().begin_txn().await?;
-		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
+		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
 
 		let sql = format!("DELETE FROM {} WHERE case_id = $1", Self::TABLE);
 		let result = mm.dbx().execute(sqlx::query(&sql).bind(case_id)).await?;

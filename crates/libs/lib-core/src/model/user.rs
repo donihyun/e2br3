@@ -1,7 +1,7 @@
 use crate::ctx::Ctx;
 use crate::model::base::base_uuid;
 use crate::model::base::{prep_fields_for_update, DbBmc};
-use crate::model::store::set_user_context_dbx;
+use crate::model::store::set_full_context_dbx;
 use crate::model::{Error, ModelManager, Result};
 use lib_auth::pwd::{self, ContentToHash};
 use modql::field::{Fields, HasSeaFields, SeaField, SeaFields};
@@ -254,7 +254,9 @@ impl UserBmc {
 	) -> Result<()> {
 		let dbx = mm.dbx();
 		dbx.begin_txn().await.map_err(Error::Dbx)?;
-		if let Err(err) = set_user_context_dbx(dbx, ctx.user_id()).await {
+		if let Err(err) =
+			set_full_context_dbx(dbx, ctx.user_id(), ctx.organization_id(), ctx.role()).await
+		{
 			dbx.rollback_txn().await.map_err(Error::Dbx)?;
 			return Err(err);
 		}

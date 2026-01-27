@@ -1,20 +1,21 @@
 mod common;
 
-use common::{demo_org_id, demo_user_id, init_test_mm, unique_suffix, DEMO_ROLE, Result};
+use common::{
+	begin_test_ctx, commit_test_ctx, demo_ctx, demo_user_id, init_test_mm,
+	set_current_user, unique_suffix, Result,
+};
 use lib_core::model::organization::{
 	OrganizationBmc, OrganizationForCreate, OrganizationForUpdate,
 };
-use lib_core::model::store::set_full_context_dbx;
 use serial_test::serial;
-
-use crate::common::demo_ctx;
 
 #[serial]
 #[tokio::test]
 async fn test_organization_crud() -> Result<()> {
 	let mm = init_test_mm().await;
-	set_full_context_dbx(mm.dbx(), demo_user_id(), demo_org_id(), DEMO_ROLE).await?;
 	let ctx = demo_ctx();
+	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let suffix = unique_suffix();
 	let org_c = OrganizationForCreate {
 		name: format!("Test Org {suffix}"),
@@ -48,5 +49,6 @@ async fn test_organization_crud() -> Result<()> {
 	assert!(!org.active);
 
 	OrganizationBmc::delete(&ctx, &mm, org_id).await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }

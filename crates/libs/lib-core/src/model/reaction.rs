@@ -3,7 +3,7 @@
 use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
 use crate::model::modql_utils::uuid_to_sea_value;
-use crate::model::store::set_user_context_dbx;
+use crate::model::store::set_full_context_dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -108,7 +108,7 @@ impl ReactionBmc {
 		reaction_c: ReactionForCreate,
 	) -> Result<Uuid> {
 		mm.dbx().begin_txn().await?;
-		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
+		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
 
 		let sql = format!(
 			"INSERT INTO {} (case_id, sequence_number, primary_source_reaction, criteria_death, criteria_life_threatening, criteria_hospitalization, criteria_disabling, criteria_congenital_anomaly, criteria_other_medically_important, created_at, updated_at, created_by)
@@ -151,7 +151,7 @@ impl ReactionBmc {
 		reaction_u: ReactionForUpdate,
 	) -> Result<()> {
 		mm.dbx().begin_txn().await?;
-		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
+		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -247,7 +247,7 @@ impl ReactionBmc {
 		reaction_u: ReactionForUpdate,
 	) -> Result<()> {
 		mm.dbx().begin_txn().await?;
-		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
+		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -297,7 +297,7 @@ impl ReactionBmc {
 
 	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
 		mm.dbx().begin_txn().await?;
-		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
+		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
 
 		let sql = format!("DELETE FROM {} WHERE id = $1", Self::TABLE);
 		let result = mm.dbx().execute(sqlx::query(&sql).bind(id)).await?;
@@ -318,7 +318,7 @@ impl ReactionBmc {
 		id: Uuid,
 	) -> Result<()> {
 		mm.dbx().begin_txn().await?;
-		set_user_context_dbx(mm.dbx(), ctx.user_id()).await?;
+		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
 
 		let sql =
 			format!("DELETE FROM {} WHERE id = $1 AND case_id = $2", Self::TABLE);

@@ -1,6 +1,6 @@
 mod common;
 
-use common::{demo_ctx, create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user, Result};
+use common::{demo_ctx, create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user, Result, begin_test_ctx, commit_test_ctx};
 use lib_core::model::case::CaseBmc;
 use lib_core::model::reaction::{ReactionBmc, ReactionForCreate, ReactionForUpdate};
 use serial_test::serial;
@@ -12,6 +12,7 @@ async fn test_reaction_crud() -> Result<()> {
 	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	let reaction_c = ReactionForCreate {
@@ -44,5 +45,6 @@ async fn test_reaction_crud() -> Result<()> {
 
 	ReactionBmc::delete(&ctx, &mm, reaction_id).await?;
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
