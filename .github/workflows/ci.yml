@@ -109,6 +109,8 @@ jobs:
 
       - name: Run tests
         env:
+          # Skip local dev DB bootstrap; CI already initializes the schema
+          SKIP_DEV_INIT: "1"
           # Database connection (matches the service above)
           SERVICE_DB_URL: postgres://app_user:dev_only_pwd@localhost/app_db
           # Test-only keys (NOT for production)
