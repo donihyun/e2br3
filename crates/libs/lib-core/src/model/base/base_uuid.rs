@@ -68,13 +68,7 @@ where
 	// -- Execute the query
 	let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 	let sqlx_query = sqlx::query_as_with::<_, (Uuid,), _>(&sql, values);
-	let (id,) = match dbx.fetch_one(sqlx_query).await {
-		Ok(id) => id,
-		Err(err) => {
-			dbx.rollback_txn().await?;
-			return Err(err.into());
-		}
-	};
+	let (id,) = dbx.fetch_one(sqlx_query).await?;
 
 	// Commit transaction (triggers fire before commit)
 	dbx.commit_txn().await?;

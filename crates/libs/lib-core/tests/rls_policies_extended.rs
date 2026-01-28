@@ -54,7 +54,6 @@ async fn enable_rls(mm: &lib_core::model::ModelManager) -> Result<()> {
 	mm.dbx()
 		.execute(sqlx::query("SET row_security = on"))
 		.await?;
-	commit_test_ctx(mm).await?;
 	Ok(())
 }
 
@@ -210,7 +209,7 @@ async fn test_rls_case_related_tables_org_isolation() -> Result<()> {
 	let admin_ctx =
 		Ctx::new(system_user_id(), system_org_id(), ROLE_ADMIN.to_string())?;
 
-	let org1_id = system_org_id();
+	let org1_id = create_org(&mm, &admin_ctx).await?;
 	let user1_id = create_user(&mm, &admin_ctx, org1_id).await?;
 
 	let org2_id = create_org(&mm, &admin_ctx).await?;
@@ -537,8 +536,8 @@ async fn test_rls_case_related_tables_org_isolation() -> Result<()> {
 	commit_test_ctx(&mm).await?;
 	let _dbx = mm.dbx();
 	let user_ctx = Ctx::new(user1_id, org1_id, ROLE_USER.to_string())?;
-	enable_rls(&mm).await?;
 	begin_test_ctx(&mm, &user_ctx).await?;
+	enable_rls(&mm).await?;
 	assert!(CaseBmc::get(&user_ctx, &mm, case_org1).await.is_ok());
 	assert_denied(CaseBmc::get(&user_ctx, &mm, case_org2).await);
 
@@ -640,7 +639,7 @@ async fn test_rls_terminology_admin_only() -> Result<()> {
 	let mm = init_test_mm().await;
 	let admin_ctx =
 		Ctx::new(system_user_id(), system_org_id(), ROLE_ADMIN.to_string())?;
-	let org1_id = system_org_id();
+	let org1_id = create_org(&mm, &admin_ctx).await?;
 	let _user1_id = create_user(&mm, &admin_ctx, org1_id).await?;
 
 	let dbx = mm.dbx();

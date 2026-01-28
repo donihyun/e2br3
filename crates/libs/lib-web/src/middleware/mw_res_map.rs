@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tracing::{debug, error};
 use uuid::Uuid;
 
-pub async fn mw_reponse_map(
+pub async fn mw_response_map(
 	ctx: Result<CtxW>, // Axum 0.8 does not seem to support Option anymore
 	uri: Uri,
 	req_method: Method,
@@ -22,7 +22,7 @@ pub async fn mw_reponse_map(
 ) -> Response {
 	let ctx = ctx.map(|ctx| ctx.0).ok();
 
-	debug!("{:<12} - mw_reponse_map", "RES_MAPPER");
+	debug!("{:<12} - mw_response_map", "RES_MAPPER");
 	let uuid = Uuid::new_v4();
 
 	// -- Get the eventual response error.

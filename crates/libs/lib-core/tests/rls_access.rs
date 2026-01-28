@@ -68,7 +68,7 @@ async fn test_rls_case_org_isolation() -> Result<()> {
 	let admin_ctx =
 		Ctx::new(system_user_id(), system_org_id(), ROLE_ADMIN.to_string())?;
 
-	let org1_id = system_org_id();
+	let org1_id = create_org(&mm, &admin_ctx).await?;
 	let user1_id = create_user(&mm, &admin_ctx, org1_id, ROLE_USER).await?;
 
 	let org2_id = create_org(&mm, &admin_ctx).await?;
@@ -110,7 +110,7 @@ async fn test_rls_user_org_isolation() -> Result<()> {
 	let admin_ctx =
 		Ctx::new(system_user_id(), system_org_id(), ROLE_ADMIN.to_string())?;
 
-	let org1_id = system_org_id();
+	let org1_id = create_org(&mm, &admin_ctx).await?;
 	let user1_id = create_user(&mm, &admin_ctx, org1_id, ROLE_USER).await?;
 
 	let org2_id = create_org(&mm, &admin_ctx).await?;
