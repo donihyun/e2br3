@@ -58,7 +58,7 @@ pub async fn mw_reponse_map(
 				},
 			),
 			lib_rest_core::Error::SerdeJson(_) => {
-				(StatusCode::BAD_REQUEST, ClientError::SERVICE_ERROR)
+				(StatusCode::INTERNAL_SERVER_ERROR, ClientError::SERVICE_ERROR)
 			}
 			_ => (StatusCode::INTERNAL_SERVER_ERROR, ClientError::SERVICE_ERROR),
 		};
