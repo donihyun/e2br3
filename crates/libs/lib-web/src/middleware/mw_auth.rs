@@ -64,13 +64,11 @@ async fn ctx_resolve(mm: ModelManager, cookies: &Cookies) -> CtxExtResult {
 	// -- Parse Token
 	let token: Token = token.parse().map_err(|_| CtxExtError::TokenWrongFormat)?;
 
-	// -- Get UserForAuth
-	let user: UserForAuth =
-		UserBmc::first_by_email(&Ctx::root_ctx(), &mm, &token.ident)
-			.await
-			.map_err(|ex| CtxExtError::ModelAccessError(ex.to_string()))?
-			.ok_or(CtxExtError::UserNotFound)?;
-
+	// -- Get UserForAuth (now includes role and organization_id)
+	let user: UserForAuth = UserBmc::auth_by_email(&mm, &token.ident)
+		.await
+		.map_err(|ex| CtxExtError::ModelAccessError(ex.to_string()))?
+		.ok_or(CtxExtError::UserNotFound)?;
 	// -- Validate Token
 	validate_web_token(&token, user.token_salt)
 		.map_err(|_| CtxExtError::FailValidate)?;
@@ -79,8 +77,8 @@ async fn ctx_resolve(mm: ModelManager, cookies: &Cookies) -> CtxExtResult {
 	set_token_cookie(cookies, &user.email, user.token_salt)
 		.map_err(|_| CtxExtError::CannotSetTokenCookie)?;
 
-	// -- Create CtxExtResult
-	Ctx::new(user.id)
+	// -- Create CtxExtResult with user_id, organization_id, and role
+	Ctx::new(user.id, user.organization_id, user.role)
 		.map(CtxW)
 		.map_err(|ex| CtxExtError::CtxCreateFail(ex.to_string()))
 }

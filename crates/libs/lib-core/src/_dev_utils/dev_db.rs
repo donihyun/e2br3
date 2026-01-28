@@ -73,22 +73,21 @@ async fn pexec(db: &Db, file: &Path) -> Result<(), sqlx::Error> {
 
 	for sql in sqls {
 		if let Err(e) = sqlx::query(&sql).execute(db).await {
-			if should_skip_role_setup() && should_ignore_role_error(&sql, &e) {
+			if should_ignore_role_error(&sql, &e) {
 				println!(
 					"pexec warning: skipping role creation due to permission error:\n{sql}\nreason:\n{e}"
 				);
 				continue;
 			}
 
-			if should_skip_role_setup() && should_ignore_policy_role_error(&sql, &e)
-			{
+			if should_ignore_policy_role_error(&sql, &e) {
 				println!(
 					"pexec warning: skipping policy creation due to missing role:\n{sql}\nreason:\n{e}"
 				);
 				continue;
 			}
 
-			if should_skip_role_setup() && should_ignore_grant_role_error(&sql, &e) {
+			if should_ignore_grant_role_error(&sql, &e) {
 				println!(
 					"pexec warning: skipping grant due to missing role:\n{sql}\nreason:\n{e}"
 				);
@@ -245,10 +244,4 @@ fn should_ignore_grant_role_error(sql: &str, err: &sqlx::Error) -> bool {
 		}
 		_ => false,
 	}
-}
-
-fn should_skip_role_setup() -> bool {
-	std::env::var("E2BR3_DEVDB_SKIP_ROLE_SETUP")
-		.map(|v| v != "0")
-		.unwrap_or(true)
 }

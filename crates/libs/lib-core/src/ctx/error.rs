@@ -6,6 +6,8 @@ pub type Result<T> = core::result::Result<T, Error>;
 pub enum Error {
 	CtxCannotNewRootCtx,
 	CtxCannotNewNilUuid,
+	CtxCannotNewNilOrgId,
+	CtxCannotNewInvalidRole,
 }
 
 // region:    --- Error Boilerplate

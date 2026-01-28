@@ -2,7 +2,7 @@
 
 use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
-use crate::model::store::{dbx, set_user_context};
+use crate::model::store::set_full_context_dbx_or_rollback;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -89,9 +89,14 @@ impl TestResultBmc {
 		mm: &ModelManager,
 		test_c: TestResultForCreate,
 	) -> Result<Uuid> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql = format!(
 			"INSERT INTO {} (case_id, sequence_number, test_name, created_at, updated_at, created_by)
@@ -99,26 +104,27 @@ impl TestResultBmc {
 			 RETURNING id",
 			Self::TABLE
 		);
-		let id: Uuid = sqlx::query_scalar(&sql)
-			.bind(test_c.case_id)
-			.bind(test_c.sequence_number)
-			.bind(test_c.test_name)
-			.bind(ctx.user_id())
-			.fetch_one(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
+		let (id,) = mm
+			.dbx()
+			.fetch_one(
+				sqlx::query_as::<_, (Uuid,)>(&sql)
+					.bind(test_c.case_id)
+					.bind(test_c.sequence_number)
+					.bind(test_c.test_name)
+					.bind(ctx.user_id()),
+			)
+			.await?;
 
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(id)
 	}
 
 	pub async fn get(_ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<TestResult> {
 		let sql = format!("SELECT * FROM {} WHERE id = $1", Self::TABLE);
-		let test = sqlx::query_as::<_, TestResult>(&sql)
-			.bind(id)
-			.fetch_optional(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?
+		let test = mm
+			.dbx()
+			.fetch_optional(sqlx::query_as::<_, TestResult>(&sql).bind(id))
+			.await?
 			.ok_or(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
@@ -132,9 +138,14 @@ impl TestResultBmc {
 		id: Uuid,
 		test_u: TestResultForUpdate,
 	) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -150,26 +161,29 @@ impl TestResultBmc {
 			 WHERE id = $1",
 			Self::TABLE
 		);
-		let result = sqlx::query(&sql)
-			.bind(id)
-			.bind(test_u.test_name)
-			.bind(test_u.test_date)
-			.bind(test_u.test_result_value)
-			.bind(test_u.test_result_unit)
-			.bind(test_u.normal_low_value)
-			.bind(test_u.normal_high_value)
-			.bind(test_u.comments)
-			.bind(ctx.user_id())
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		if result.rows_affected() == 0 {
+		let result = mm
+			.dbx()
+			.execute(
+				sqlx::query(&sql)
+					.bind(id)
+					.bind(test_u.test_name)
+					.bind(test_u.test_date)
+					.bind(test_u.test_result_value)
+					.bind(test_u.test_result_unit)
+					.bind(test_u.normal_low_value)
+					.bind(test_u.normal_high_value)
+					.bind(test_u.comments)
+					.bind(ctx.user_id()),
+			)
+			.await?;
+		if result == 0 {
+			mm.dbx().rollback_txn().await?;
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 
@@ -182,11 +196,10 @@ impl TestResultBmc {
 			"SELECT * FROM {} WHERE case_id = $1 ORDER BY sequence_number",
 			Self::TABLE
 		);
-		let tests = sqlx::query_as::<_, TestResult>(&sql)
-			.bind(case_id)
-			.fetch_all(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?;
+		let tests = mm
+			.dbx()
+			.fetch_all(sqlx::query_as::<_, TestResult>(&sql).bind(case_id))
+			.await?;
 		Ok(tests)
 	}
 
@@ -200,12 +213,12 @@ impl TestResultBmc {
 			"SELECT * FROM {} WHERE id = $1 AND case_id = $2",
 			Self::TABLE
 		);
-		let test = sqlx::query_as::<_, TestResult>(&sql)
-			.bind(id)
-			.bind(case_id)
-			.fetch_optional(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?
+		let test = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, TestResult>(&sql).bind(id).bind(case_id),
+			)
+			.await?
 			.ok_or(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
@@ -220,9 +233,14 @@ impl TestResultBmc {
 		id: Uuid,
 		test_u: TestResultForUpdate,
 	) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -238,48 +256,53 @@ impl TestResultBmc {
 			 WHERE id = $1 AND case_id = $2",
 			Self::TABLE
 		);
-		let result = sqlx::query(&sql)
-			.bind(id)
-			.bind(case_id)
-			.bind(test_u.test_name)
-			.bind(test_u.test_date)
-			.bind(test_u.test_result_value)
-			.bind(test_u.test_result_unit)
-			.bind(test_u.normal_low_value)
-			.bind(test_u.normal_high_value)
-			.bind(test_u.comments)
-			.bind(ctx.user_id())
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		if result.rows_affected() == 0 {
+		let result = mm
+			.dbx()
+			.execute(
+				sqlx::query(&sql)
+					.bind(id)
+					.bind(case_id)
+					.bind(test_u.test_name)
+					.bind(test_u.test_date)
+					.bind(test_u.test_result_value)
+					.bind(test_u.test_result_unit)
+					.bind(test_u.normal_low_value)
+					.bind(test_u.normal_high_value)
+					.bind(test_u.comments)
+					.bind(ctx.user_id()),
+			)
+			.await?;
+		if result == 0 {
+			mm.dbx().rollback_txn().await?;
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 
 	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql = format!("DELETE FROM {} WHERE id = $1", Self::TABLE);
-		let result = sqlx::query(&sql)
-			.bind(id)
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		if result.rows_affected() == 0 {
+		let result = mm.dbx().execute(sqlx::query(&sql).bind(id)).await?;
+		if result == 0 {
+			mm.dbx().rollback_txn().await?;
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 
@@ -289,25 +312,29 @@ impl TestResultBmc {
 		case_id: Uuid,
 		id: Uuid,
 	) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql =
 			format!("DELETE FROM {} WHERE id = $1 AND case_id = $2", Self::TABLE);
-		let result = sqlx::query(&sql)
-			.bind(id)
-			.bind(case_id)
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		if result.rows_affected() == 0 {
+		let result = mm
+			.dbx()
+			.execute(sqlx::query(&sql).bind(id).bind(case_id))
+			.await?;
+		if result == 0 {
+			mm.dbx().rollback_txn().await?;
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 }

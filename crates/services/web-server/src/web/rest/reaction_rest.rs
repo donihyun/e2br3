@@ -1,3 +1,6 @@
+use lib_core::model::acs::{
+	REACTION_CREATE, REACTION_DELETE, REACTION_LIST, REACTION_READ, REACTION_UPDATE,
+};
 use lib_core::model::reaction::{ReactionBmc, ReactionForCreate, ReactionForUpdate};
 use lib_rest_core::prelude::*;
 
@@ -12,5 +15,10 @@ generate_case_rest_fns! {
 	Entity: lib_core::model::reaction::Reaction,
 	ForCreate: ReactionForCreate,
 	ForUpdate: ReactionForUpdate,
-	Suffix: reaction
+	Suffix: reaction,
+	PermCreate: REACTION_CREATE,
+	PermRead: REACTION_READ,
+	PermUpdate: REACTION_UPDATE,
+	PermDelete: REACTION_DELETE,
+	PermList: REACTION_LIST
 }

@@ -1,10 +1,9 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
-	Result,
+	begin_test_ctx, commit_test_ctx, create_case_fixture, demo_ctx, demo_org_id,
+	demo_user_id, init_test_mm, set_current_user, Result,
 };
-use lib_core::ctx::Ctx;
 use lib_core::model::case::CaseBmc;
 use lib_core::model::narrative::{
 	CaseSummaryInformationBmc, CaseSummaryInformationForCreate,
@@ -18,9 +17,10 @@ use serial_test::serial;
 #[tokio::test]
 async fn test_narrative_information_crud() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	let narrative_c = NarrativeInformationForCreate {
@@ -43,6 +43,7 @@ async fn test_narrative_information_crud() -> Result<()> {
 
 	NarrativeInformationBmc::delete_by_case(&ctx, &mm, case_id).await?;
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -50,9 +51,10 @@ async fn test_narrative_information_crud() -> Result<()> {
 #[tokio::test]
 async fn test_narrative_submodels_crud() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	let narrative_c = NarrativeInformationForCreate {
@@ -113,5 +115,6 @@ async fn test_narrative_submodels_crud() -> Result<()> {
 
 	NarrativeInformationBmc::delete_by_case(&ctx, &mm, case_id).await?;
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }

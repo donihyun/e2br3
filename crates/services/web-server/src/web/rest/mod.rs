@@ -16,8 +16,13 @@ pub mod audit_rest;
 pub mod case_identifiers_rest;
 pub mod drug_reaction_assessment_rest;
 pub mod drug_recurrence_rest;
+pub mod drug_sub_rest;
+pub mod narrative_sub_rest;
 pub mod parent_history_rest;
+pub mod patient_sub_rest;
 pub mod receiver_rest;
+pub mod relatedness_assessment_rest;
+pub mod safety_report_sub_rest;
 pub mod terminology_rest;
 
 use axum::routing::get;
@@ -43,6 +48,78 @@ pub fn routes_cases(mm: ModelManager) -> Router {
 			.put(patient_rest::update_patient)
 			.delete(patient_rest::delete_patient),
 	)
+	// Medical History Episodes (collection per patient) - D.7.1.r
+	.route(
+		"/cases/{case_id}/patient/medical-history",
+		get(patient_sub_rest::list_medical_history_episodes)
+			.post(patient_sub_rest::create_medical_history_episode),
+	)
+	.route(
+		"/cases/{case_id}/patient/medical-history/{id}",
+		get(patient_sub_rest::get_medical_history_episode)
+			.put(patient_sub_rest::update_medical_history_episode)
+			.delete(patient_sub_rest::delete_medical_history_episode),
+	)
+	// Past Drug History (collection per patient) - D.8.r
+	.route(
+		"/cases/{case_id}/patient/past-drugs",
+		get(patient_sub_rest::list_past_drug_history)
+			.post(patient_sub_rest::create_past_drug_history),
+	)
+	.route(
+		"/cases/{case_id}/patient/past-drugs/{id}",
+		get(patient_sub_rest::get_past_drug_history)
+			.put(patient_sub_rest::update_past_drug_history)
+			.delete(patient_sub_rest::delete_past_drug_history),
+	)
+	// Patient Death Information (collection per patient) - D.9
+	.route(
+		"/cases/{case_id}/patient/death-info",
+		get(patient_sub_rest::list_patient_death_information)
+			.post(patient_sub_rest::create_patient_death_information),
+	)
+	.route(
+		"/cases/{case_id}/patient/death-info/{id}",
+		get(patient_sub_rest::get_patient_death_information)
+			.put(patient_sub_rest::update_patient_death_information)
+			.delete(patient_sub_rest::delete_patient_death_information),
+	)
+	// Reported Causes of Death (collection per death info) - D.9.2.r
+	.route(
+		"/cases/{case_id}/patient/death-info/{death_info_id}/reported-causes",
+		get(patient_sub_rest::list_reported_causes_of_death)
+			.post(patient_sub_rest::create_reported_cause_of_death),
+	)
+	.route(
+		"/cases/{case_id}/patient/death-info/{death_info_id}/reported-causes/{id}",
+		get(patient_sub_rest::get_reported_cause_of_death)
+			.put(patient_sub_rest::update_reported_cause_of_death)
+			.delete(patient_sub_rest::delete_reported_cause_of_death),
+	)
+	// Autopsy Causes of Death (collection per death info) - D.9.4.r
+	.route(
+		"/cases/{case_id}/patient/death-info/{death_info_id}/autopsy-causes",
+		get(patient_sub_rest::list_autopsy_causes_of_death)
+			.post(patient_sub_rest::create_autopsy_cause_of_death),
+	)
+	.route(
+		"/cases/{case_id}/patient/death-info/{death_info_id}/autopsy-causes/{id}",
+		get(patient_sub_rest::get_autopsy_cause_of_death)
+			.put(patient_sub_rest::update_autopsy_cause_of_death)
+			.delete(patient_sub_rest::delete_autopsy_cause_of_death),
+	)
+	// Parent Information (collection per patient) - D.10
+	.route(
+		"/cases/{case_id}/patient/parents",
+		get(patient_sub_rest::list_parent_information)
+			.post(patient_sub_rest::create_parent_information),
+	)
+	.route(
+		"/cases/{case_id}/patient/parents/{id}",
+		get(patient_sub_rest::get_parent_information)
+			.put(patient_sub_rest::update_parent_information)
+			.delete(patient_sub_rest::delete_parent_information),
+	)
 	// Reactions (collection per case)
 	.route(
 		"/cases/{case_id}/reactions",
@@ -66,6 +143,42 @@ pub fn routes_cases(mm: ModelManager) -> Router {
 			.put(drug_rest::update_drug_information)
 			.delete(drug_rest::delete_drug_information),
 	)
+	// Drug Active Substances (collection per drug) - G.k.2.3.r
+	.route(
+		"/cases/{case_id}/drugs/{drug_id}/active-substances",
+		get(drug_sub_rest::list_drug_active_substances)
+			.post(drug_sub_rest::create_drug_active_substance),
+	)
+	.route(
+		"/cases/{case_id}/drugs/{drug_id}/active-substances/{id}",
+		get(drug_sub_rest::get_drug_active_substance)
+			.put(drug_sub_rest::update_drug_active_substance)
+			.delete(drug_sub_rest::delete_drug_active_substance),
+	)
+	// Dosage Information (collection per drug) - G.k.4.r
+	.route(
+		"/cases/{case_id}/drugs/{drug_id}/dosages",
+		get(drug_sub_rest::list_dosage_information)
+			.post(drug_sub_rest::create_dosage_information),
+	)
+	.route(
+		"/cases/{case_id}/drugs/{drug_id}/dosages/{id}",
+		get(drug_sub_rest::get_dosage_information)
+			.put(drug_sub_rest::update_dosage_information)
+			.delete(drug_sub_rest::delete_dosage_information),
+	)
+	// Drug Indications (collection per drug) - G.k.6.r
+	.route(
+		"/cases/{case_id}/drugs/{drug_id}/indications",
+		get(drug_sub_rest::list_drug_indications)
+			.post(drug_sub_rest::create_drug_indication),
+	)
+	.route(
+		"/cases/{case_id}/drugs/{drug_id}/indications/{id}",
+		get(drug_sub_rest::get_drug_indication)
+			.put(drug_sub_rest::update_drug_indication)
+			.delete(drug_sub_rest::delete_drug_indication),
+	)
 	// Drug-Reaction Assessments (collection per drug) - G.k.9.i
 	.route(
 		"/cases/{case_id}/drugs/{drug_id}/reaction-assessments",
@@ -77,6 +190,18 @@ pub fn routes_cases(mm: ModelManager) -> Router {
 		get(drug_reaction_assessment_rest::get_drug_reaction_assessment)
 			.put(drug_reaction_assessment_rest::update_drug_reaction_assessment)
 			.delete(drug_reaction_assessment_rest::delete_drug_reaction_assessment),
+	)
+	// Relatedness Assessments (collection per reaction assessment) - G.k.9.i.2.r
+	.route(
+		"/cases/{case_id}/drugs/{drug_id}/reaction-assessments/{assessment_id}/relatedness",
+		get(relatedness_assessment_rest::list_relatedness_assessments)
+			.post(relatedness_assessment_rest::create_relatedness_assessment),
+	)
+	.route(
+		"/cases/{case_id}/drugs/{drug_id}/reaction-assessments/{assessment_id}/relatedness/{id}",
+		get(relatedness_assessment_rest::get_relatedness_assessment)
+			.put(relatedness_assessment_rest::update_relatedness_assessment)
+			.delete(relatedness_assessment_rest::delete_relatedness_assessment),
 	)
 	// Drug Recurrences (collection per drug) - G.k.8.r
 	.route(
@@ -110,6 +235,30 @@ pub fn routes_cases(mm: ModelManager) -> Router {
 			.put(narrative_rest::update_narrative_information)
 			.delete(narrative_rest::delete_narrative_information),
 	)
+	// Sender Diagnoses (collection per narrative) - H.3.r
+	.route(
+		"/cases/{case_id}/narrative/sender-diagnoses",
+		get(narrative_sub_rest::list_sender_diagnoses)
+			.post(narrative_sub_rest::create_sender_diagnosis),
+	)
+	.route(
+		"/cases/{case_id}/narrative/sender-diagnoses/{id}",
+		get(narrative_sub_rest::get_sender_diagnosis)
+			.put(narrative_sub_rest::update_sender_diagnosis)
+			.delete(narrative_sub_rest::delete_sender_diagnosis),
+	)
+	// Case Summary Information (collection per narrative) - H.5.r
+	.route(
+		"/cases/{case_id}/narrative/summaries",
+		get(narrative_sub_rest::list_case_summary_information)
+			.post(narrative_sub_rest::create_case_summary_information),
+	)
+	.route(
+		"/cases/{case_id}/narrative/summaries/{id}",
+		get(narrative_sub_rest::get_case_summary_information)
+			.put(narrative_sub_rest::update_case_summary_information)
+			.delete(narrative_sub_rest::delete_case_summary_information),
+	)
 	// Message Header (singleton per case)
 	.route(
 		"/cases/{case_id}/message-header",
@@ -125,6 +274,66 @@ pub fn routes_cases(mm: ModelManager) -> Router {
 			.post(safety_report_rest::create_safety_report_identification)
 			.put(safety_report_rest::update_safety_report_identification)
 			.delete(safety_report_rest::delete_safety_report_identification),
+	)
+	// Sender Information (collection per case) - C.3.x
+	.route(
+		"/cases/{case_id}/safety-report/senders",
+		get(safety_report_sub_rest::list_sender_information)
+			.post(safety_report_sub_rest::create_sender_information),
+	)
+	.route(
+		"/cases/{case_id}/safety-report/senders/{id}",
+		get(safety_report_sub_rest::get_sender_information)
+			.put(safety_report_sub_rest::update_sender_information)
+			.delete(safety_report_sub_rest::delete_sender_information),
+	)
+	// Primary Sources (collection per case) - C.2.r
+	.route(
+		"/cases/{case_id}/safety-report/primary-sources",
+		get(safety_report_sub_rest::list_primary_sources)
+			.post(safety_report_sub_rest::create_primary_source),
+	)
+	.route(
+		"/cases/{case_id}/safety-report/primary-sources/{id}",
+		get(safety_report_sub_rest::get_primary_source)
+			.put(safety_report_sub_rest::update_primary_source)
+			.delete(safety_report_sub_rest::delete_primary_source),
+	)
+	// Literature References (collection per case) - C.4.r
+	.route(
+		"/cases/{case_id}/safety-report/literature",
+		get(safety_report_sub_rest::list_literature_references)
+			.post(safety_report_sub_rest::create_literature_reference),
+	)
+	.route(
+		"/cases/{case_id}/safety-report/literature/{id}",
+		get(safety_report_sub_rest::get_literature_reference)
+			.put(safety_report_sub_rest::update_literature_reference)
+			.delete(safety_report_sub_rest::delete_literature_reference),
+	)
+	// Study Information (collection per case) - C.5
+	.route(
+		"/cases/{case_id}/safety-report/studies",
+		get(safety_report_sub_rest::list_study_information)
+			.post(safety_report_sub_rest::create_study_information),
+	)
+	.route(
+		"/cases/{case_id}/safety-report/studies/{id}",
+		get(safety_report_sub_rest::get_study_information)
+			.put(safety_report_sub_rest::update_study_information)
+			.delete(safety_report_sub_rest::delete_study_information),
+	)
+	// Study Registration Numbers (collection per study) - C.5.1.r
+	.route(
+		"/cases/{case_id}/safety-report/studies/{study_id}/registrations",
+		get(safety_report_sub_rest::list_study_registration_numbers)
+			.post(safety_report_sub_rest::create_study_registration_number),
+	)
+	.route(
+		"/cases/{case_id}/safety-report/studies/{study_id}/registrations/{id}",
+		get(safety_report_sub_rest::get_study_registration_number)
+			.put(safety_report_sub_rest::update_study_registration_number)
+			.delete(safety_report_sub_rest::delete_study_registration_number),
 	)
 	// Receiver (singleton per case) - Section A
 	.route(
@@ -206,15 +415,21 @@ pub fn routes_organizations(mm: ModelManager) -> Router {
 
 /// Routes for /api/users
 pub fn routes_users(mm: ModelManager) -> Router {
-	rest_collection_item_routes(
-		"/users",
-		"/users/{id}",
-		get(user_rest::list_users).post(user_rest::create_user),
-		get(user_rest::get_user)
-			.put(user_rest::update_user)
-			.delete(user_rest::delete_user),
-	)
-	.with_state(mm)
+	Router::new()
+		// GET /api/users/me - must be before /users/{id} to avoid matching
+		.route("/users/me", get(user_rest::get_current_user))
+		// Standard collection routes
+		.route(
+			"/users",
+			get(user_rest::list_users).post(user_rest::create_user),
+		)
+		.route(
+			"/users/{id}",
+			get(user_rest::get_user)
+				.put(user_rest::update_user)
+				.delete(user_rest::delete_user),
+		)
+		.with_state(mm)
 }
 
 /// Routes for /api/terminology

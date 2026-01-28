@@ -32,3 +32,6 @@ derive_more = { workspace = true }
 
 [dev-dependencies]
 httpc-test = "0.1"
+serial_test = "3"
+tower = "0.5"
+sqlx = { workspace = true }

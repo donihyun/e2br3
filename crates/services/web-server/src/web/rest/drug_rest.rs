@@ -1,3 +1,6 @@
+use lib_core::model::acs::{
+	DRUG_CREATE, DRUG_DELETE, DRUG_LIST, DRUG_READ, DRUG_UPDATE,
+};
 use lib_core::model::drug::{
 	DrugInformationBmc, DrugInformationForCreate, DrugInformationForUpdate,
 };
@@ -14,5 +17,10 @@ generate_case_rest_fns! {
 	Entity: lib_core::model::drug::DrugInformation,
 	ForCreate: DrugInformationForCreate,
 	ForUpdate: DrugInformationForUpdate,
-	Suffix: drug_information
+	Suffix: drug_information,
+	PermCreate: DRUG_CREATE,
+	PermRead: DRUG_READ,
+	PermUpdate: DRUG_UPDATE,
+	PermDelete: DRUG_DELETE,
+	PermList: DRUG_LIST
 }

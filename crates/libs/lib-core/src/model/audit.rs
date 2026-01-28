@@ -2,7 +2,6 @@
 
 use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
-use crate::model::store::dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::filter::{FilterNodes, ListOptions, OpValsString};
@@ -82,15 +81,17 @@ impl CaseVersionBmc {
 		let user_id = ctx.user_id();
 		let sql = "INSERT INTO case_versions (case_id, version, snapshot, change_reason, changed_by) VALUES ($1, $2, $3, $4, $5) RETURNING id";
 
-		let (id,) = sqlx::query_as::<_, (Uuid,)>(sql)
-			.bind(version_c.case_id)
-			.bind(version_c.version)
-			.bind(version_c.snapshot)
-			.bind(version_c.change_reason)
-			.bind(user_id)
-			.fetch_one(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?;
+		let (id,) = mm
+			.dbx()
+			.fetch_one(
+				sqlx::query_as::<_, (Uuid,)>(sql)
+					.bind(version_c.case_id)
+					.bind(version_c.version)
+					.bind(version_c.snapshot)
+					.bind(version_c.change_reason)
+					.bind(user_id),
+			)
+			.await?;
 
 		Ok(id)
 	}
@@ -104,11 +105,10 @@ impl CaseVersionBmc {
 			"SELECT * FROM {} WHERE case_id = $1 ORDER BY version DESC",
 			Self::TABLE
 		);
-		let versions = sqlx::query_as::<_, CaseVersion>(&sql)
-			.bind(case_id)
-			.fetch_all(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?;
+		let versions = mm
+			.dbx()
+			.fetch_all(sqlx::query_as::<_, CaseVersion>(&sql).bind(case_id))
+			.await?;
 		Ok(versions)
 	}
 }
@@ -127,18 +127,20 @@ impl AuditLogBmc {
 		let user_id = ctx.user_id();
 		let sql = "INSERT INTO audit_logs (table_name, record_id, action, user_id, old_values, new_values, ip_address, user_agent) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id";
 
-		let (id,) = sqlx::query_as::<_, (i64,)>(sql)
-			.bind(audit_c.table_name)
-			.bind(audit_c.record_id)
-			.bind(audit_c.action)
-			.bind(user_id)
-			.bind(audit_c.old_values)
-			.bind(audit_c.new_values)
-			.bind(audit_c.ip_address)
-			.bind(audit_c.user_agent)
-			.fetch_one(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?;
+		let (id,) = mm
+			.dbx()
+			.fetch_one(
+				sqlx::query_as::<_, (i64,)>(sql)
+					.bind(audit_c.table_name)
+					.bind(audit_c.record_id)
+					.bind(audit_c.action)
+					.bind(user_id)
+					.bind(audit_c.old_values)
+					.bind(audit_c.new_values)
+					.bind(audit_c.ip_address)
+					.bind(audit_c.user_agent),
+			)
+			.await?;
 
 		Ok(id)
 	}
@@ -151,10 +153,10 @@ impl AuditLogBmc {
 	) -> Result<Vec<AuditLog>> {
 		// Simple implementation - can be enhanced with filters later
 		let sql = "SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 1000";
-		let logs = sqlx::query_as::<_, AuditLog>(sql)
-			.fetch_all(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?;
+		let logs = mm
+			.dbx()
+			.fetch_all(sqlx::query_as::<_, AuditLog>(sql))
+			.await?;
 		Ok(logs)
 	}
 
@@ -168,12 +170,14 @@ impl AuditLogBmc {
 			"SELECT * FROM {} WHERE table_name = $1 AND record_id = $2 ORDER BY created_at DESC",
 			Self::TABLE
 		);
-		let logs = sqlx::query_as::<_, AuditLog>(&sql)
-			.bind(table_name)
-			.bind(record_id)
-			.fetch_all(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?;
+		let logs = mm
+			.dbx()
+			.fetch_all(
+				sqlx::query_as::<_, AuditLog>(&sql)
+					.bind(table_name)
+					.bind(record_id),
+			)
+			.await?;
 		Ok(logs)
 	}
 }

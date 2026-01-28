@@ -1,19 +1,29 @@
 mod common;
 
-use common::{demo_org_id, demo_user_id, init_test_mm, unique_suffix, Result};
+use common::{
+	begin_test_ctx, commit_test_ctx, demo_ctx, demo_org_id, demo_user_id,
+	init_test_mm, rollback_test_ctx, set_current_user, unique_suffix, Result,
+};
 use lib_auth::pwd::{self, ContentToHash};
-use lib_core::ctx::Ctx;
 use lib_core::model::user::{
 	User, UserBmc, UserForCreate, UserForLogin, UserForUpdate,
 };
 use lib_core::model::Error as ModelError;
+use lib_core::model::ModelManager;
 use serial_test::serial;
+
+async fn begin_user_test(mm: &ModelManager) -> Result<lib_core::ctx::Ctx> {
+	let ctx = demo_ctx();
+	set_current_user(mm, demo_user_id()).await?;
+	begin_test_ctx(mm, &ctx).await?;
+	Ok(ctx)
+}
 
 #[serial]
 #[tokio::test]
 async fn test_user_create_ok() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = begin_user_test(&mm).await?;
 	let suffix = unique_suffix();
 	let fx_username = format!("test_create_ok-user-01-{suffix}");
 	let fx_pwd_clear = "test_create_ok pwd 01";
@@ -39,7 +49,7 @@ async fn test_user_create_ok() -> Result<()> {
 	assert!(users.iter().any(|u| u.id == user_id));
 
 	UserBmc::delete(&ctx, &mm, user_id).await?;
-
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -47,7 +57,7 @@ async fn test_user_create_ok() -> Result<()> {
 #[tokio::test]
 async fn test_user_create_duplicate_email() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = begin_user_test(&mm).await?;
 	let suffix = unique_suffix();
 	let fx_username_1 = format!("test_create_dup_email-user-01-{suffix}");
 	let fx_username_2 = format!("test_create_dup_email-user-02-{suffix}");
@@ -72,6 +82,8 @@ async fn test_user_create_duplicate_email() -> Result<()> {
 	};
 
 	let user_id_1 = UserBmc::create(&ctx, &mm, user_c_1).await?;
+	commit_test_ctx(&mm).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let user_id_2 = UserBmc::create(&ctx, &mm, user_c_2).await;
 
 	match user_id_2 {
@@ -82,8 +94,10 @@ async fn test_user_create_duplicate_email() -> Result<()> {
 		Ok(_) => return Err("expected duplicate email error".into()),
 	}
 
+	rollback_test_ctx(&mm).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	UserBmc::delete(&ctx, &mm, user_id_1).await?;
-
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -91,7 +105,7 @@ async fn test_user_create_duplicate_email() -> Result<()> {
 #[tokio::test]
 async fn test_user_update_pwd_ok() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = begin_user_test(&mm).await?;
 	let suffix = unique_suffix();
 	let fx_username = format!("test_update_pwd-user-01-{suffix}");
 	let fx_pwd_clear_1 = "test_update_pwd pwd 01";
@@ -125,6 +139,7 @@ async fn test_user_update_pwd_ok() -> Result<()> {
 	));
 
 	UserBmc::delete(&ctx, &mm, user_id).await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -132,7 +147,7 @@ async fn test_user_update_pwd_ok() -> Result<()> {
 #[tokio::test]
 async fn test_user_first_by_email_seeded() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = begin_user_test(&mm).await?;
 	let fx_email = "demo.user@example.com";
 	let user: UserForLogin = UserBmc::first_by_email(&ctx, &mm, fx_email)
 		.await?
@@ -140,6 +155,7 @@ async fn test_user_first_by_email_seeded() -> Result<()> {
 
 	assert_eq!(user.id, demo_user_id());
 	assert_eq!(user.email, fx_email);
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -147,7 +163,7 @@ async fn test_user_first_by_email_seeded() -> Result<()> {
 #[tokio::test]
 async fn test_user_update_ok() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = begin_user_test(&mm).await?;
 	let suffix = unique_suffix();
 	let fx_username = format!("test_update-user-01-{suffix}");
 	let fx_email = format!("{fx_username}@example.com");
@@ -179,5 +195,6 @@ async fn test_user_update_ok() -> Result<()> {
 	assert!(!user.active);
 
 	UserBmc::delete(&ctx, &mm, user_id).await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }

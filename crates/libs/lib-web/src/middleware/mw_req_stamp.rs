@@ -9,7 +9,6 @@ use lib_utils::time::now_utc;
 use time::OffsetDateTime;
 use tracing::debug;
 use uuid::Uuid;
-
 #[derive(Debug, Clone)]
 pub struct ReqStamp {
 	pub uuid: Uuid,

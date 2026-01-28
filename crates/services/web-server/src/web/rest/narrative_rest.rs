@@ -1,3 +1,6 @@
+use lib_core::model::acs::{
+	NARRATIVE_CREATE, NARRATIVE_DELETE, NARRATIVE_READ, NARRATIVE_UPDATE,
+};
 use lib_core::model::narrative::{
 	NarrativeInformationBmc, NarrativeInformationForCreate,
 	NarrativeInformationForUpdate,
@@ -14,5 +17,9 @@ generate_case_single_rest_fns! {
 	Entity: lib_core::model::narrative::NarrativeInformation,
 	ForCreate: NarrativeInformationForCreate,
 	ForUpdate: NarrativeInformationForUpdate,
-	Suffix: narrative_information
+	Suffix: narrative_information,
+	PermCreate: NARRATIVE_CREATE,
+	PermRead: NARRATIVE_READ,
+	PermUpdate: NARRATIVE_UPDATE,
+	PermDelete: NARRATIVE_DELETE
 }

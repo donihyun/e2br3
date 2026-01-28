@@ -3,13 +3,14 @@
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
+use lib_core::model::acs::TERMINOLOGY_READ;
 use lib_core::model::terminology::{
 	E2bCodeList, E2bCodeListBmc, IsoCountry, IsoCountryBmc, MeddraTerm,
 	MeddraTermBmc, WhodrugProduct, WhodrugProductBmc,
 };
 use lib_core::model::ModelManager;
 use lib_rest_core::rest_result::DataRestResult;
-use lib_rest_core::Result;
+use lib_rest_core::{require_permission, Result};
 use lib_web::middleware::mw_auth::CtxW;
 use serde::Deserialize;
 
@@ -38,6 +39,7 @@ pub async fn search_meddra(
 	Query(params): Query<TerminologySearchParams>,
 ) -> Result<(StatusCode, Json<DataRestResult<Vec<MeddraTerm>>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, TERMINOLOGY_READ)?;
 	tracing::debug!(
 		"{:<12} - rest search_meddra q={} limit={}",
 		"HANDLER",
@@ -65,6 +67,7 @@ pub async fn search_whodrug(
 	Query(params): Query<TerminologySearchParams>,
 ) -> Result<(StatusCode, Json<DataRestResult<Vec<WhodrugProduct>>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, TERMINOLOGY_READ)?;
 	tracing::debug!(
 		"{:<12} - rest search_whodrug q={} limit={}",
 		"HANDLER",
@@ -85,6 +88,7 @@ pub async fn list_countries(
 	ctx_w: CtxW,
 ) -> Result<(StatusCode, Json<DataRestResult<Vec<IsoCountry>>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, TERMINOLOGY_READ)?;
 	tracing::debug!("{:<12} - rest list_countries", "HANDLER");
 
 	let countries = IsoCountryBmc::list_all(&ctx, &mm).await?;
@@ -100,6 +104,7 @@ pub async fn get_code_list(
 	Query(params): Query<CodeListParams>,
 ) -> Result<(StatusCode, Json<DataRestResult<Vec<E2bCodeList>>>)> {
 	let ctx = ctx_w.0;
+	require_permission(&ctx, TERMINOLOGY_READ)?;
 	tracing::debug!(
 		"{:<12} - rest get_code_list list_name={}",
 		"HANDLER",

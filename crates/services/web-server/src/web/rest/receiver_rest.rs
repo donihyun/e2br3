@@ -1,3 +1,6 @@
+use lib_core::model::acs::{
+	RECEIVER_CREATE, RECEIVER_DELETE, RECEIVER_READ, RECEIVER_UPDATE,
+};
 use lib_core::model::receiver::{
 	ReceiverInformationBmc, ReceiverInformationForCreate,
 	ReceiverInformationForUpdate,
@@ -14,5 +17,9 @@ generate_case_single_rest_fns! {
 	Entity: lib_core::model::receiver::ReceiverInformation,
 	ForCreate: ReceiverInformationForCreate,
 	ForUpdate: ReceiverInformationForUpdate,
-	Suffix: receiver
+	Suffix: receiver,
+	PermCreate: RECEIVER_CREATE,
+	PermRead: RECEIVER_READ,
+	PermUpdate: RECEIVER_UPDATE,
+	PermDelete: RECEIVER_DELETE
 }

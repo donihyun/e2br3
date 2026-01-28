@@ -6,7 +6,6 @@ use crate::core_config;
 use crate::model::Error;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres, Transaction};
-use std::env;
 use uuid::Uuid;
 
 // endregion: --- Modules
@@ -21,29 +20,9 @@ pub async fn new_db_pool() -> sqlx::Result<Db> {
 		.max_connections(max_connections)
 		.after_connect(|conn, _meta| {
 			Box::pin(async move {
-				if let Ok(user_id) = env::var("E2BR3_TEST_CURRENT_USER_ID") {
-					sqlx::query(
-						"SELECT set_config('app.current_user_id', $1, false)",
-					)
-					.bind(user_id)
+				sqlx::query("SET ROLE e2br3_app_role")
 					.execute(&mut *conn)
 					.await?;
-				}
-				if let Ok(role) = env::var("E2BR3_DB_ROLE") {
-					if !role.is_empty() && is_safe_role_name(&role) {
-						let sql = format!("SET ROLE {role}");
-						if let Err(err) = sqlx::query(&sql).execute(&mut *conn).await
-						{
-							if should_ignore_role_set_error(&err) {
-								println!(
-									"db warning: skipping SET ROLE due to missing/permission error: {role}"
-								);
-							} else {
-								return Err(err);
-							}
-						}
-					}
-				}
 				Ok(())
 			})
 		})
@@ -85,6 +64,78 @@ pub async fn set_user_context_dbx(
 	Ok(())
 }
 
+// region:    --- Organization Context for RLS
+
+/// Sets the organization context for Row-Level Security (RLS).
+/// This enables the database to enforce organization isolation.
+///
+/// Call this at the start of each request to set up RLS context.
+#[allow(dead_code)]
+pub async fn set_org_context(
+	tx: &mut Transaction<'_, Postgres>,
+	organization_id: Uuid,
+	role: &str,
+) -> Result<(), Error> {
+	sqlx::query("SELECT set_org_context($1, $2)")
+		.bind(organization_id)
+		.bind(role)
+		.execute(&mut **tx)
+		.await
+		.map_err(|e| Error::Store(format!("Failed to set org context: {e}")))?;
+
+	Ok(())
+}
+
+/// Sets the organization context using Dbx (for non-transactional queries).
+#[allow(dead_code)]
+pub async fn set_org_context_dbx(
+	dbx: &dbx::Dbx,
+	organization_id: Uuid,
+	role: &str,
+) -> Result<(), Error> {
+	let query = sqlx::query("SELECT set_org_context($1, $2)")
+		.bind(organization_id)
+		.bind(role);
+	dbx.execute(query)
+		.await
+		.map_err(|e| Error::Store(format!("Failed to set org context: {e}")))?;
+
+	Ok(())
+}
+
+/// Sets both user context (for audit trail) and organization context (for RLS).
+/// This is the recommended function to call at the start of each request.
+#[allow(dead_code)]
+pub async fn set_full_context_dbx(
+	dbx: &dbx::Dbx,
+	user_id: Uuid,
+	organization_id: Uuid,
+	role: &str,
+) -> Result<(), Error> {
+	// Set user context for audit trail
+	set_user_context_dbx(dbx, user_id).await?;
+	// Set organization context for RLS
+	set_org_context_dbx(dbx, organization_id, role).await?;
+	Ok(())
+}
+
+/// Sets full context, rolling back the active transaction if it fails.
+pub async fn set_full_context_dbx_or_rollback(
+	dbx: &dbx::Dbx,
+	user_id: Uuid,
+	organization_id: Uuid,
+	role: &str,
+) -> Result<(), Error> {
+	if let Err(err) = set_full_context_dbx(dbx, user_id, organization_id, role).await
+	{
+		let _ = dbx.rollback_txn().await;
+		return Err(err);
+	}
+	Ok(())
+}
+
+// endregion: --- Organization Context for RLS
+
 /// Gets the current user context from PostgreSQL session.
 /// Used for verification and debugging purposes.
 #[allow(dead_code)]
@@ -100,26 +151,6 @@ pub async fn get_user_context(
 }
 
 // endregion: --- User Context Helpers
-
-fn is_safe_role_name(role: &str) -> bool {
-	role.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-}
-
-fn should_ignore_role_set_error(err: &sqlx::Error) -> bool {
-	let strict = env::var("E2BR3_DB_ROLE_STRICT")
-		.map(|v| v == "1")
-		.unwrap_or(false);
-	if strict {
-		return false;
-	}
-
-	match err {
-		sqlx::Error::Database(db_err) => {
-			matches!(db_err.code().as_deref(), Some("42704") | Some("42501"))
-		}
-		_ => false,
-	}
-}
 
 // NOTE 1) This is not an ideal situation; however, with sqlx 0.7.1, when executing `cargo test`, some tests that use sqlx fail at a
 //         rather low level (in the tokio scheduler). It appears to be a low-level thread/async issue, as removing/adding

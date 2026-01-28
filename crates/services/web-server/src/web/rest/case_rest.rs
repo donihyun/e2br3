@@ -1,3 +1,6 @@
+use lib_core::model::acs::{
+	CASE_CREATE, CASE_DELETE, CASE_LIST, CASE_READ, CASE_UPDATE,
+};
 use lib_core::model::case::{CaseBmc, CaseFilter, CaseForCreate, CaseForUpdate};
 use lib_rest_core::prelude::*;
 
@@ -13,5 +16,10 @@ generate_common_rest_fns! {
 	ForCreate: CaseForCreate,
 	ForUpdate: CaseForUpdate,
 	Filter: CaseFilter,
-	Suffix: case
+	Suffix: case,
+	PermCreate: CASE_CREATE,
+	PermRead: CASE_READ,
+	PermUpdate: CASE_UPDATE,
+	PermDelete: CASE_DELETE,
+	PermList: CASE_LIST
 }

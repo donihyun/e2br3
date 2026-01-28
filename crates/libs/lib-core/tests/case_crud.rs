@@ -1,10 +1,9 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
-	Result,
+	begin_test_ctx, commit_test_ctx, create_case_fixture, demo_ctx, demo_org_id,
+	demo_user_id, init_test_mm, set_current_user, Result,
 };
-use lib_core::ctx::Ctx;
 use lib_core::model::case::{CaseBmc, CaseForUpdate};
 use serial_test::serial;
 
@@ -12,9 +11,10 @@ use serial_test::serial;
 #[tokio::test]
 async fn test_case_crud() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	let case = CaseBmc::get(&ctx, &mm, case_id).await?;
@@ -34,5 +34,6 @@ async fn test_case_crud() -> Result<()> {
 	assert_eq!(case.status, "validated");
 
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }

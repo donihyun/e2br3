@@ -3,7 +3,8 @@
 use crate::ctx::Ctx;
 use crate::model::base::base_uuid;
 use crate::model::base::DbBmc;
-use crate::model::store::{dbx, set_user_context};
+use crate::model::modql_utils::uuid_to_sea_value;
+use crate::model::store::set_full_context_dbx_or_rollback;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -129,6 +130,7 @@ pub struct DrugActiveSubstanceForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct DrugActiveSubstanceFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub drug_id: Option<OpValsValue>,
 	pub sequence_number: Option<OpValsValue>,
 }
@@ -214,6 +216,7 @@ pub struct DosageInformationForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct DosageInformationFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub drug_id: Option<OpValsValue>,
 	pub sequence_number: Option<OpValsValue>,
 }
@@ -256,6 +259,7 @@ pub struct DrugIndicationForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct DrugIndicationFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub drug_id: Option<OpValsValue>,
 	pub sequence_number: Option<OpValsValue>,
 }
@@ -273,9 +277,14 @@ impl DrugInformationBmc {
 		mm: &ModelManager,
 		drug_c: DrugInformationForCreate,
 	) -> Result<Uuid> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql = format!(
 			"INSERT INTO {} (case_id, sequence_number, drug_characterization, medicinal_product, created_at, updated_at, created_by)
@@ -283,17 +292,19 @@ impl DrugInformationBmc {
 			 RETURNING id",
 			Self::TABLE
 		);
-		let id: Uuid = sqlx::query_scalar(&sql)
-			.bind(drug_c.case_id)
-			.bind(drug_c.sequence_number)
-			.bind(drug_c.drug_characterization)
-			.bind(drug_c.medicinal_product)
-			.bind(ctx.user_id())
-			.fetch_one(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
+		let (id,) = mm
+			.dbx()
+			.fetch_one(
+				sqlx::query_as::<_, (Uuid,)>(&sql)
+					.bind(drug_c.case_id)
+					.bind(drug_c.sequence_number)
+					.bind(drug_c.drug_characterization)
+					.bind(drug_c.medicinal_product)
+					.bind(ctx.user_id()),
+			)
+			.await?;
 
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(id)
 	}
 
@@ -303,11 +314,10 @@ impl DrugInformationBmc {
 		id: Uuid,
 	) -> Result<DrugInformation> {
 		let sql = format!("SELECT * FROM {} WHERE id = $1", Self::TABLE);
-		let drug = sqlx::query_as::<_, DrugInformation>(&sql)
-			.bind(id)
-			.fetch_optional(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?
+		let drug = mm
+			.dbx()
+			.fetch_optional(sqlx::query_as::<_, DrugInformation>(&sql).bind(id))
+			.await?
 			.ok_or(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
@@ -321,9 +331,14 @@ impl DrugInformationBmc {
 		id: Uuid,
 		drug_u: DrugInformationForUpdate,
 	) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -338,25 +353,28 @@ impl DrugInformationBmc {
 			 WHERE id = $1",
 			Self::TABLE
 		);
-		let result = sqlx::query(&sql)
-			.bind(id)
-			.bind(drug_u.medicinal_product)
-			.bind(drug_u.drug_characterization)
-			.bind(drug_u.brand_name)
-			.bind(drug_u.manufacturer_name)
-			.bind(drug_u.batch_lot_number)
-			.bind(drug_u.action_taken)
-			.bind(ctx.user_id())
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		if result.rows_affected() == 0 {
+		let result = mm
+			.dbx()
+			.execute(
+				sqlx::query(&sql)
+					.bind(id)
+					.bind(drug_u.medicinal_product)
+					.bind(drug_u.drug_characterization)
+					.bind(drug_u.brand_name)
+					.bind(drug_u.manufacturer_name)
+					.bind(drug_u.batch_lot_number)
+					.bind(drug_u.action_taken)
+					.bind(ctx.user_id()),
+			)
+			.await?;
+		if result == 0 {
+			mm.dbx().rollback_txn().await?;
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 
@@ -369,11 +387,10 @@ impl DrugInformationBmc {
 			"SELECT * FROM {} WHERE case_id = $1 ORDER BY sequence_number",
 			Self::TABLE
 		);
-		let drugs = sqlx::query_as::<_, DrugInformation>(&sql)
-			.bind(case_id)
-			.fetch_all(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?;
+		let drugs = mm
+			.dbx()
+			.fetch_all(sqlx::query_as::<_, DrugInformation>(&sql).bind(case_id))
+			.await?;
 		Ok(drugs)
 	}
 
@@ -387,12 +404,14 @@ impl DrugInformationBmc {
 			"SELECT * FROM {} WHERE id = $1 AND case_id = $2",
 			Self::TABLE
 		);
-		let drug = sqlx::query_as::<_, DrugInformation>(&sql)
-			.bind(id)
-			.bind(case_id)
-			.fetch_optional(mm.dbx().db())
-			.await
-			.map_err(dbx::Error::from)?
+		let drug = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, DrugInformation>(&sql)
+					.bind(id)
+					.bind(case_id),
+			)
+			.await?
 			.ok_or(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
@@ -407,9 +426,14 @@ impl DrugInformationBmc {
 		id: Uuid,
 		drug_u: DrugInformationForUpdate,
 	) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -424,47 +448,52 @@ impl DrugInformationBmc {
 			 WHERE id = $1 AND case_id = $2",
 			Self::TABLE
 		);
-		let result = sqlx::query(&sql)
-			.bind(id)
-			.bind(case_id)
-			.bind(drug_u.medicinal_product)
-			.bind(drug_u.drug_characterization)
-			.bind(drug_u.brand_name)
-			.bind(drug_u.manufacturer_name)
-			.bind(drug_u.batch_lot_number)
-			.bind(drug_u.action_taken)
-			.bind(ctx.user_id())
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		if result.rows_affected() == 0 {
+		let result = mm
+			.dbx()
+			.execute(
+				sqlx::query(&sql)
+					.bind(id)
+					.bind(case_id)
+					.bind(drug_u.medicinal_product)
+					.bind(drug_u.drug_characterization)
+					.bind(drug_u.brand_name)
+					.bind(drug_u.manufacturer_name)
+					.bind(drug_u.batch_lot_number)
+					.bind(drug_u.action_taken)
+					.bind(ctx.user_id()),
+			)
+			.await?;
+		if result == 0 {
+			mm.dbx().rollback_txn().await?;
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 
 	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql = format!("DELETE FROM {} WHERE id = $1", Self::TABLE);
-		let result = sqlx::query(&sql)
-			.bind(id)
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		if result.rows_affected() == 0 {
+		let result = mm.dbx().execute(sqlx::query(&sql).bind(id)).await?;
+		if result == 0 {
+			mm.dbx().rollback_txn().await?;
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 
@@ -474,25 +503,29 @@ impl DrugInformationBmc {
 		case_id: Uuid,
 		id: Uuid,
 	) -> Result<()> {
-		let db = mm.dbx().db();
-		let mut tx = db.begin().await.map_err(dbx::Error::from)?;
-		set_user_context(&mut tx, ctx.user_id()).await?;
+		mm.dbx().begin_txn().await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql =
 			format!("DELETE FROM {} WHERE id = $1 AND case_id = $2", Self::TABLE);
-		let result = sqlx::query(&sql)
-			.bind(id)
-			.bind(case_id)
-			.execute(&mut *tx)
-			.await
-			.map_err(dbx::Error::from)?;
-		if result.rows_affected() == 0 {
+		let result = mm
+			.dbx()
+			.execute(sqlx::query(&sql).bind(id).bind(case_id))
+			.await?;
+		if result == 0 {
+			mm.dbx().rollback_txn().await?;
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
 			});
 		}
-		tx.commit().await.map_err(dbx::Error::from)?;
+		mm.dbx().commit_txn().await?;
 		Ok(())
 	}
 }

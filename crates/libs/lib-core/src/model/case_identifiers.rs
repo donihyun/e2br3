@@ -4,6 +4,7 @@
 use crate::ctx::Ctx;
 use crate::model::base::base_uuid;
 use crate::model::base::DbBmc;
+use crate::model::modql_utils::uuid_to_sea_value;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -51,6 +52,7 @@ pub struct OtherCaseIdentifierForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct OtherCaseIdentifierFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub case_id: Option<OpValsValue>,
 	pub sequence_number: Option<OpValsValue>,
 }
@@ -88,6 +90,7 @@ pub struct LinkedReportNumberForUpdate {
 
 #[derive(FilterNodes, Deserialize, Default)]
 pub struct LinkedReportNumberFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub case_id: Option<OpValsValue>,
 	pub sequence_number: Option<OpValsValue>,
 }

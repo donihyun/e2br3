@@ -33,6 +33,13 @@ pub enum Error {
 	AccessDenied {
 		required_role: String,
 	},
+	PermissionDenied {
+		required_permission: String,
+	},
+	OrganizationAccessDenied {
+		user_org: Uuid,
+		resource_org: Uuid,
+	},
 
 	// -- CtxExtError
 	#[from]
@@ -115,11 +122,30 @@ impl Error {
 					required_role: required_role.clone(),
 				},
 			),
+			PermissionDenied {
+				required_permission,
+			} => (
+				StatusCode::FORBIDDEN,
+				ClientError::PERMISSION_DENIED {
+					required_permission: required_permission.clone(),
+				},
+			),
+			OrganizationAccessDenied { .. } => (
+				StatusCode::FORBIDDEN,
+				ClientError::ORGANIZATION_ACCESS_DENIED,
+			),
 
 			// -- Model
 			Model(model::Error::EntityNotFound { entity, id }) => (
 				StatusCode::BAD_REQUEST,
 				ClientError::ENTITY_NOT_FOUND { entity, id: *id },
+			),
+			Model(model::Error::EntityUuidNotFound { entity, id }) => (
+				StatusCode::BAD_REQUEST,
+				ClientError::ENTITY_UUID_NOT_FOUND {
+					entity,
+					id: id.to_string(),
+				},
 			),
 
 			// -- Fallback.
@@ -138,7 +164,10 @@ pub enum ClientError {
 	LOGIN_FAIL,
 	NO_AUTH,
 	ACCESS_DENIED { required_role: String },
+	PERMISSION_DENIED { required_permission: String },
+	ORGANIZATION_ACCESS_DENIED,
 	ENTITY_NOT_FOUND { entity: &'static str, id: i64 },
+	ENTITY_UUID_NOT_FOUND { entity: &'static str, id: String },
 	SERVICE_ERROR,
 }
 // endregion: --- Client Error

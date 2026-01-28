@@ -8,7 +8,7 @@ use crate::ctx::Ctx;
 use crate::model::base::{
 	prep_fields_for_create, prep_fields_for_update, CommonIden, DbBmc,
 };
-use crate::model::store::set_user_context_dbx;
+use crate::model::store::set_full_context_dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::HasSeaFields;
@@ -40,8 +40,11 @@ where
 	let dbx = mm.dbx();
 	dbx.begin_txn().await?;
 
-	// CRITICAL: Set user context for audit triggers (21 CFR Part 11 compliance)
-	if let Err(err) = set_user_context_dbx(dbx, ctx.user_id()).await {
+	// CRITICAL: Set user + org context for audit triggers and RLS
+	if let Err(err) =
+		set_full_context_dbx(dbx, ctx.user_id(), ctx.organization_id(), ctx.role())
+			.await
+	{
 		dbx.rollback_txn().await?;
 		return Err(err);
 	}
@@ -65,13 +68,7 @@ where
 	// -- Execute the query
 	let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 	let sqlx_query = sqlx::query_as_with::<_, (Uuid,), _>(&sql, values);
-	let (id,) = match dbx.fetch_one(sqlx_query).await {
-		Ok(id) => id,
-		Err(err) => {
-			dbx.rollback_txn().await?;
-			return Err(err.into());
-		}
-	};
+	let (id,) = dbx.fetch_one(sqlx_query).await?;
 
 	// Commit transaction (triggers fire before commit)
 	dbx.commit_txn().await?;
@@ -134,8 +131,11 @@ where
 	let dbx = mm.dbx();
 	dbx.begin_txn().await?;
 
-	// CRITICAL: Set user context for audit triggers (21 CFR Part 11 compliance)
-	if let Err(err) = set_user_context_dbx(dbx, ctx.user_id()).await {
+	// CRITICAL: Set user + org context for audit triggers and RLS
+	if let Err(err) =
+		set_full_context_dbx(dbx, ctx.user_id(), ctx.organization_id(), ctx.role())
+			.await
+	{
 		dbx.rollback_txn().await?;
 		return Err(err);
 	}
@@ -200,8 +200,11 @@ where
 	let dbx = mm.dbx();
 	dbx.begin_txn().await?;
 
-	// CRITICAL: Set user context for audit triggers (21 CFR Part 11 compliance)
-	if let Err(err) = set_user_context_dbx(dbx, ctx.user_id()).await {
+	// CRITICAL: Set user + org context for audit triggers and RLS
+	if let Err(err) =
+		set_full_context_dbx(dbx, ctx.user_id(), ctx.organization_id(), ctx.role())
+			.await
+	{
 		dbx.rollback_txn().await?;
 		return Err(err);
 	}

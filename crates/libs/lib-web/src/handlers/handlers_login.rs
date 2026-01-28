@@ -23,15 +23,14 @@ pub async fn api_login_handler(
 		email,
 		pwd: pwd_clear,
 	} = payload;
-	let root_ctx = Ctx::root_ctx();
-
-	// -- Get the user.
-	let user: UserForLogin = UserBmc::first_by_email(&root_ctx, &mm, &email)
-		.await?
+	// -- Get the user (set auth email in-session to satisfy RLS).
+	let user: UserForLogin = UserBmc::auth_login_by_email(&mm, &email)
+		.await
+		.map_err(Error::Model)?
 		.ok_or(Error::LoginFailEmailNotFound)?;
 	let user_id = user.id;
-	let user_ctx =
-		Ctx::new(user.id).map_err(|_| Error::LoginFailUserCtxCreate { user_id })?;
+	let user_ctx = Ctx::new(user.id, user.organization_id, user.role.clone())
+		.map_err(|_| Error::LoginFailUserCtxCreate { user_id })?;
 
 	// -- Validate the password.
 	let Some(pwd) = user.pwd else {
@@ -114,7 +113,9 @@ pub async fn api_refresh_handler(
 	let user_id = ctx.user_id();
 
 	// Get the user to refresh token
-	let user: UserForAuth = UserBmc::get(&ctx, &mm, user_id).await?;
+	let user: UserForAuth = UserBmc::get(&ctx, &mm, user_id)
+		.await
+		.map_err(Error::Model)?;
 
 	// Set new web token
 	token::set_token_cookie(&cookies, &user.email, user.token_salt)?;

@@ -260,7 +260,7 @@ $$;
 
 -- Enable Row-Level Security on audit_logs
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
-
+ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;
 -- Create application role (used by API connections)
 DO $$
 BEGIN
@@ -269,6 +269,8 @@ BEGIN
     END IF;
 END $$;
 
+GRANT e2br3_app_role TO app_user;
+
 -- Create auditor role (read-only access to audit logs)
 DO $$
 BEGIN
@@ -276,6 +278,8 @@ BEGIN
         CREATE ROLE e2br3_auditor_role;
     END IF;
 END $$;
+
+GRANT e2br3_auditor_role TO app_user;
 
 -- Policy 1: Allow INSERT only for application role (append-only)
 CREATE POLICY audit_logs_append_only ON audit_logs
@@ -304,3 +308,127 @@ GRANT USAGE ON SEQUENCE audit_logs_id_seq TO e2br3_app_role;
 GRANT EXECUTE ON FUNCTION set_current_user_context(UUID) TO e2br3_app_role;
 GRANT EXECUTE ON FUNCTION get_current_user_context() TO e2br3_app_role;
 GRANT EXECUTE ON FUNCTION validate_user_context() TO e2br3_app_role;
+
+-- ============================================================================
+-- 9. Row-Level Security for Organization Isolation (Multi-Tenancy)
+-- ============================================================================
+
+-- Function to get current organization from session
+CREATE OR REPLACE FUNCTION current_organization_id() RETURNS UUID AS $$
+BEGIN
+    RETURN NULLIF(current_setting('app.current_organization_id', true), '')::UUID;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- Function to check if current user is admin
+CREATE OR REPLACE FUNCTION is_current_user_admin() RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN COALESCE(current_setting('app.current_user_role', true), '') = 'admin';
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN false;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- Function to set the organization and role context for the current session
+CREATE OR REPLACE FUNCTION set_org_context(org_id UUID, user_role VARCHAR) RETURNS VOID AS $$
+BEGIN
+    PERFORM set_config('app.current_organization_id', org_id::TEXT, true);
+    PERFORM set_config('app.current_user_role', user_role, true);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Grant permissions for context functions
+GRANT EXECUTE ON FUNCTION current_organization_id() TO e2br3_app_role;
+GRANT EXECUTE ON FUNCTION is_current_user_admin() TO e2br3_app_role;
+GRANT EXECUTE ON FUNCTION set_org_context(UUID, VARCHAR) TO e2br3_app_role;
+
+-- Grant table access for application role (RLS will still enforce isolation)
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO e2br3_app_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO e2br3_app_role;
+
+-- ============================================================================
+-- 9.1 Cases Table RLS
+-- ============================================================================
+ALTER TABLE cases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cases FORCE ROW LEVEL SECURITY;
+CREATE POLICY cases_org_isolation ON cases
+    FOR ALL
+    TO e2br3_app_role
+    USING (
+        organization_id = current_organization_id()
+        OR is_current_user_admin()
+    )
+    WITH CHECK (
+        organization_id = current_organization_id()
+        OR is_current_user_admin()
+    );
+
+-- ============================================================================
+-- 9.2 Case Versions Table RLS
+-- ============================================================================
+ALTER TABLE case_versions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE case_versions FORCE ROW LEVEL SECURITY;
+CREATE POLICY case_versions_via_case ON case_versions
+    FOR ALL
+    TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = case_versions.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = case_versions.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- ============================================================================
+-- 9.3 Users Table RLS
+-- ============================================================================
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users FORCE ROW LEVEL SECURITY;
+-- Users can see users in their organization (or admins see all)
+CREATE POLICY users_org_isolation_select ON users
+    FOR SELECT
+    TO e2br3_app_role
+    USING (
+        organization_id = current_organization_id()
+        OR is_current_user_admin()
+        OR email = current_setting('app.auth_email', true)
+    );
+
+-- Only admins can create/update/delete users
+CREATE POLICY users_org_isolation_modify ON users
+    FOR ALL
+    TO e2br3_app_role
+    USING (is_current_user_admin())
+    WITH CHECK (is_current_user_admin());
+
+-- ============================================================================
+-- 9.4 Organizations Table RLS
+-- ============================================================================
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organizations FORCE ROW LEVEL SECURITY;
+-- Users can see their own organization (or admins see all)
+CREATE POLICY orgs_select ON organizations
+    FOR SELECT
+    TO e2br3_app_role
+    USING (
+        id = current_organization_id()
+        OR is_current_user_admin()
+    );
+
+-- Only admins can modify organizations
+CREATE POLICY orgs_modify ON organizations
+    FOR ALL
+    TO e2br3_app_role
+    USING (is_current_user_admin())
+    WITH CHECK (is_current_user_admin());

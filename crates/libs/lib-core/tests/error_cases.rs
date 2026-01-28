@@ -1,10 +1,10 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
-	unique_suffix, Result,
+	begin_test_ctx, commit_test_ctx, create_case_fixture, demo_ctx, demo_org_id,
+	demo_user_id, init_test_mm, rollback_test_ctx, set_current_user, unique_suffix,
+	Result,
 };
-use lib_core::ctx::Ctx;
 use lib_core::model::case::{CaseBmc, CaseForUpdate};
 use lib_core::model::drug::{
 	DrugInformationBmc, DrugInformationForCreate, DrugInformationForUpdate,
@@ -25,7 +25,8 @@ use sqlx::types::Uuid;
 #[tokio::test]
 async fn test_case_get_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 	let fake_id = Uuid::new_v4();
 
 	let result = CaseBmc::get(&ctx, &mm, fake_id).await;
@@ -41,6 +42,7 @@ async fn test_case_get_not_found() -> Result<()> {
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -48,7 +50,8 @@ async fn test_case_get_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_user_get_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 	let fake_id = Uuid::new_v4();
 
 	let result =
@@ -65,6 +68,7 @@ async fn test_user_get_not_found() -> Result<()> {
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -72,7 +76,8 @@ async fn test_user_get_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_organization_get_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 	let fake_id = Uuid::new_v4();
 
 	let result = OrganizationBmc::get(&ctx, &mm, fake_id).await;
@@ -88,6 +93,7 @@ async fn test_organization_get_not_found() -> Result<()> {
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -95,7 +101,8 @@ async fn test_organization_get_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_drug_information_get_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 	let fake_id = Uuid::new_v4();
 
 	let result = DrugInformationBmc::get(&ctx, &mm, fake_id).await;
@@ -111,6 +118,7 @@ async fn test_drug_information_get_not_found() -> Result<()> {
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -118,7 +126,8 @@ async fn test_drug_information_get_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_reaction_get_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 	let fake_id = Uuid::new_v4();
 
 	let result = ReactionBmc::get(&ctx, &mm, fake_id).await;
@@ -134,6 +143,7 @@ async fn test_reaction_get_not_found() -> Result<()> {
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -141,7 +151,8 @@ async fn test_reaction_get_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_patient_get_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 	let fake_id = Uuid::new_v4();
 
 	let result = PatientInformationBmc::get(&ctx, &mm, fake_id).await;
@@ -158,6 +169,7 @@ async fn test_patient_get_not_found() -> Result<()> {
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -169,10 +181,11 @@ async fn test_patient_get_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_case_update_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::new(demo_user_id())?;
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 
 	let case_u = CaseForUpdate {
 		safety_report_id: None,
@@ -194,6 +207,7 @@ async fn test_case_update_not_found() -> Result<()> {
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -201,7 +215,8 @@ async fn test_case_update_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_user_update_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 	let fake_id = Uuid::new_v4();
 
 	let user_u = UserForUpdate {
@@ -226,6 +241,7 @@ async fn test_user_update_not_found() -> Result<()> {
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -233,7 +249,8 @@ async fn test_user_update_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_organization_update_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 	let fake_id = Uuid::new_v4();
 
 	let org_u = OrganizationForUpdate {
@@ -262,6 +279,7 @@ async fn test_organization_update_not_found() -> Result<()> {
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -273,10 +291,11 @@ async fn test_organization_update_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_case_delete_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::new(demo_user_id())?;
+	let ctx = demo_ctx();
 	let fake_id = Uuid::new_v4();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 
 	let result = CaseBmc::delete(&ctx, &mm, fake_id).await;
 
@@ -291,6 +310,7 @@ async fn test_case_delete_not_found() -> Result<()> {
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -298,7 +318,8 @@ async fn test_case_delete_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_user_delete_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 	let fake_id = Uuid::new_v4();
 
 	let result = UserBmc::delete(&ctx, &mm, fake_id).await;
@@ -314,6 +335,7 @@ async fn test_user_delete_not_found() -> Result<()> {
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -321,7 +343,8 @@ async fn test_user_delete_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_organization_delete_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 	let fake_id = Uuid::new_v4();
 
 	let result = OrganizationBmc::delete(&ctx, &mm, fake_id).await;
@@ -337,6 +360,7 @@ async fn test_organization_delete_not_found() -> Result<()> {
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -344,7 +368,8 @@ async fn test_organization_delete_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_drug_delete_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 	let fake_id = Uuid::new_v4();
 
 	let result = DrugInformationBmc::delete(&ctx, &mm, fake_id).await;
@@ -360,6 +385,7 @@ async fn test_drug_delete_not_found() -> Result<()> {
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -367,7 +393,8 @@ async fn test_drug_delete_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_reaction_delete_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 	let fake_id = Uuid::new_v4();
 
 	let result = ReactionBmc::delete(&ctx, &mm, fake_id).await;
@@ -383,6 +410,7 @@ async fn test_reaction_delete_not_found() -> Result<()> {
 		Ok(_) => return Err("expected error, got success".into()),
 	}
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -394,7 +422,7 @@ async fn test_reaction_delete_not_found() -> Result<()> {
 #[tokio::test]
 async fn test_user_duplicate_username() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let suffix = unique_suffix();
 	let fx_username = format!("test_dup_username_user-{suffix}");
 
@@ -417,7 +445,11 @@ async fn test_user_duplicate_username() -> Result<()> {
 		last_name: Some("User".to_string()),
 	};
 
+	begin_test_ctx(&mm, &ctx).await?;
 	let user_id_1 = UserBmc::create(&ctx, &mm, user_c_1).await?;
+	commit_test_ctx(&mm).await?;
+
+	begin_test_ctx(&mm, &ctx).await?;
 	let result = UserBmc::create(&ctx, &mm, user_c_2).await;
 
 	match result {
@@ -426,17 +458,26 @@ async fn test_user_duplicate_username() -> Result<()> {
 			assert!(constraint.contains("username"));
 		}
 		Err(other) => {
+			rollback_test_ctx(&mm).await?;
+			begin_test_ctx(&mm, &ctx).await?;
 			UserBmc::delete(&ctx, &mm, user_id_1).await?;
+			commit_test_ctx(&mm).await?;
 			return Err(format!("expected UniqueViolation, got: {other:?}").into());
 		}
 		Ok(user_id_2) => {
+			rollback_test_ctx(&mm).await?;
+			begin_test_ctx(&mm, &ctx).await?;
 			UserBmc::delete(&ctx, &mm, user_id_2).await?;
 			UserBmc::delete(&ctx, &mm, user_id_1).await?;
+			commit_test_ctx(&mm).await?;
 			return Err("expected duplicate username error".into());
 		}
 	}
 
+	rollback_test_ctx(&mm).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	UserBmc::delete(&ctx, &mm, user_id_1).await?;
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -448,7 +489,8 @@ async fn test_user_duplicate_username() -> Result<()> {
 #[tokio::test]
 async fn test_user_create_invalid_organization() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 	let fake_org_id = Uuid::new_v4();
 	let suffix = unique_suffix();
 
@@ -467,6 +509,7 @@ async fn test_user_create_invalid_organization() -> Result<()> {
 	// Should fail due to FK constraint on organization_id
 	assert!(result.is_err(), "expected FK violation error");
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -474,10 +517,11 @@ async fn test_user_create_invalid_organization() -> Result<()> {
 #[tokio::test]
 async fn test_drug_create_invalid_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_case_id = Uuid::new_v4();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 
 	let drug_c = DrugInformationForCreate {
 		case_id: fake_case_id,
@@ -494,6 +538,7 @@ async fn test_drug_create_invalid_case() -> Result<()> {
 		"expected FK violation error for invalid case_id"
 	);
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -501,10 +546,11 @@ async fn test_drug_create_invalid_case() -> Result<()> {
 #[tokio::test]
 async fn test_reaction_create_invalid_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_case_id = Uuid::new_v4();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 
 	let reaction_c = ReactionForCreate {
 		case_id: fake_case_id,
@@ -520,6 +566,7 @@ async fn test_reaction_create_invalid_case() -> Result<()> {
 		"expected FK violation error for invalid case_id"
 	);
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -527,10 +574,11 @@ async fn test_reaction_create_invalid_case() -> Result<()> {
 #[tokio::test]
 async fn test_patient_create_invalid_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 	let fake_case_id = Uuid::new_v4();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 
 	let patient_c = PatientInformationForCreate {
 		case_id: fake_case_id,
@@ -546,6 +594,7 @@ async fn test_patient_create_invalid_case() -> Result<()> {
 		"expected FK violation error for invalid case_id"
 	);
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -557,9 +606,10 @@ async fn test_patient_create_invalid_case() -> Result<()> {
 #[tokio::test]
 async fn test_drug_get_in_wrong_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 
 	// Create two cases
 	let case_id_1 = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -585,6 +635,7 @@ async fn test_drug_get_in_wrong_case() -> Result<()> {
 	CaseBmc::delete(&ctx, &mm, case_id_1).await?;
 	CaseBmc::delete(&ctx, &mm, case_id_2).await?;
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -592,9 +643,10 @@ async fn test_drug_get_in_wrong_case() -> Result<()> {
 #[tokio::test]
 async fn test_drug_update_in_wrong_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 
 	// Create two cases
 	let case_id_1 = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -636,6 +688,7 @@ async fn test_drug_update_in_wrong_case() -> Result<()> {
 	CaseBmc::delete(&ctx, &mm, case_id_1).await?;
 	CaseBmc::delete(&ctx, &mm, case_id_2).await?;
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -643,9 +696,10 @@ async fn test_drug_update_in_wrong_case() -> Result<()> {
 #[tokio::test]
 async fn test_reaction_get_in_wrong_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 
 	// Create two cases
 	let case_id_1 = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
@@ -669,5 +723,6 @@ async fn test_reaction_get_in_wrong_case() -> Result<()> {
 	CaseBmc::delete(&ctx, &mm, case_id_1).await?;
 	CaseBmc::delete(&ctx, &mm, case_id_2).await?;
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }

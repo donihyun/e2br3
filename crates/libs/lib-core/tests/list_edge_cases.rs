@@ -1,10 +1,9 @@
 mod common;
 
 use common::{
-	create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user,
-	Result,
+	begin_test_ctx, commit_test_ctx, create_case_fixture, demo_ctx, demo_org_id,
+	demo_user_id, init_test_mm, set_current_user, Result,
 };
-use lib_core::ctx::Ctx;
 use lib_core::model::case::CaseBmc;
 use lib_core::model::drug::{
 	DrugActiveSubstanceBmc, DrugActiveSubstanceForCreate, DrugInformationBmc,
@@ -23,9 +22,10 @@ use serial_test::serial;
 #[tokio::test]
 async fn test_drug_list_empty_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	// List drugs for a case with no drugs
@@ -35,6 +35,7 @@ async fn test_drug_list_empty_case() -> Result<()> {
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -42,9 +43,10 @@ async fn test_drug_list_empty_case() -> Result<()> {
 #[tokio::test]
 async fn test_reaction_list_empty_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	// List reactions for a case with no reactions
@@ -54,6 +56,7 @@ async fn test_reaction_list_empty_case() -> Result<()> {
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -65,9 +68,10 @@ async fn test_reaction_list_empty_case() -> Result<()> {
 #[tokio::test]
 async fn test_substance_list_with_limit() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	// Create drug
@@ -109,6 +113,7 @@ async fn test_substance_list_with_limit() -> Result<()> {
 	DrugInformationBmc::delete(&ctx, &mm, drug_id).await?;
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -116,9 +121,10 @@ async fn test_substance_list_with_limit() -> Result<()> {
 #[tokio::test]
 async fn test_substance_list_with_offset() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	// Create drug
@@ -168,6 +174,7 @@ async fn test_substance_list_with_offset() -> Result<()> {
 	DrugInformationBmc::delete(&ctx, &mm, drug_id).await?;
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -179,7 +186,8 @@ async fn test_substance_list_with_offset() -> Result<()> {
 #[tokio::test]
 async fn test_list_limit_over_max() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 
 	// Try to list with limit exceeding max (5000)
 	let list_options = ListOptions {
@@ -202,6 +210,7 @@ async fn test_list_limit_over_max() -> Result<()> {
 		Ok(_) => return Err("expected error for limit over max".into()),
 	}
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -209,7 +218,8 @@ async fn test_list_limit_over_max() -> Result<()> {
 #[tokio::test]
 async fn test_list_limit_at_max() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 
 	// List with limit exactly at max (5000) - should succeed
 	let list_options = ListOptions {
@@ -222,6 +232,7 @@ async fn test_list_limit_at_max() -> Result<()> {
 		DrugActiveSubstanceBmc::list(&ctx, &mm, None, Some(list_options)).await;
 	assert!(result.is_ok(), "limit at max should succeed");
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -229,7 +240,8 @@ async fn test_list_limit_at_max() -> Result<()> {
 #[tokio::test]
 async fn test_list_default_limit() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 
 	// List without specifying limit - should use default (1000)
 	let result = DrugActiveSubstanceBmc::list(&ctx, &mm, None, None).await;
@@ -238,6 +250,7 @@ async fn test_list_default_limit() -> Result<()> {
 		"list without options should use default limit"
 	);
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -249,7 +262,8 @@ async fn test_list_default_limit() -> Result<()> {
 #[tokio::test]
 async fn test_drug_list_by_nonexistent_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 	let fake_case_id = sqlx::types::Uuid::new_v4();
 
 	// List drugs for non-existent case should return empty, not error
@@ -259,6 +273,7 @@ async fn test_drug_list_by_nonexistent_case() -> Result<()> {
 		"non-existent case should return empty list"
 	);
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -266,7 +281,8 @@ async fn test_drug_list_by_nonexistent_case() -> Result<()> {
 #[tokio::test]
 async fn test_reaction_list_by_nonexistent_case() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
+	begin_test_ctx(&mm, &ctx).await?;
 	let fake_case_id = sqlx::types::Uuid::new_v4();
 
 	// List reactions for non-existent case should return empty, not error
@@ -276,6 +292,7 @@ async fn test_reaction_list_by_nonexistent_case() -> Result<()> {
 		"non-existent case should return empty list"
 	);
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -287,9 +304,10 @@ async fn test_reaction_list_by_nonexistent_case() -> Result<()> {
 #[tokio::test]
 async fn test_reaction_list_ordering() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	// Create reactions with different sequence numbers (out of order)
@@ -330,6 +348,7 @@ async fn test_reaction_list_ordering() -> Result<()> {
 	ReactionBmc::delete(&ctx, &mm, id_3).await?;
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -341,9 +360,10 @@ async fn test_reaction_list_ordering() -> Result<()> {
 #[tokio::test]
 async fn test_list_consistency_after_modifications() -> Result<()> {
 	let mm = init_test_mm().await;
-	let ctx = Ctx::root_ctx();
+	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
+	begin_test_ctx(&mm, &ctx).await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	// Initial list should be empty
@@ -373,5 +393,6 @@ async fn test_list_consistency_after_modifications() -> Result<()> {
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
+	commit_test_ctx(&mm).await?;
 	Ok(())
 }

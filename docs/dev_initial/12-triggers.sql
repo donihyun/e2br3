@@ -305,3 +305,752 @@ CREATE TRIGGER update_drug_reaction_assessments_updated_at BEFORE UPDATE ON drug
 
 CREATE TRIGGER update_relatedness_assessments_updated_at BEFORE UPDATE ON relatedness_assessments
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- Row-Level Security for Organization Isolation (Case-Related Tables)
+-- ============================================================================
+-- Note: Core table RLS (cases, users, organizations) is in 03-safetydb-schema.sql
+-- This section adds RLS for all case-related nested tables
+
+-- Patient Information
+ALTER TABLE patient_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patient_information FORCE ROW LEVEL SECURITY;
+CREATE POLICY patient_info_via_case ON patient_information
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = patient_information.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = patient_information.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Drug Information
+ALTER TABLE drug_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE drug_information FORCE ROW LEVEL SECURITY;
+CREATE POLICY drug_info_via_case ON drug_information
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = drug_information.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = drug_information.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Reactions
+ALTER TABLE reactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reactions FORCE ROW LEVEL SECURITY;
+CREATE POLICY reactions_via_case ON reactions
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = reactions.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = reactions.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Test Results
+ALTER TABLE test_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE test_results FORCE ROW LEVEL SECURITY;
+CREATE POLICY test_results_via_case ON test_results
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = test_results.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = test_results.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Message Headers
+ALTER TABLE message_headers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE message_headers FORCE ROW LEVEL SECURITY;
+CREATE POLICY message_headers_via_case ON message_headers
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = message_headers.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = message_headers.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Safety Report Identification
+ALTER TABLE safety_report_identification ENABLE ROW LEVEL SECURITY;
+ALTER TABLE safety_report_identification FORCE ROW LEVEL SECURITY;
+CREATE POLICY safety_report_id_via_case ON safety_report_identification
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = safety_report_identification.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = safety_report_identification.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Narrative Information
+ALTER TABLE narrative_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE narrative_information FORCE ROW LEVEL SECURITY;
+CREATE POLICY narrative_info_via_case ON narrative_information
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = narrative_information.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = narrative_information.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Drug Reaction Assessments (via drug_information)
+ALTER TABLE drug_reaction_assessments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE drug_reaction_assessments FORCE ROW LEVEL SECURITY;
+CREATE POLICY drug_reaction_assessments_via_case ON drug_reaction_assessments
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM drug_information di
+            JOIN cases c ON c.id = di.case_id
+            WHERE di.id = drug_reaction_assessments.drug_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM drug_information di
+            JOIN cases c ON c.id = di.case_id
+            WHERE di.id = drug_reaction_assessments.drug_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Other Case Identifiers
+ALTER TABLE other_case_identifiers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE other_case_identifiers FORCE ROW LEVEL SECURITY;
+CREATE POLICY other_case_ids_via_case ON other_case_identifiers
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = other_case_identifiers.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = other_case_identifiers.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Linked Report Numbers
+ALTER TABLE linked_report_numbers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE linked_report_numbers FORCE ROW LEVEL SECURITY;
+CREATE POLICY linked_reports_via_case ON linked_report_numbers
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = linked_report_numbers.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = linked_report_numbers.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Primary Sources
+ALTER TABLE primary_sources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE primary_sources FORCE ROW LEVEL SECURITY;
+CREATE POLICY primary_sources_via_case ON primary_sources
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = primary_sources.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = primary_sources.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Literature References
+ALTER TABLE literature_references ENABLE ROW LEVEL SECURITY;
+ALTER TABLE literature_references FORCE ROW LEVEL SECURITY;
+CREATE POLICY literature_refs_via_case ON literature_references
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = literature_references.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = literature_references.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Study Information
+ALTER TABLE study_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE study_information FORCE ROW LEVEL SECURITY;
+CREATE POLICY study_info_via_case ON study_information
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = study_information.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = study_information.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Sender Information
+ALTER TABLE sender_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sender_information FORCE ROW LEVEL SECURITY;
+CREATE POLICY sender_info_via_case ON sender_information
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = sender_information.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = sender_information.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Receiver Information
+ALTER TABLE receiver_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE receiver_information FORCE ROW LEVEL SECURITY;
+CREATE POLICY receiver_info_via_message ON receiver_information
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = receiver_information.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = receiver_information.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Study Registration Numbers (via study_information)
+ALTER TABLE study_registration_numbers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE study_registration_numbers FORCE ROW LEVEL SECURITY;
+CREATE POLICY study_reg_numbers_via_case ON study_registration_numbers
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM study_information si
+            JOIN cases c ON c.id = si.case_id
+            WHERE si.id = study_registration_numbers.study_information_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM study_information si
+            JOIN cases c ON c.id = si.case_id
+            WHERE si.id = study_registration_numbers.study_information_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Medical History Episodes (via patient_information)
+ALTER TABLE medical_history_episodes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE medical_history_episodes FORCE ROW LEVEL SECURITY;
+CREATE POLICY medical_history_via_case ON medical_history_episodes
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM patient_information pi
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pi.id = medical_history_episodes.patient_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM patient_information pi
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pi.id = medical_history_episodes.patient_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Past Drug History (via patient_information)
+ALTER TABLE past_drug_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE past_drug_history FORCE ROW LEVEL SECURITY;
+CREATE POLICY past_drug_history_via_case ON past_drug_history
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM patient_information pi
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pi.id = past_drug_history.patient_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM patient_information pi
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pi.id = past_drug_history.patient_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Patient Death Information (via patient_information)
+ALTER TABLE patient_death_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patient_death_information FORCE ROW LEVEL SECURITY;
+CREATE POLICY patient_death_info_via_case ON patient_death_information
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM patient_information pi
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pi.id = patient_death_information.patient_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM patient_information pi
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pi.id = patient_death_information.patient_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Reported Causes of Death (via patient_death_information -> patient_information)
+ALTER TABLE reported_causes_of_death ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reported_causes_of_death FORCE ROW LEVEL SECURITY;
+CREATE POLICY reported_causes_via_case ON reported_causes_of_death
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM patient_death_information pdi
+            JOIN patient_information pi ON pi.id = pdi.patient_id
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pdi.id = reported_causes_of_death.death_info_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM patient_death_information pdi
+            JOIN patient_information pi ON pi.id = pdi.patient_id
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pdi.id = reported_causes_of_death.death_info_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Autopsy Causes of Death (via patient_death_information -> patient_information)
+ALTER TABLE autopsy_causes_of_death ENABLE ROW LEVEL SECURITY;
+ALTER TABLE autopsy_causes_of_death FORCE ROW LEVEL SECURITY;
+CREATE POLICY autopsy_causes_via_case ON autopsy_causes_of_death
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM patient_death_information pdi
+            JOIN patient_information pi ON pi.id = pdi.patient_id
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pdi.id = autopsy_causes_of_death.death_info_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM patient_death_information pdi
+            JOIN patient_information pi ON pi.id = pdi.patient_id
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pdi.id = autopsy_causes_of_death.death_info_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Parent Information (via patient_information)
+ALTER TABLE parent_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE parent_information FORCE ROW LEVEL SECURITY;
+CREATE POLICY parent_information_via_case ON parent_information
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM patient_information pi
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pi.id = parent_information.patient_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM patient_information pi
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pi.id = parent_information.patient_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Drug Active Substances (via drug_information)
+ALTER TABLE drug_active_substances ENABLE ROW LEVEL SECURITY;
+ALTER TABLE drug_active_substances FORCE ROW LEVEL SECURITY;
+CREATE POLICY drug_active_substances_via_case ON drug_active_substances
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM drug_information di
+            JOIN cases c ON c.id = di.case_id
+            WHERE di.id = drug_active_substances.drug_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM drug_information di
+            JOIN cases c ON c.id = di.case_id
+            WHERE di.id = drug_active_substances.drug_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Dosage Information (via drug_information)
+ALTER TABLE dosage_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dosage_information FORCE ROW LEVEL SECURITY;
+CREATE POLICY dosage_information_via_case ON dosage_information
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM drug_information di
+            JOIN cases c ON c.id = di.case_id
+            WHERE di.id = dosage_information.drug_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM drug_information di
+            JOIN cases c ON c.id = di.case_id
+            WHERE di.id = dosage_information.drug_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Drug Indications (via drug_information)
+ALTER TABLE drug_indications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE drug_indications FORCE ROW LEVEL SECURITY;
+CREATE POLICY drug_indications_via_case ON drug_indications
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM drug_information di
+            JOIN cases c ON c.id = di.case_id
+            WHERE di.id = drug_indications.drug_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM drug_information di
+            JOIN cases c ON c.id = di.case_id
+            WHERE di.id = drug_indications.drug_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Sender Diagnoses (via narrative_information)
+ALTER TABLE sender_diagnoses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sender_diagnoses FORCE ROW LEVEL SECURITY;
+CREATE POLICY sender_diagnoses_via_case ON sender_diagnoses
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM narrative_information ni
+            JOIN cases c ON c.id = ni.case_id
+            WHERE ni.id = sender_diagnoses.narrative_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM narrative_information ni
+            JOIN cases c ON c.id = ni.case_id
+            WHERE ni.id = sender_diagnoses.narrative_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Case Summary Information (via narrative_information)
+ALTER TABLE case_summary_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE case_summary_information FORCE ROW LEVEL SECURITY;
+CREATE POLICY case_summary_information_via_case ON case_summary_information
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM narrative_information ni
+            JOIN cases c ON c.id = ni.case_id
+            WHERE ni.id = case_summary_information.narrative_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM narrative_information ni
+            JOIN cases c ON c.id = ni.case_id
+            WHERE ni.id = case_summary_information.narrative_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Parent Medical History (via parent_information -> patient_information)
+ALTER TABLE parent_medical_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE parent_medical_history FORCE ROW LEVEL SECURITY;
+CREATE POLICY parent_medical_history_via_case ON parent_medical_history
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM parent_information pi2
+            JOIN patient_information pi ON pi.id = pi2.patient_id
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pi2.id = parent_medical_history.parent_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM parent_information pi2
+            JOIN patient_information pi ON pi.id = pi2.patient_id
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pi2.id = parent_medical_history.parent_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Parent Past Drug History (via parent_information -> patient_information)
+ALTER TABLE parent_past_drug_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE parent_past_drug_history FORCE ROW LEVEL SECURITY;
+CREATE POLICY parent_past_drug_history_via_case ON parent_past_drug_history
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM parent_information pi2
+            JOIN patient_information pi ON pi.id = pi2.patient_id
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pi2.id = parent_past_drug_history.parent_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM parent_information pi2
+            JOIN patient_information pi ON pi.id = pi2.patient_id
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pi2.id = parent_past_drug_history.parent_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Drug Recurrence Information (via drug_information)
+ALTER TABLE drug_recurrence_information ENABLE ROW LEVEL SECURITY;
+ALTER TABLE drug_recurrence_information FORCE ROW LEVEL SECURITY;
+CREATE POLICY drug_recurrence_via_case ON drug_recurrence_information
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM drug_information di
+            JOIN cases c ON c.id = di.case_id
+            WHERE di.id = drug_recurrence_information.drug_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM drug_information di
+            JOIN cases c ON c.id = di.case_id
+            WHERE di.id = drug_recurrence_information.drug_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Relatedness Assessments (via drug_reaction_assessments -> drug_information)
+ALTER TABLE relatedness_assessments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE relatedness_assessments FORCE ROW LEVEL SECURITY;
+CREATE POLICY relatedness_assessments_via_case ON relatedness_assessments
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM drug_reaction_assessments dra
+            JOIN drug_information di ON di.id = dra.drug_id
+            JOIN cases c ON c.id = di.case_id
+            WHERE dra.id = relatedness_assessments.drug_reaction_assessment_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM drug_reaction_assessments dra
+            JOIN drug_information di ON di.id = dra.drug_id
+            JOIN cases c ON c.id = di.case_id
+            WHERE dra.id = relatedness_assessments.drug_reaction_assessment_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Terminology Tables (global read for app role, write for admins)
+ALTER TABLE meddra_terms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE meddra_terms FORCE ROW LEVEL SECURITY;
+CREATE POLICY meddra_terms_read ON meddra_terms
+    FOR SELECT TO e2br3_app_role
+    USING (true);
+CREATE POLICY meddra_terms_insert ON meddra_terms
+    FOR INSERT TO e2br3_app_role
+    WITH CHECK (is_current_user_admin());
+CREATE POLICY meddra_terms_update ON meddra_terms
+    FOR UPDATE TO e2br3_app_role
+    USING (is_current_user_admin())
+    WITH CHECK (is_current_user_admin());
+CREATE POLICY meddra_terms_delete ON meddra_terms
+    FOR DELETE TO e2br3_app_role
+    USING (is_current_user_admin());
+
+ALTER TABLE whodrug_products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whodrug_products FORCE ROW LEVEL SECURITY;
+CREATE POLICY whodrug_products_read ON whodrug_products
+    FOR SELECT TO e2br3_app_role
+    USING (true);
+CREATE POLICY whodrug_products_insert ON whodrug_products
+    FOR INSERT TO e2br3_app_role
+    WITH CHECK (is_current_user_admin());
+CREATE POLICY whodrug_products_update ON whodrug_products
+    FOR UPDATE TO e2br3_app_role
+    USING (is_current_user_admin())
+    WITH CHECK (is_current_user_admin());
+CREATE POLICY whodrug_products_delete ON whodrug_products
+    FOR DELETE TO e2br3_app_role
+    USING (is_current_user_admin());
+
+ALTER TABLE iso_countries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE iso_countries FORCE ROW LEVEL SECURITY;
+CREATE POLICY iso_countries_read ON iso_countries
+    FOR SELECT TO e2br3_app_role
+    USING (true);
+CREATE POLICY iso_countries_insert ON iso_countries
+    FOR INSERT TO e2br3_app_role
+    WITH CHECK (is_current_user_admin());
+CREATE POLICY iso_countries_update ON iso_countries
+    FOR UPDATE TO e2br3_app_role
+    USING (is_current_user_admin())
+    WITH CHECK (is_current_user_admin());
+CREATE POLICY iso_countries_delete ON iso_countries
+    FOR DELETE TO e2br3_app_role
+    USING (is_current_user_admin());
+
+ALTER TABLE e2b_code_lists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE e2b_code_lists FORCE ROW LEVEL SECURITY;
+CREATE POLICY e2b_code_lists_read ON e2b_code_lists
+    FOR SELECT TO e2br3_app_role
+    USING (true);
+CREATE POLICY e2b_code_lists_insert ON e2b_code_lists
+    FOR INSERT TO e2br3_app_role
+    WITH CHECK (is_current_user_admin());
+CREATE POLICY e2b_code_lists_update ON e2b_code_lists
+    FOR UPDATE TO e2br3_app_role
+    USING (is_current_user_admin())
+    WITH CHECK (is_current_user_admin());
+CREATE POLICY e2b_code_lists_delete ON e2b_code_lists
+    FOR DELETE TO e2br3_app_role
+    USING (is_current_user_admin());
+
+-- Ensure application role has access to all tables created after initial grants.
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO e2br3_app_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO e2br3_app_role;
