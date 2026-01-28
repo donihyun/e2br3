@@ -15,7 +15,7 @@ use lib_core::model::acs::{has_permission, Permission};
 pub fn require_permission(ctx: &Ctx, permission: Permission) -> Result<()> {
 	if !has_permission(ctx.role(), permission) {
 		return Err(Error::PermissionDenied {
-			required_permission: format!("{}", permission),
+			required_permission: format!("{permission}"),
 		});
 	}
 	Ok(())

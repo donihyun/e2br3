@@ -140,7 +140,7 @@ pub async fn audit_log_count(
 	mm.dbx()
 		.execute(sqlx::query("SET row_security = on"))
 		.await?;
-	let (count,): (i64,) = mm
+	let res = mm
 		.dbx()
 		.fetch_one(
 			sqlx::query_as(
@@ -150,12 +150,17 @@ pub async fn audit_log_count(
 			.bind(record_id)
 			.bind(action),
 		)
-		.await?;
-	mm.dbx().execute(sqlx::query("RESET ROLE")).await?;
-	mm.dbx()
+		.await;
+	let _ = mm.dbx().execute(sqlx::query("RESET row_security")).await;
+	let _ = mm.dbx().execute(sqlx::query("RESET ROLE")).await;
+	let _ = mm
+		.dbx()
 		.execute(sqlx::query("SET ROLE e2br3_app_role"))
-		.await?;
-	Ok(count)
+		.await;
+	match res {
+		Ok((count,)) => Ok(count),
+		Err(err) => Err(err.into()),
+	}
 }
 
 #[allow(dead_code)]
@@ -171,6 +176,7 @@ pub async fn set_auditor_role(mm: &ModelManager) -> Result<()> {
 
 #[allow(dead_code)]
 pub async fn reset_role(mm: &ModelManager) -> Result<()> {
+	mm.dbx().execute(sqlx::query("RESET row_security")).await?;
 	mm.dbx().execute(sqlx::query("RESET ROLE")).await?;
 	mm.dbx()
 		.execute(sqlx::query("SET ROLE e2br3_app_role"))

@@ -41,8 +41,7 @@ async fn test_ctx_resolve_sets_user() -> Result<()> {
 async fn test_ctx_no_leakage_between_requests() -> Result<()> {
 	let mm = init_test_mm().await?;
 	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
-	let admin_token =
-		generate_web_token(&seed.admin.email, seed.admin.token_salt)?;
+	let admin_token = generate_web_token(&seed.admin.email, seed.admin.token_salt)?;
 	let viewer_token =
 		generate_web_token(&seed.viewer.email, seed.viewer.token_salt)?;
 

@@ -14,7 +14,7 @@ use lib_core::model::narrative::{
 	NarrativeInformationBmc, SenderDiagnosis, SenderDiagnosisBmc,
 	SenderDiagnosisFilter, SenderDiagnosisForCreate, SenderDiagnosisForUpdate,
 };
-use lib_core::model::ModelManager;
+use lib_core::model::{self, ModelManager};
 use lib_rest_core::rest_params::{ParamsForCreate, ParamsForUpdate};
 use lib_rest_core::rest_result::DataRestResult;
 use lib_rest_core::{require_permission, Result};
@@ -30,6 +30,25 @@ async fn narrative_id_for_case(
 ) -> Result<Uuid> {
 	let narrative = NarrativeInformationBmc::get_by_case(ctx, mm, case_id).await?;
 	Ok(narrative.id)
+}
+
+async fn ensure_narrative_scope(
+	ctx: &lib_core::ctx::Ctx,
+	mm: &ModelManager,
+	case_id: Uuid,
+	entity_narrative_id: Uuid,
+	entity_id: Uuid,
+	entity: &'static str,
+) -> Result<()> {
+	let expected_narrative_id = narrative_id_for_case(ctx, mm, case_id).await?;
+	if expected_narrative_id != entity_narrative_id {
+		return Err(model::Error::EntityUuidNotFound {
+			entity,
+			id: entity_id,
+		}
+		.into());
+	}
+	Ok(())
 }
 
 // -- Sender Diagnosis (H.3.r)
@@ -84,11 +103,20 @@ pub async fn list_sender_diagnoses(
 pub async fn get_sender_diagnosis(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<SenderDiagnosis>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, SENDER_DIAGNOSIS_READ)?;
 	let entity = SenderDiagnosisBmc::get(&ctx, &mm, id).await?;
+	ensure_narrative_scope(
+		&ctx,
+		&mm,
+		case_id,
+		entity.narrative_id,
+		id,
+		"sender_diagnoses",
+	)
+	.await?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
 }
 
@@ -96,12 +124,22 @@ pub async fn get_sender_diagnosis(
 pub async fn update_sender_diagnosis(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 	Json(params): Json<ParamsForUpdate<SenderDiagnosisForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<SenderDiagnosis>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, SENDER_DIAGNOSIS_UPDATE)?;
 	let ParamsForUpdate { data } = params;
+	let entity = SenderDiagnosisBmc::get(&ctx, &mm, id).await?;
+	ensure_narrative_scope(
+		&ctx,
+		&mm,
+		case_id,
+		entity.narrative_id,
+		id,
+		"sender_diagnoses",
+	)
+	.await?;
 	SenderDiagnosisBmc::update(&ctx, &mm, id, data).await?;
 	let entity = SenderDiagnosisBmc::get(&ctx, &mm, id).await?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
@@ -111,10 +149,20 @@ pub async fn update_sender_diagnosis(
 pub async fn delete_sender_diagnosis(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, SENDER_DIAGNOSIS_DELETE)?;
+	let entity = SenderDiagnosisBmc::get(&ctx, &mm, id).await?;
+	ensure_narrative_scope(
+		&ctx,
+		&mm,
+		case_id,
+		entity.narrative_id,
+		id,
+		"sender_diagnoses",
+	)
+	.await?;
 	SenderDiagnosisBmc::delete(&ctx, &mm, id).await?;
 	Ok(StatusCode::NO_CONTENT)
 }
@@ -146,7 +194,10 @@ pub async fn list_case_summary_information(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
 	Path(case_id): Path<Uuid>,
-) -> Result<(StatusCode, Json<DataRestResult<Vec<CaseSummaryInformation>>>)> {
+) -> Result<(
+	StatusCode,
+	Json<DataRestResult<Vec<CaseSummaryInformation>>>,
+)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, CASE_SUMMARY_LIST)?;
 	let narrative_id = narrative_id_for_case(&ctx, &mm, case_id).await?;
@@ -171,11 +222,20 @@ pub async fn list_case_summary_information(
 pub async fn get_case_summary_information(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<CaseSummaryInformation>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, CASE_SUMMARY_READ)?;
 	let entity = CaseSummaryInformationBmc::get(&ctx, &mm, id).await?;
+	ensure_narrative_scope(
+		&ctx,
+		&mm,
+		case_id,
+		entity.narrative_id,
+		id,
+		"case_summary_information",
+	)
+	.await?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
 }
 
@@ -183,12 +243,22 @@ pub async fn get_case_summary_information(
 pub async fn update_case_summary_information(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 	Json(params): Json<ParamsForUpdate<CaseSummaryInformationForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<CaseSummaryInformation>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, CASE_SUMMARY_UPDATE)?;
 	let ParamsForUpdate { data } = params;
+	let entity = CaseSummaryInformationBmc::get(&ctx, &mm, id).await?;
+	ensure_narrative_scope(
+		&ctx,
+		&mm,
+		case_id,
+		entity.narrative_id,
+		id,
+		"case_summary_information",
+	)
+	.await?;
 	CaseSummaryInformationBmc::update(&ctx, &mm, id, data).await?;
 	let entity = CaseSummaryInformationBmc::get(&ctx, &mm, id).await?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
@@ -198,10 +268,20 @@ pub async fn update_case_summary_information(
 pub async fn delete_case_summary_information(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, CASE_SUMMARY_DELETE)?;
+	let entity = CaseSummaryInformationBmc::get(&ctx, &mm, id).await?;
+	ensure_narrative_scope(
+		&ctx,
+		&mm,
+		case_id,
+		entity.narrative_id,
+		id,
+		"case_summary_information",
+	)
+	.await?;
 	CaseSummaryInformationBmc::delete(&ctx, &mm, id).await?;
 	Ok(StatusCode::NO_CONTENT)
 }

@@ -1,7 +1,9 @@
 use lib_core::model::acs::{
 	DRUG_CREATE, DRUG_DELETE, DRUG_LIST, DRUG_READ, DRUG_UPDATE,
 };
-use lib_core::model::drug::{DrugInformationBmc, DrugInformationForCreate, DrugInformationForUpdate};
+use lib_core::model::drug::{
+	DrugInformationBmc, DrugInformationForCreate, DrugInformationForUpdate,
+};
 use lib_rest_core::prelude::*;
 
 // Case-scoped CRUD functions:

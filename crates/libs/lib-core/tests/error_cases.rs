@@ -2,8 +2,8 @@ mod common;
 
 use common::{
 	begin_test_ctx, commit_test_ctx, create_case_fixture, demo_ctx, demo_org_id,
-	demo_user_id, init_test_mm, rollback_test_ctx, set_current_user,
-	unique_suffix, Result,
+	demo_user_id, init_test_mm, rollback_test_ctx, set_current_user, unique_suffix,
+	Result,
 };
 use lib_core::model::case::{CaseBmc, CaseForUpdate};
 use lib_core::model::drug::{
@@ -182,7 +182,6 @@ async fn test_patient_get_not_found() -> Result<()> {
 async fn test_case_update_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = demo_ctx();
-	begin_test_ctx(&mm, &ctx).await?;
 	let fake_id = Uuid::new_v4();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -293,7 +292,6 @@ async fn test_organization_update_not_found() -> Result<()> {
 async fn test_case_delete_not_found() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = demo_ctx();
-	begin_test_ctx(&mm, &ctx).await?;
 	let fake_id = Uuid::new_v4();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -520,7 +518,6 @@ async fn test_user_create_invalid_organization() -> Result<()> {
 async fn test_drug_create_invalid_case() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = demo_ctx();
-	begin_test_ctx(&mm, &ctx).await?;
 	let fake_case_id = Uuid::new_v4();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -550,7 +547,6 @@ async fn test_drug_create_invalid_case() -> Result<()> {
 async fn test_reaction_create_invalid_case() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = demo_ctx();
-	begin_test_ctx(&mm, &ctx).await?;
 	let fake_case_id = Uuid::new_v4();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -579,7 +575,6 @@ async fn test_reaction_create_invalid_case() -> Result<()> {
 async fn test_patient_create_invalid_case() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = demo_ctx();
-	begin_test_ctx(&mm, &ctx).await?;
 	let fake_case_id = Uuid::new_v4();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -612,7 +607,6 @@ async fn test_patient_create_invalid_case() -> Result<()> {
 async fn test_drug_get_in_wrong_case() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = demo_ctx();
-	begin_test_ctx(&mm, &ctx).await?;
 
 	set_current_user(&mm, demo_user_id()).await?;
 	begin_test_ctx(&mm, &ctx).await?;
@@ -650,7 +644,6 @@ async fn test_drug_get_in_wrong_case() -> Result<()> {
 async fn test_drug_update_in_wrong_case() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = demo_ctx();
-	begin_test_ctx(&mm, &ctx).await?;
 
 	set_current_user(&mm, demo_user_id()).await?;
 	begin_test_ctx(&mm, &ctx).await?;
@@ -704,7 +697,6 @@ async fn test_drug_update_in_wrong_case() -> Result<()> {
 async fn test_reaction_get_in_wrong_case() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = demo_ctx();
-	begin_test_ctx(&mm, &ctx).await?;
 
 	set_current_user(&mm, demo_user_id()).await?;
 	begin_test_ctx(&mm, &ctx).await?;

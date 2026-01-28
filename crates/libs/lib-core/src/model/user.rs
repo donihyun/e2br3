@@ -1,7 +1,7 @@
 use crate::ctx::Ctx;
 use crate::model::base::base_uuid;
 use crate::model::base::{prep_fields_for_update, DbBmc};
-use crate::model::store::set_full_context_dbx;
+use crate::model::store::set_full_context_dbx_or_rollback;
 use crate::model::{Error, ModelManager, Result};
 use lib_auth::pwd::{self, ContentToHash};
 use modql::field::{Fields, HasSeaFields, SeaField, SeaFields};
@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgRow;
 use sqlx::types::time::OffsetDateTime;
 use sqlx::types::Uuid;
-use sqlx::{FromRow, query};
+use sqlx::{query, FromRow};
 
 // -- Types
 
@@ -254,8 +254,13 @@ impl UserBmc {
 	) -> Result<()> {
 		let dbx = mm.dbx();
 		dbx.begin_txn().await.map_err(Error::Dbx)?;
-		if let Err(err) =
-			set_full_context_dbx(dbx, ctx.user_id(), ctx.organization_id(), ctx.role()).await
+		if let Err(err) = set_full_context_dbx_or_rollback(
+			dbx,
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await
 		{
 			dbx.rollback_txn().await.map_err(Error::Dbx)?;
 			return Err(err);
@@ -295,22 +300,31 @@ impl UserBmc {
 	}
 
 	pub async fn auth_by_email(
-		mm: &ModelManager, 
+		mm: &ModelManager,
 		email: &str,
 	) -> Result<Option<UserForAuth>> {
 		let mm = mm.new_with_txn()?;
 		mm.dbx().begin_txn().await.map_err(Error::Dbx)?;
-		if let Err(err) = mm.dbx().execute(query("SELECT set_config('app.auth_email', $1, true)").bind(email)).await {
+		if let Err(err) = mm
+			.dbx()
+			.execute(
+				query("SELECT set_config('app.auth_email', $1, true)").bind(email),
+			)
+			.await
+		{
 			mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
 			return Err(err.into());
 		}
-		let user = match Self::first_by_email::<UserForAuth>(&Ctx::root_ctx(), &mm, email).await {
-			Ok(user) => user,
-			Err(err) => {
-				mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
-				return Err(err);
-			}
-		};
+		let user =
+			match Self::first_by_email::<UserForAuth>(&Ctx::root_ctx(), &mm, email)
+				.await
+			{
+				Ok(user) => user,
+				Err(err) => {
+					mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
+					return Err(err);
+				}
+			};
 		mm.dbx().commit_txn().await.map_err(Error::Dbx)?;
 		Ok(user)
 	}
@@ -323,19 +337,24 @@ impl UserBmc {
 		mm.dbx().begin_txn().await.map_err(Error::Dbx)?;
 		if let Err(err) = mm
 			.dbx()
-			.execute(query("SELECT set_config('app.auth_email', $1, true)").bind(email))
+			.execute(
+				query("SELECT set_config('app.auth_email', $1, true)").bind(email),
+			)
 			.await
 		{
 			mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
 			return Err(err.into());
 		}
-		let user = match Self::first_by_email::<UserForLogin>(&Ctx::root_ctx(), &mm, email).await {
-			Ok(user) => user,
-			Err(err) => {
-				mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
-				return Err(err);
-			}
-		};
+		let user =
+			match Self::first_by_email::<UserForLogin>(&Ctx::root_ctx(), &mm, email)
+				.await
+			{
+				Ok(user) => user,
+				Err(err) => {
+					mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
+					return Err(err);
+				}
+			};
 		mm.dbx().commit_txn().await.map_err(Error::Dbx)?;
 		Ok(user)
 	}

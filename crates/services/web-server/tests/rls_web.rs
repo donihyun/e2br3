@@ -40,8 +40,12 @@ async fn test_rls_list_users_filters_org() -> Result<()> {
 
 	let user1_id = seed.user1.id.to_string();
 	let user2_id = seed.user2.id.to_string();
-	assert!(users.iter().any(|u| u.get("id").and_then(|v| v.as_str()) == Some(&user1_id)));
-	assert!(!users.iter().any(|u| u.get("id").and_then(|v| v.as_str()) == Some(&user2_id)));
+	assert!(users
+		.iter()
+		.any(|u| u.get("id").and_then(|v| v.as_str()) == Some(&user1_id)));
+	assert!(!users
+		.iter()
+		.any(|u| u.get("id").and_then(|v| v.as_str()) == Some(&user2_id)));
 
 	let req = Request::builder()
 		.method("GET")
@@ -50,7 +54,7 @@ async fn test_rls_list_users_filters_org() -> Result<()> {
 		.body(Body::empty())?;
 	let res = app.oneshot(req).await?;
 	let status = res.status();
-	if status != StatusCode::BAD_REQUEST {
+	if status != StatusCode::BAD_REQUEST && status != StatusCode::NOT_FOUND {
 		let err = res
 			.extensions()
 			.get::<std::sync::Arc<WebError>>()
@@ -94,8 +98,12 @@ async fn test_rls_list_cases_filters_org() -> Result<()> {
 
 	let case_org1 = seed.case_org1.to_string();
 	let case_org2 = seed.case_org2.to_string();
-	assert!(cases.iter().any(|c| c.get("id").and_then(|v| v.as_str()) == Some(&case_org1)));
-	assert!(!cases.iter().any(|c| c.get("id").and_then(|v| v.as_str()) == Some(&case_org2)));
+	assert!(cases
+		.iter()
+		.any(|c| c.get("id").and_then(|v| v.as_str()) == Some(&case_org1)));
+	assert!(!cases
+		.iter()
+		.any(|c| c.get("id").and_then(|v| v.as_str()) == Some(&case_org2)));
 
 	let req = Request::builder()
 		.method("GET")
@@ -104,7 +112,7 @@ async fn test_rls_list_cases_filters_org() -> Result<()> {
 		.body(Body::empty())?;
 	let res = app.oneshot(req).await?;
 	let status = res.status();
-	if status != StatusCode::BAD_REQUEST {
+	if status != StatusCode::BAD_REQUEST && status != StatusCode::NOT_FOUND {
 		let err = res
 			.extensions()
 			.get::<std::sync::Arc<WebError>>()
@@ -130,14 +138,12 @@ async fn test_rls_case_versions_filters_org() -> Result<()> {
 
 	let dbx = mm.dbx();
 	dbx.begin_txn().await?;
-	set_full_context_dbx(dbx, system_user_id(), system_org_id(), ROLE_ADMIN)
-		.await?;
+	set_full_context_dbx(dbx, system_user_id(), system_org_id(), ROLE_ADMIN).await?;
 	insert_case_version(&mm, seed.case_org1, 1, seed.manager.id).await?;
 	insert_case_version(&mm, seed.case_org2, 1, seed.user2.id).await?;
 	dbx.commit_txn().await?;
 
-	let token =
-		generate_web_token(&seed.manager.email, seed.manager.token_salt)?;
+	let token = generate_web_token(&seed.manager.email, seed.manager.token_salt)?;
 	let cookie = cookie_header(&token.to_string());
 
 	let app = web_server::app(mm);

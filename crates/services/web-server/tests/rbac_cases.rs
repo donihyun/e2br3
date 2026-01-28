@@ -79,7 +79,8 @@ async fn test_viewer_can_list_cases() -> Result<()> {
 	let mm = init_test_mm().await?;
 	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
 	let admin_token = generate_web_token(&seed.admin.email, seed.admin.token_salt)?;
-	let viewer_token = generate_web_token(&seed.viewer.email, seed.viewer.token_salt)?;
+	let viewer_token =
+		generate_web_token(&seed.viewer.email, seed.viewer.token_salt)?;
 	let app = web_server::app(mm);
 
 	create_case(&cookie_header(&admin_token.to_string()), &app, seed.org_id).await?;

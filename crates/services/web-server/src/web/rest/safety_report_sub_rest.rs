@@ -4,9 +4,10 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
 use lib_core::model::acs::{
-	LITERATURE_REFERENCE_CREATE, LITERATURE_REFERENCE_DELETE, LITERATURE_REFERENCE_LIST,
-	LITERATURE_REFERENCE_READ, LITERATURE_REFERENCE_UPDATE, PRIMARY_SOURCE_CREATE,
-	PRIMARY_SOURCE_DELETE, PRIMARY_SOURCE_LIST, PRIMARY_SOURCE_READ, PRIMARY_SOURCE_UPDATE,
+	LITERATURE_REFERENCE_CREATE, LITERATURE_REFERENCE_DELETE,
+	LITERATURE_REFERENCE_LIST, LITERATURE_REFERENCE_READ,
+	LITERATURE_REFERENCE_UPDATE, PRIMARY_SOURCE_CREATE, PRIMARY_SOURCE_DELETE,
+	PRIMARY_SOURCE_LIST, PRIMARY_SOURCE_READ, PRIMARY_SOURCE_UPDATE,
 	SENDER_INFORMATION_CREATE, SENDER_INFORMATION_DELETE, SENDER_INFORMATION_LIST,
 	SENDER_INFORMATION_READ, SENDER_INFORMATION_UPDATE, STUDY_INFORMATION_CREATE,
 	STUDY_INFORMATION_DELETE, STUDY_INFORMATION_LIST, STUDY_INFORMATION_READ,
@@ -24,7 +25,7 @@ use lib_core::model::safety_report::{
 	StudyRegistrationNumberBmc, StudyRegistrationNumberFilter,
 	StudyRegistrationNumberForCreate, StudyRegistrationNumberForUpdate,
 };
-use lib_core::model::ModelManager;
+use lib_core::model::{self, ModelManager};
 use lib_rest_core::rest_params::{ParamsForCreate, ParamsForUpdate};
 use lib_rest_core::rest_result::DataRestResult;
 use lib_rest_core::{require_permission, Result};
@@ -32,6 +33,32 @@ use lib_web::middleware::mw_auth::CtxW;
 use modql::filter::{ListOptions, OpValValue, OpValsValue};
 use serde_json::json;
 use uuid::Uuid;
+
+fn ensure_case_scope(
+	case_id: Uuid,
+	entity_case_id: Uuid,
+	entity_id: Uuid,
+	entity: &'static str,
+) -> Result<()> {
+	if case_id != entity_case_id {
+		return Err(model::Error::EntityUuidNotFound {
+			entity,
+			id: entity_id,
+		}
+		.into());
+	}
+	Ok(())
+}
+
+async fn ensure_study_case(
+	ctx: &lib_core::ctx::Ctx,
+	mm: &ModelManager,
+	case_id: Uuid,
+	study_id: Uuid,
+) -> Result<()> {
+	let study = StudyInformationBmc::get(ctx, mm, study_id).await?;
+	ensure_case_scope(case_id, study.case_id, study_id, "study_information")
+}
 
 // -- Sender Information (C.3.x)
 
@@ -65,7 +92,6 @@ pub async fn list_sender_information(
 		case_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(
 			case_id.to_string()
 		))])),
-		..Default::default()
 	};
 	let entities = SenderInformationBmc::list(
 		&ctx,
@@ -81,11 +107,12 @@ pub async fn list_sender_information(
 pub async fn get_sender_information(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<SenderInformation>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, SENDER_INFORMATION_READ)?;
 	let entity = SenderInformationBmc::get(&ctx, &mm, id).await?;
+	ensure_case_scope(case_id, entity.case_id, id, "sender_information")?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
 }
 
@@ -93,12 +120,14 @@ pub async fn get_sender_information(
 pub async fn update_sender_information(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 	Json(params): Json<ParamsForUpdate<SenderInformationForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<SenderInformation>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, SENDER_INFORMATION_UPDATE)?;
 	let ParamsForUpdate { data } = params;
+	let entity = SenderInformationBmc::get(&ctx, &mm, id).await?;
+	ensure_case_scope(case_id, entity.case_id, id, "sender_information")?;
 	SenderInformationBmc::update(&ctx, &mm, id, data).await?;
 	let entity = SenderInformationBmc::get(&ctx, &mm, id).await?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
@@ -108,10 +137,12 @@ pub async fn update_sender_information(
 pub async fn delete_sender_information(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, SENDER_INFORMATION_DELETE)?;
+	let entity = SenderInformationBmc::get(&ctx, &mm, id).await?;
+	ensure_case_scope(case_id, entity.case_id, id, "sender_information")?;
 	SenderInformationBmc::delete(&ctx, &mm, id).await?;
 	Ok(StatusCode::NO_CONTENT)
 }
@@ -164,11 +195,12 @@ pub async fn list_primary_sources(
 pub async fn get_primary_source(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<PrimarySource>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, PRIMARY_SOURCE_READ)?;
 	let entity = PrimarySourceBmc::get(&ctx, &mm, id).await?;
+	ensure_case_scope(case_id, entity.case_id, id, "primary_sources")?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
 }
 
@@ -176,12 +208,14 @@ pub async fn get_primary_source(
 pub async fn update_primary_source(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 	Json(params): Json<ParamsForUpdate<PrimarySourceForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<PrimarySource>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, PRIMARY_SOURCE_UPDATE)?;
 	let ParamsForUpdate { data } = params;
+	let entity = PrimarySourceBmc::get(&ctx, &mm, id).await?;
+	ensure_case_scope(case_id, entity.case_id, id, "primary_sources")?;
 	PrimarySourceBmc::update(&ctx, &mm, id, data).await?;
 	let entity = PrimarySourceBmc::get(&ctx, &mm, id).await?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
@@ -191,10 +225,12 @@ pub async fn update_primary_source(
 pub async fn delete_primary_source(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, PRIMARY_SOURCE_DELETE)?;
+	let entity = PrimarySourceBmc::get(&ctx, &mm, id).await?;
+	ensure_case_scope(case_id, entity.case_id, id, "primary_sources")?;
 	PrimarySourceBmc::delete(&ctx, &mm, id).await?;
 	Ok(StatusCode::NO_CONTENT)
 }
@@ -247,11 +283,12 @@ pub async fn list_literature_references(
 pub async fn get_literature_reference(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<LiteratureReference>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, LITERATURE_REFERENCE_READ)?;
 	let entity = LiteratureReferenceBmc::get(&ctx, &mm, id).await?;
+	ensure_case_scope(case_id, entity.case_id, id, "literature_references")?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
 }
 
@@ -259,12 +296,14 @@ pub async fn get_literature_reference(
 pub async fn update_literature_reference(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 	Json(params): Json<ParamsForUpdate<LiteratureReferenceForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<LiteratureReference>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, LITERATURE_REFERENCE_UPDATE)?;
 	let ParamsForUpdate { data } = params;
+	let entity = LiteratureReferenceBmc::get(&ctx, &mm, id).await?;
+	ensure_case_scope(case_id, entity.case_id, id, "literature_references")?;
 	LiteratureReferenceBmc::update(&ctx, &mm, id, data).await?;
 	let entity = LiteratureReferenceBmc::get(&ctx, &mm, id).await?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
@@ -274,10 +313,12 @@ pub async fn update_literature_reference(
 pub async fn delete_literature_reference(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, LITERATURE_REFERENCE_DELETE)?;
+	let entity = LiteratureReferenceBmc::get(&ctx, &mm, id).await?;
+	ensure_case_scope(case_id, entity.case_id, id, "literature_references")?;
 	LiteratureReferenceBmc::delete(&ctx, &mm, id).await?;
 	Ok(StatusCode::NO_CONTENT)
 }
@@ -314,7 +355,6 @@ pub async fn list_study_information(
 		case_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(
 			case_id.to_string()
 		))])),
-		..Default::default()
 	};
 	let entities = StudyInformationBmc::list(
 		&ctx,
@@ -330,11 +370,12 @@ pub async fn list_study_information(
 pub async fn get_study_information(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<StudyInformation>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, STUDY_INFORMATION_READ)?;
 	let entity = StudyInformationBmc::get(&ctx, &mm, id).await?;
+	ensure_case_scope(case_id, entity.case_id, id, "study_information")?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
 }
 
@@ -342,12 +383,14 @@ pub async fn get_study_information(
 pub async fn update_study_information(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 	Json(params): Json<ParamsForUpdate<StudyInformationForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<StudyInformation>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, STUDY_INFORMATION_UPDATE)?;
 	let ParamsForUpdate { data } = params;
+	let entity = StudyInformationBmc::get(&ctx, &mm, id).await?;
+	ensure_case_scope(case_id, entity.case_id, id, "study_information")?;
 	StudyInformationBmc::update(&ctx, &mm, id, data).await?;
 	let entity = StudyInformationBmc::get(&ctx, &mm, id).await?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
@@ -357,10 +400,12 @@ pub async fn update_study_information(
 pub async fn delete_study_information(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Path((case_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, STUDY_INFORMATION_DELETE)?;
+	let entity = StudyInformationBmc::get(&ctx, &mm, id).await?;
+	ensure_case_scope(case_id, entity.case_id, id, "study_information")?;
 	StudyInformationBmc::delete(&ctx, &mm, id).await?;
 	Ok(StatusCode::NO_CONTENT)
 }
@@ -371,11 +416,12 @@ pub async fn delete_study_information(
 pub async fn create_study_registration_number(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, study_id)): Path<(Uuid, Uuid)>,
+	Path((case_id, study_id)): Path<(Uuid, Uuid)>,
 	Json(params): Json<ParamsForCreate<StudyRegistrationNumberForCreate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<StudyRegistrationNumber>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, STUDY_REGISTRATION_CREATE)?;
+	ensure_study_case(&ctx, &mm, case_id, study_id).await?;
 	let ParamsForCreate { data } = params;
 	let mut data = data;
 	data.study_information_id = study_id;
@@ -389,10 +435,14 @@ pub async fn create_study_registration_number(
 pub async fn list_study_registration_numbers(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, study_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<DataRestResult<Vec<StudyRegistrationNumber>>>)> {
+	Path((case_id, study_id)): Path<(Uuid, Uuid)>,
+) -> Result<(
+	StatusCode,
+	Json<DataRestResult<Vec<StudyRegistrationNumber>>>,
+)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, STUDY_REGISTRATION_LIST)?;
+	ensure_study_case(&ctx, &mm, case_id, study_id).await?;
 	let filter = StudyRegistrationNumberFilter {
 		study_information_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(
 			study_id.to_string()
@@ -413,11 +463,19 @@ pub async fn list_study_registration_numbers(
 pub async fn get_study_registration_number(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, _study_id, id)): Path<(Uuid, Uuid, Uuid)>,
+	Path((case_id, study_id, id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<StudyRegistrationNumber>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, STUDY_REGISTRATION_READ)?;
 	let entity = StudyRegistrationNumberBmc::get(&ctx, &mm, id).await?;
+	if entity.study_information_id != study_id {
+		return Err(model::Error::EntityUuidNotFound {
+			entity: "study_registration_numbers",
+			id,
+		}
+		.into());
+	}
+	ensure_study_case(&ctx, &mm, case_id, study_id).await?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
 }
 
@@ -425,12 +483,21 @@ pub async fn get_study_registration_number(
 pub async fn update_study_registration_number(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, _study_id, id)): Path<(Uuid, Uuid, Uuid)>,
+	Path((case_id, study_id, id)): Path<(Uuid, Uuid, Uuid)>,
 	Json(params): Json<ParamsForUpdate<StudyRegistrationNumberForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<StudyRegistrationNumber>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, STUDY_REGISTRATION_UPDATE)?;
 	let ParamsForUpdate { data } = params;
+	let entity = StudyRegistrationNumberBmc::get(&ctx, &mm, id).await?;
+	if entity.study_information_id != study_id {
+		return Err(model::Error::EntityUuidNotFound {
+			entity: "study_registration_numbers",
+			id,
+		}
+		.into());
+	}
+	ensure_study_case(&ctx, &mm, case_id, study_id).await?;
 	StudyRegistrationNumberBmc::update(&ctx, &mm, id, data).await?;
 	let entity = StudyRegistrationNumberBmc::get(&ctx, &mm, id).await?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
@@ -440,10 +507,19 @@ pub async fn update_study_registration_number(
 pub async fn delete_study_registration_number(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, _study_id, id)): Path<(Uuid, Uuid, Uuid)>,
+	Path((case_id, study_id, id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, STUDY_REGISTRATION_DELETE)?;
+	let entity = StudyRegistrationNumberBmc::get(&ctx, &mm, id).await?;
+	if entity.study_information_id != study_id {
+		return Err(model::Error::EntityUuidNotFound {
+			entity: "study_registration_numbers",
+			id,
+		}
+		.into());
+	}
+	ensure_study_case(&ctx, &mm, case_id, study_id).await?;
 	StudyRegistrationNumberBmc::delete(&ctx, &mm, id).await?;
 	Ok(StatusCode::NO_CONTENT)
 }

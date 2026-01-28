@@ -9,7 +9,11 @@ use serial_test::serial;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-async fn create_case(app: &axum::Router, cookie: &str, org_id: Uuid) -> Result<Uuid> {
+async fn create_case(
+	app: &axum::Router,
+	cookie: &str,
+	org_id: Uuid,
+) -> Result<Uuid> {
 	let body = json!({
 		"data": {
 			"organization_id": org_id,
@@ -43,7 +47,11 @@ async fn create_case(app: &axum::Router, cookie: &str, org_id: Uuid) -> Result<U
 	Ok(Uuid::parse_str(id)?)
 }
 
-async fn create_drug(app: &axum::Router, cookie: &str, case_id: Uuid) -> Result<Uuid> {
+async fn create_drug(
+	app: &axum::Router,
+	cookie: &str,
+	case_id: Uuid,
+) -> Result<Uuid> {
 	let body = json!({
 		"data": {
 			"case_id": case_id,
@@ -78,7 +86,11 @@ async fn create_drug(app: &axum::Router, cookie: &str, case_id: Uuid) -> Result<
 	Ok(Uuid::parse_str(id)?)
 }
 
-async fn create_patient(app: &axum::Router, cookie: &str, case_id: Uuid) -> Result<Uuid> {
+async fn create_patient(
+	app: &axum::Router,
+	cookie: &str,
+	case_id: Uuid,
+) -> Result<Uuid> {
 	let body = json!({
 		"data": {
 			"case_id": case_id,
@@ -133,7 +145,9 @@ async fn test_admin_can_create_drug_active_substance() -> Result<()> {
 	});
 	let req = Request::builder()
 		.method("POST")
-		.uri(format!("/api/cases/{case_id}/drugs/{drug_id}/active-substances"))
+		.uri(format!(
+			"/api/cases/{case_id}/drugs/{drug_id}/active-substances"
+		))
 		.header("cookie", &cookie)
 		.header("content-type", "application/json")
 		.body(Body::from(body.to_string()))?;
@@ -148,7 +162,8 @@ async fn test_viewer_cannot_create_drug_active_substance() -> Result<()> {
 	let mm = init_test_mm().await?;
 	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
 	let admin_token = generate_web_token(&seed.admin.email, seed.admin.token_salt)?;
-	let viewer_token = generate_web_token(&seed.viewer.email, seed.viewer.token_salt)?;
+	let viewer_token =
+		generate_web_token(&seed.viewer.email, seed.viewer.token_salt)?;
 	let app = web_server::app(mm);
 	let admin_cookie = cookie_header(&admin_token.to_string());
 	let viewer_cookie = cookie_header(&viewer_token.to_string());
@@ -165,7 +180,9 @@ async fn test_viewer_cannot_create_drug_active_substance() -> Result<()> {
 	});
 	let req = Request::builder()
 		.method("POST")
-		.uri(format!("/api/cases/{case_id}/drugs/{drug_id}/active-substances"))
+		.uri(format!(
+			"/api/cases/{case_id}/drugs/{drug_id}/active-substances"
+		))
 		.header("cookie", &viewer_cookie)
 		.header("content-type", "application/json")
 		.body(Body::from(body.to_string()))?;
@@ -180,7 +197,8 @@ async fn test_viewer_cannot_create_medical_history() -> Result<()> {
 	let mm = init_test_mm().await?;
 	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
 	let admin_token = generate_web_token(&seed.admin.email, seed.admin.token_salt)?;
-	let viewer_token = generate_web_token(&seed.viewer.email, seed.viewer.token_salt)?;
+	let viewer_token =
+		generate_web_token(&seed.viewer.email, seed.viewer.token_salt)?;
 	let app = web_server::app(mm);
 	let admin_cookie = cookie_header(&admin_token.to_string());
 	let viewer_cookie = cookie_header(&viewer_token.to_string());

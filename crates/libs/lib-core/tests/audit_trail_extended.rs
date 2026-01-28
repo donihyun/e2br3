@@ -1,6 +1,10 @@
 mod common;
 
-use common::{audit_log_count, create_case_fixture, demo_ctx, demo_org_id, demo_user_id, init_test_mm, reset_role, set_auditor_role, set_current_user, unique_suffix, Result, begin_test_ctx, commit_test_ctx};
+use common::{
+	audit_log_count, begin_test_ctx, commit_test_ctx, create_case_fixture, demo_ctx,
+	demo_org_id, demo_user_id, init_test_mm, reset_role, set_auditor_role,
+	set_current_user, unique_suffix, Result,
+};
 use lib_core::model::audit::AuditLogBmc;
 use lib_core::model::case::CaseBmc;
 use lib_core::model::drug::{
@@ -24,7 +28,6 @@ use serial_test::serial;
 #[tokio::test]
 async fn test_audit_trail_drug_information() -> Result<()> {
 	let mm = init_test_mm().await;
-	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -96,7 +99,6 @@ async fn test_audit_trail_drug_information() -> Result<()> {
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
-	mm.dbx().commit_txn().await?;
 	commit_test_ctx(&mm).await?;
 	Ok(())
 }
@@ -109,7 +111,6 @@ async fn test_audit_trail_drug_information() -> Result<()> {
 #[tokio::test]
 async fn test_audit_trail_reactions() -> Result<()> {
 	let mm = init_test_mm().await;
-	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -164,7 +165,6 @@ async fn test_audit_trail_reactions() -> Result<()> {
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
-	mm.dbx().commit_txn().await?;
 	commit_test_ctx(&mm).await?;
 	Ok(())
 }
@@ -177,7 +177,6 @@ async fn test_audit_trail_reactions() -> Result<()> {
 #[tokio::test]
 async fn test_audit_trail_patient_information() -> Result<()> {
 	let mm = init_test_mm().await;
-	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -233,7 +232,6 @@ async fn test_audit_trail_patient_information() -> Result<()> {
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
-	mm.dbx().commit_txn().await?;
 	commit_test_ctx(&mm).await?;
 	Ok(())
 }
@@ -246,7 +244,6 @@ async fn test_audit_trail_patient_information() -> Result<()> {
 #[tokio::test]
 async fn test_audit_trail_organizations() -> Result<()> {
 	let mm = init_test_mm().await;
-	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 	let suffix = unique_suffix();
 
@@ -299,7 +296,6 @@ async fn test_audit_trail_organizations() -> Result<()> {
 	reset_role(&mm).await?;
 	assert_eq!(logs.len(), 3);
 
-	mm.dbx().commit_txn().await?;
 	commit_test_ctx(&mm).await?;
 	Ok(())
 }
@@ -312,7 +308,6 @@ async fn test_audit_trail_organizations() -> Result<()> {
 #[tokio::test]
 async fn test_audit_trail_users() -> Result<()> {
 	let mm = init_test_mm().await;
-	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 	let suffix = unique_suffix();
 
@@ -369,7 +364,6 @@ async fn test_audit_trail_users() -> Result<()> {
 		"should have at least CREATE, UPDATE, DELETE logs"
 	);
 
-	mm.dbx().commit_txn().await?;
 	commit_test_ctx(&mm).await?;
 	Ok(())
 }
@@ -382,7 +376,6 @@ async fn test_audit_trail_users() -> Result<()> {
 #[tokio::test]
 async fn test_audit_log_list_all() -> Result<()> {
 	let mm = init_test_mm().await;
-	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -426,7 +419,6 @@ async fn test_audit_log_list_all() -> Result<()> {
 	}
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
-	mm.dbx().commit_txn().await?;
 	commit_test_ctx(&mm).await?;
 	Ok(())
 }
@@ -435,7 +427,6 @@ async fn test_audit_log_list_all() -> Result<()> {
 #[tokio::test]
 async fn test_audit_log_chronological_order() -> Result<()> {
 	let mm = init_test_mm().await;
-	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -492,7 +483,6 @@ async fn test_audit_log_chronological_order() -> Result<()> {
 	// Cleanup
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
-	mm.dbx().commit_txn().await?;
 	commit_test_ctx(&mm).await?;
 	Ok(())
 }
@@ -505,7 +495,6 @@ async fn test_audit_log_chronological_order() -> Result<()> {
 #[tokio::test]
 async fn test_audit_log_captures_all_changed_fields() -> Result<()> {
 	let mm = init_test_mm().await;
-	mm.dbx().begin_txn().await?;
 	let ctx = demo_ctx();
 
 	set_current_user(&mm, demo_user_id()).await?;
@@ -552,7 +541,6 @@ async fn test_audit_log_captures_all_changed_fields() -> Result<()> {
 	DrugInformationBmc::delete(&ctx, &mm, drug_id).await?;
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
-	mm.dbx().commit_txn().await?;
 	commit_test_ctx(&mm).await?;
 	Ok(())
 }

@@ -1,6 +1,9 @@
 mod common;
 
-use common::{create_case_fixture, init_test_mm, set_current_user, unique_suffix, Result, begin_test_ctx, commit_test_ctx};
+use common::{
+	begin_test_ctx, commit_test_ctx, create_case_fixture, init_test_mm,
+	set_current_user, unique_suffix, Result,
+};
 use lib_core::ctx::{Ctx, ROLE_ADMIN, ROLE_USER, SYSTEM_ORG_ID, SYSTEM_USER_ID};
 use lib_core::model::case::CaseBmc;
 use lib_core::model::organization::{OrganizationBmc, OrganizationForCreate};
@@ -15,7 +18,6 @@ async fn enable_rls(mm: &lib_core::model::ModelManager) -> Result<()> {
 	mm.dbx().execute(query).await?;
 	let query = sqlx::query("SET row_security = on");
 	mm.dbx().execute(query).await?;
-	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -76,17 +78,16 @@ async fn test_rls_case_org_isolation() -> Result<()> {
 	let ctx = Ctx::new(user1_id, org1_id, ROLE_USER.to_string())?;
 	begin_test_ctx(&mm, &ctx).await?;
 	let case_org1 = create_case_fixture(&mm, org1_id, user1_id).await?;
+	commit_test_ctx(&mm).await?;
 	set_current_user(&mm, user2_id).await?;
-	let ctx = Ctx::new(user2_id, org2_id, ROLE_USER.to_string())?;
-	begin_test_ctx(&mm, &ctx).await?;
+	let _ctx = Ctx::new(user2_id, org2_id, ROLE_USER.to_string())?;
 	let case_org2 = create_case_fixture(&mm, org2_id, user2_id).await?;
 
 	let dbx = mm.dbx();
 	dbx.begin_txn().await?;
 	enable_rls(&mm).await?;
 	set_org_context_dbx(dbx, org1_id, ROLE_USER).await?;
-	let user_ctx =
-		Ctx::new(user1_id, org1_id, ROLE_USER.to_string())?;
+	let user_ctx = Ctx::new(user1_id, org1_id, ROLE_USER.to_string())?;
 
 	let cases = CaseBmc::list(&user_ctx, &mm, None, None).await?;
 	assert!(cases.iter().any(|c| c.id == case_org1));
@@ -99,8 +100,6 @@ async fn test_rls_case_org_isolation() -> Result<()> {
 	let cases_admin = CaseBmc::list(&admin_ctx, &mm, None, None).await?;
 	assert!(cases_admin.iter().any(|c| c.id == case_org2));
 	dbx.rollback_txn().await?;
-
-	commit_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -117,26 +116,20 @@ async fn test_rls_user_org_isolation() -> Result<()> {
 	let org2_id = create_org(&mm, &admin_ctx).await?;
 	let user2_id = create_user(&mm, &admin_ctx, org2_id, ROLE_USER).await?;
 
+	commit_test_ctx(&mm).await?;
 	let dbx = mm.dbx();
 	dbx.begin_txn().await?;
 	enable_rls(&mm).await?;
 	set_org_context_dbx(dbx, org1_id, ROLE_USER).await?;
-	let user_ctx =
-		Ctx::new(user1_id, org1_id, ROLE_USER.to_string())?;
+	let user_ctx = Ctx::new(user1_id, org1_id, ROLE_USER.to_string())?;
 
 	let users = UserBmc::list(&user_ctx, &mm, None, None).await?;
 	assert!(!users.iter().any(|u| u.id == user2_id));
 
-	let err = UserBmc::get::<lib_core::model::user::User>(
-		&user_ctx,
-		&mm,
-		user2_id,
-	)
-	.await
-	.unwrap_err();
+	let err = UserBmc::get::<lib_core::model::user::User>(&user_ctx, &mm, user2_id)
+		.await
+		.unwrap_err();
 	assert!(matches!(err, ModelError::EntityUuidNotFound { .. }));
 	dbx.rollback_txn().await?;
-
-	commit_test_ctx(&mm).await?;
 	Ok(())
 }

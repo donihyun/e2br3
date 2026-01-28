@@ -4,7 +4,7 @@ use crate::ctx::Ctx;
 use crate::model::base::base_uuid;
 use crate::model::base::DbBmc;
 use crate::model::modql_utils::uuid_to_sea_value;
-use crate::model::store::set_full_context_dbx;
+use crate::model::store::set_full_context_dbx_or_rollback;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -278,7 +278,13 @@ impl DrugInformationBmc {
 		drug_c: DrugInformationForCreate,
 	) -> Result<Uuid> {
 		mm.dbx().begin_txn().await?;
-		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql = format!(
 			"INSERT INTO {} (case_id, sequence_number, drug_characterization, medicinal_product, created_at, updated_at, created_by)
@@ -326,7 +332,13 @@ impl DrugInformationBmc {
 		drug_u: DrugInformationForUpdate,
 	) -> Result<()> {
 		mm.dbx().begin_txn().await?;
-		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -356,6 +368,7 @@ impl DrugInformationBmc {
 			)
 			.await?;
 		if result == 0 {
+			mm.dbx().rollback_txn().await?;
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
@@ -394,7 +407,9 @@ impl DrugInformationBmc {
 		let drug = mm
 			.dbx()
 			.fetch_optional(
-				sqlx::query_as::<_, DrugInformation>(&sql).bind(id).bind(case_id),
+				sqlx::query_as::<_, DrugInformation>(&sql)
+					.bind(id)
+					.bind(case_id),
 			)
 			.await?
 			.ok_or(crate::model::Error::EntityUuidNotFound {
@@ -412,7 +427,13 @@ impl DrugInformationBmc {
 		drug_u: DrugInformationForUpdate,
 	) -> Result<()> {
 		mm.dbx().begin_txn().await?;
-		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -443,6 +464,7 @@ impl DrugInformationBmc {
 			)
 			.await?;
 		if result == 0 {
+			mm.dbx().rollback_txn().await?;
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
@@ -454,14 +476,18 @@ impl DrugInformationBmc {
 
 	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
 		mm.dbx().begin_txn().await?;
-		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql = format!("DELETE FROM {} WHERE id = $1", Self::TABLE);
-		let result = mm
-			.dbx()
-			.execute(sqlx::query(&sql).bind(id))
-			.await?;
+		let result = mm.dbx().execute(sqlx::query(&sql).bind(id)).await?;
 		if result == 0 {
+			mm.dbx().rollback_txn().await?;
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,
@@ -478,7 +504,13 @@ impl DrugInformationBmc {
 		id: Uuid,
 	) -> Result<()> {
 		mm.dbx().begin_txn().await?;
-		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql =
 			format!("DELETE FROM {} WHERE id = $1 AND case_id = $2", Self::TABLE);
@@ -487,6 +519,7 @@ impl DrugInformationBmc {
 			.execute(sqlx::query(&sql).bind(id).bind(case_id))
 			.await?;
 		if result == 0 {
+			mm.dbx().rollback_txn().await?;
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id,

@@ -5,9 +5,9 @@ use axum::extract::State;
 use axum::http::Request;
 use axum::middleware::Next;
 use axum::response::Response;
-use lib_rest_core as rest;
 use lib_core::model::store::set_full_context_dbx;
 use lib_core::model::{self, ModelManager};
+use lib_rest_core as rest;
 use std::sync::Arc;
 
 pub async fn mw_ctx_require_and_set_dbx(
@@ -45,8 +45,7 @@ pub async fn mw_ctx_require_and_set_dbx(
 	if has_error {
 		let _ = dbx.rollback_txn().await;
 	} else {
-		let _ = dbx
-			.commit_txn()
+		dbx.commit_txn()
 			.await
 			.map_err(model::Error::from)
 			.map_err(Error::from)?;

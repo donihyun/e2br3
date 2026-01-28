@@ -113,14 +113,20 @@ pub const CASE_READ: Permission = Permission::new(Resource::Case, Action::Read);
 pub const CASE_UPDATE: Permission = Permission::new(Resource::Case, Action::Update);
 pub const CASE_DELETE: Permission = Permission::new(Resource::Case, Action::Delete);
 pub const CASE_LIST: Permission = Permission::new(Resource::Case, Action::List);
-pub const CASE_APPROVE: Permission = Permission::new(Resource::Case, Action::Approve);
+pub const CASE_APPROVE: Permission =
+	Permission::new(Resource::Case, Action::Approve);
 
 // Patient permissions
-pub const PATIENT_CREATE: Permission = Permission::new(Resource::Patient, Action::Create);
-pub const PATIENT_READ: Permission = Permission::new(Resource::Patient, Action::Read);
-pub const PATIENT_UPDATE: Permission = Permission::new(Resource::Patient, Action::Update);
-pub const PATIENT_DELETE: Permission = Permission::new(Resource::Patient, Action::Delete);
-pub const PATIENT_LIST: Permission = Permission::new(Resource::Patient, Action::List);
+pub const PATIENT_CREATE: Permission =
+	Permission::new(Resource::Patient, Action::Create);
+pub const PATIENT_READ: Permission =
+	Permission::new(Resource::Patient, Action::Read);
+pub const PATIENT_UPDATE: Permission =
+	Permission::new(Resource::Patient, Action::Update);
+pub const PATIENT_DELETE: Permission =
+	Permission::new(Resource::Patient, Action::Delete);
+pub const PATIENT_LIST: Permission =
+	Permission::new(Resource::Patient, Action::List);
 
 // Drug permissions
 pub const DRUG_CREATE: Permission = Permission::new(Resource::Drug, Action::Create);
@@ -197,30 +203,46 @@ pub const DRUG_RECURRENCE_LIST: Permission =
 	Permission::new(Resource::DrugRecurrence, Action::List);
 
 // Reaction permissions
-pub const REACTION_CREATE: Permission = Permission::new(Resource::Reaction, Action::Create);
-pub const REACTION_READ: Permission = Permission::new(Resource::Reaction, Action::Read);
-pub const REACTION_UPDATE: Permission = Permission::new(Resource::Reaction, Action::Update);
-pub const REACTION_DELETE: Permission = Permission::new(Resource::Reaction, Action::Delete);
-pub const REACTION_LIST: Permission = Permission::new(Resource::Reaction, Action::List);
+pub const REACTION_CREATE: Permission =
+	Permission::new(Resource::Reaction, Action::Create);
+pub const REACTION_READ: Permission =
+	Permission::new(Resource::Reaction, Action::Read);
+pub const REACTION_UPDATE: Permission =
+	Permission::new(Resource::Reaction, Action::Update);
+pub const REACTION_DELETE: Permission =
+	Permission::new(Resource::Reaction, Action::Delete);
+pub const REACTION_LIST: Permission =
+	Permission::new(Resource::Reaction, Action::List);
 
 // Test Result permissions
-pub const TEST_RESULT_CREATE: Permission = Permission::new(Resource::TestResult, Action::Create);
-pub const TEST_RESULT_READ: Permission = Permission::new(Resource::TestResult, Action::Read);
-pub const TEST_RESULT_UPDATE: Permission = Permission::new(Resource::TestResult, Action::Update);
-pub const TEST_RESULT_DELETE: Permission = Permission::new(Resource::TestResult, Action::Delete);
-pub const TEST_RESULT_LIST: Permission = Permission::new(Resource::TestResult, Action::List);
+pub const TEST_RESULT_CREATE: Permission =
+	Permission::new(Resource::TestResult, Action::Create);
+pub const TEST_RESULT_READ: Permission =
+	Permission::new(Resource::TestResult, Action::Read);
+pub const TEST_RESULT_UPDATE: Permission =
+	Permission::new(Resource::TestResult, Action::Update);
+pub const TEST_RESULT_DELETE: Permission =
+	Permission::new(Resource::TestResult, Action::Delete);
+pub const TEST_RESULT_LIST: Permission =
+	Permission::new(Resource::TestResult, Action::List);
 
 // Narrative permissions
-pub const NARRATIVE_CREATE: Permission = Permission::new(Resource::Narrative, Action::Create);
-pub const NARRATIVE_READ: Permission = Permission::new(Resource::Narrative, Action::Read);
-pub const NARRATIVE_UPDATE: Permission = Permission::new(Resource::Narrative, Action::Update);
-pub const NARRATIVE_DELETE: Permission = Permission::new(Resource::Narrative, Action::Delete);
-pub const NARRATIVE_LIST: Permission = Permission::new(Resource::Narrative, Action::List);
+pub const NARRATIVE_CREATE: Permission =
+	Permission::new(Resource::Narrative, Action::Create);
+pub const NARRATIVE_READ: Permission =
+	Permission::new(Resource::Narrative, Action::Read);
+pub const NARRATIVE_UPDATE: Permission =
+	Permission::new(Resource::Narrative, Action::Update);
+pub const NARRATIVE_DELETE: Permission =
+	Permission::new(Resource::Narrative, Action::Delete);
+pub const NARRATIVE_LIST: Permission =
+	Permission::new(Resource::Narrative, Action::List);
 
 // MessageHeader permissions
 pub const MESSAGE_HEADER_CREATE: Permission =
 	Permission::new(Resource::MessageHeader, Action::Create);
-pub const MESSAGE_HEADER_READ: Permission = Permission::new(Resource::MessageHeader, Action::Read);
+pub const MESSAGE_HEADER_READ: Permission =
+	Permission::new(Resource::MessageHeader, Action::Read);
 pub const MESSAGE_HEADER_UPDATE: Permission =
 	Permission::new(Resource::MessageHeader, Action::Update);
 pub const MESSAGE_HEADER_DELETE: Permission =
@@ -231,7 +253,8 @@ pub const MESSAGE_HEADER_LIST: Permission =
 // SafetyReport permissions
 pub const SAFETY_REPORT_CREATE: Permission =
 	Permission::new(Resource::SafetyReport, Action::Create);
-pub const SAFETY_REPORT_READ: Permission = Permission::new(Resource::SafetyReport, Action::Read);
+pub const SAFETY_REPORT_READ: Permission =
+	Permission::new(Resource::SafetyReport, Action::Read);
 pub const SAFETY_REPORT_UPDATE: Permission =
 	Permission::new(Resource::SafetyReport, Action::Update);
 pub const SAFETY_REPORT_DELETE: Permission =
@@ -427,22 +450,30 @@ pub const USER_DELETE: Permission = Permission::new(Resource::User, Action::Dele
 pub const USER_LIST: Permission = Permission::new(Resource::User, Action::List);
 
 // Organization permissions
-pub const ORG_CREATE: Permission = Permission::new(Resource::Organization, Action::Create);
-pub const ORG_READ: Permission = Permission::new(Resource::Organization, Action::Read);
-pub const ORG_UPDATE: Permission = Permission::new(Resource::Organization, Action::Update);
-pub const ORG_DELETE: Permission = Permission::new(Resource::Organization, Action::Delete);
-pub const ORG_LIST: Permission = Permission::new(Resource::Organization, Action::List);
+pub const ORG_CREATE: Permission =
+	Permission::new(Resource::Organization, Action::Create);
+pub const ORG_READ: Permission =
+	Permission::new(Resource::Organization, Action::Read);
+pub const ORG_UPDATE: Permission =
+	Permission::new(Resource::Organization, Action::Update);
+pub const ORG_DELETE: Permission =
+	Permission::new(Resource::Organization, Action::Delete);
+pub const ORG_LIST: Permission =
+	Permission::new(Resource::Organization, Action::List);
 
 // AuditLog permissions
 pub const AUDIT_READ: Permission = Permission::new(Resource::AuditLog, Action::Read);
 pub const AUDIT_LIST: Permission = Permission::new(Resource::AuditLog, Action::List);
 
 // Terminology permissions
-pub const TERMINOLOGY_READ: Permission = Permission::new(Resource::Terminology, Action::Read);
+pub const TERMINOLOGY_READ: Permission =
+	Permission::new(Resource::Terminology, Action::Read);
 
 // XML permissions
-pub const XML_EXPORT: Permission = Permission::new(Resource::XmlExport, Action::Export);
-pub const XML_IMPORT: Permission = Permission::new(Resource::XmlImport, Action::Import);
+pub const XML_EXPORT: Permission =
+	Permission::new(Resource::XmlExport, Action::Export);
+pub const XML_IMPORT: Permission =
+	Permission::new(Resource::XmlImport, Action::Import);
 
 // endregion: --- Permission Constants
 
@@ -630,6 +661,8 @@ fn admin_permissions() -> &'static [Permission] {
 		// AuditLog
 		AUDIT_READ,
 		AUDIT_LIST,
+		// Terminology
+		TERMINOLOGY_READ,
 		// XML
 		XML_EXPORT,
 		XML_IMPORT,
@@ -811,6 +844,8 @@ fn manager_permissions() -> &'static [Permission] {
 		// AuditLog - can view
 		AUDIT_READ,
 		AUDIT_LIST,
+		// Terminology
+		TERMINOLOGY_READ,
 		// XML
 		XML_EXPORT,
 		XML_IMPORT,
@@ -1146,10 +1181,7 @@ mod tests {
 
 	#[test]
 	fn test_has_any_permission() {
-		assert!(has_any_permission(
-			ROLE_VIEWER,
-			&[CASE_CREATE, CASE_READ]
-		));
+		assert!(has_any_permission(ROLE_VIEWER, &[CASE_CREATE, CASE_READ]));
 		assert!(!has_any_permission(
 			ROLE_VIEWER,
 			&[CASE_CREATE, CASE_DELETE]
@@ -1159,10 +1191,7 @@ mod tests {
 	#[test]
 	fn test_has_all_permissions() {
 		assert!(has_all_permissions(ROLE_ADMIN, &[CASE_CREATE, CASE_DELETE]));
-		assert!(!has_all_permissions(
-			ROLE_VIEWER,
-			&[CASE_READ, CASE_CREATE]
-		));
+		assert!(!has_all_permissions(ROLE_VIEWER, &[CASE_READ, CASE_CREATE]));
 	}
 }
 

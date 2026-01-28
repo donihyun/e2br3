@@ -17,7 +17,7 @@ use lib_core::model::drug::{
 	DrugActiveSubstanceForUpdate, DrugIndication, DrugIndicationBmc,
 	DrugIndicationFilter, DrugIndicationForCreate, DrugIndicationForUpdate,
 };
-use lib_core::model::ModelManager;
+use lib_core::model::{self, ModelManager};
 use lib_rest_core::rest_params::{ParamsForCreate, ParamsForUpdate};
 use lib_rest_core::rest_result::DataRestResult;
 use lib_rest_core::{require_permission, Result};
@@ -25,6 +25,22 @@ use lib_web::middleware::mw_auth::CtxW;
 use modql::filter::{ListOptions, OpValValue, OpValsValue};
 use serde_json::json;
 use uuid::Uuid;
+
+fn ensure_drug_scope(
+	path_drug_id: Uuid,
+	entity_drug_id: Uuid,
+	entity_id: Uuid,
+	entity: &'static str,
+) -> Result<()> {
+	if path_drug_id != entity_drug_id {
+		return Err(model::Error::EntityUuidNotFound {
+			entity,
+			id: entity_id,
+		}
+		.into());
+	}
+	Ok(())
+}
 
 // -- Drug Active Substances (G.k.2.3.r)
 
@@ -74,11 +90,12 @@ pub async fn list_drug_active_substances(
 pub async fn get_drug_active_substance(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, _drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
+	Path((_case_id, drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<DrugActiveSubstance>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, DRUG_SUBSTANCE_READ)?;
 	let entity = DrugActiveSubstanceBmc::get(&ctx, &mm, id).await?;
+	ensure_drug_scope(drug_id, entity.drug_id, id, "drug_active_substances")?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
 }
 
@@ -86,12 +103,14 @@ pub async fn get_drug_active_substance(
 pub async fn update_drug_active_substance(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, _drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
+	Path((_case_id, drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
 	Json(params): Json<ParamsForUpdate<DrugActiveSubstanceForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<DrugActiveSubstance>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, DRUG_SUBSTANCE_UPDATE)?;
 	let ParamsForUpdate { data } = params;
+	let entity = DrugActiveSubstanceBmc::get(&ctx, &mm, id).await?;
+	ensure_drug_scope(drug_id, entity.drug_id, id, "drug_active_substances")?;
 	DrugActiveSubstanceBmc::update(&ctx, &mm, id, data).await?;
 	let entity = DrugActiveSubstanceBmc::get(&ctx, &mm, id).await?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
@@ -101,10 +120,12 @@ pub async fn update_drug_active_substance(
 pub async fn delete_drug_active_substance(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, _drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
+	Path((_case_id, drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, DRUG_SUBSTANCE_DELETE)?;
+	let entity = DrugActiveSubstanceBmc::get(&ctx, &mm, id).await?;
+	ensure_drug_scope(drug_id, entity.drug_id, id, "drug_active_substances")?;
 	DrugActiveSubstanceBmc::delete(&ctx, &mm, id).await?;
 	Ok(StatusCode::NO_CONTENT)
 }
@@ -157,11 +178,12 @@ pub async fn list_dosage_information(
 pub async fn get_dosage_information(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, _drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
+	Path((_case_id, drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<DosageInformation>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, DRUG_DOSAGE_READ)?;
 	let entity = DosageInformationBmc::get(&ctx, &mm, id).await?;
+	ensure_drug_scope(drug_id, entity.drug_id, id, "dosage_information")?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
 }
 
@@ -169,12 +191,14 @@ pub async fn get_dosage_information(
 pub async fn update_dosage_information(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, _drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
+	Path((_case_id, drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
 	Json(params): Json<ParamsForUpdate<DosageInformationForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<DosageInformation>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, DRUG_DOSAGE_UPDATE)?;
 	let ParamsForUpdate { data } = params;
+	let entity = DosageInformationBmc::get(&ctx, &mm, id).await?;
+	ensure_drug_scope(drug_id, entity.drug_id, id, "dosage_information")?;
 	DosageInformationBmc::update(&ctx, &mm, id, data).await?;
 	let entity = DosageInformationBmc::get(&ctx, &mm, id).await?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
@@ -184,10 +208,12 @@ pub async fn update_dosage_information(
 pub async fn delete_dosage_information(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, _drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
+	Path((_case_id, drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, DRUG_DOSAGE_DELETE)?;
+	let entity = DosageInformationBmc::get(&ctx, &mm, id).await?;
+	ensure_drug_scope(drug_id, entity.drug_id, id, "dosage_information")?;
 	DosageInformationBmc::delete(&ctx, &mm, id).await?;
 	Ok(StatusCode::NO_CONTENT)
 }
@@ -240,11 +266,12 @@ pub async fn list_drug_indications(
 pub async fn get_drug_indication(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, _drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
+	Path((_case_id, drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<DataRestResult<DrugIndication>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, DRUG_INDICATION_READ)?;
 	let entity = DrugIndicationBmc::get(&ctx, &mm, id).await?;
+	ensure_drug_scope(drug_id, entity.drug_id, id, "drug_indications")?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
 }
 
@@ -252,12 +279,14 @@ pub async fn get_drug_indication(
 pub async fn update_drug_indication(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, _drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
+	Path((_case_id, drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
 	Json(params): Json<ParamsForUpdate<DrugIndicationForUpdate>>,
 ) -> Result<(StatusCode, Json<DataRestResult<DrugIndication>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, DRUG_INDICATION_UPDATE)?;
 	let ParamsForUpdate { data } = params;
+	let entity = DrugIndicationBmc::get(&ctx, &mm, id).await?;
+	ensure_drug_scope(drug_id, entity.drug_id, id, "drug_indications")?;
 	DrugIndicationBmc::update(&ctx, &mm, id, data).await?;
 	let entity = DrugIndicationBmc::get(&ctx, &mm, id).await?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
@@ -267,10 +296,12 @@ pub async fn update_drug_indication(
 pub async fn delete_drug_indication(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
-	Path((_case_id, _drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
+	Path((_case_id, drug_id, id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, DRUG_INDICATION_DELETE)?;
+	let entity = DrugIndicationBmc::get(&ctx, &mm, id).await?;
+	ensure_drug_scope(drug_id, entity.drug_id, id, "drug_indications")?;
 	DrugIndicationBmc::delete(&ctx, &mm, id).await?;
 	Ok(StatusCode::NO_CONTENT)
 }

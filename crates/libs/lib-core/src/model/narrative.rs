@@ -3,7 +3,7 @@
 use crate::model::base::base_uuid;
 use crate::model::base::DbBmc;
 use crate::model::modql_utils::uuid_to_sea_value;
-use crate::model::store::set_full_context_dbx;
+use crate::model::store::set_full_context_dbx_or_rollback;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::field::Fields;
@@ -147,7 +147,13 @@ impl NarrativeInformationBmc {
 		data: NarrativeInformationForCreate,
 	) -> Result<Uuid> {
 		mm.dbx().begin_txn().await?;
-		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql = format!(
 			"INSERT INTO {} (case_id, case_narrative, created_at, updated_at, created_by)
@@ -194,7 +200,13 @@ impl NarrativeInformationBmc {
 		data: NarrativeInformationForUpdate,
 	) -> Result<()> {
 		mm.dbx().begin_txn().await?;
-		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql = format!(
 			"UPDATE {}
@@ -218,6 +230,7 @@ impl NarrativeInformationBmc {
 			)
 			.await?;
 		if result == 0 {
+			mm.dbx().rollback_txn().await?;
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id: case_id,
@@ -233,11 +246,18 @@ impl NarrativeInformationBmc {
 		case_id: Uuid,
 	) -> Result<()> {
 		mm.dbx().begin_txn().await?;
-		set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role()).await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
 
 		let sql = format!("DELETE FROM {} WHERE case_id = $1", Self::TABLE);
 		let result = mm.dbx().execute(sqlx::query(&sql).bind(case_id)).await?;
 		if result == 0 {
+			mm.dbx().rollback_txn().await?;
 			return Err(crate::model::Error::EntityUuidNotFound {
 				entity: Self::TABLE,
 				id: case_id,

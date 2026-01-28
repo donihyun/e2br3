@@ -49,14 +49,13 @@ where
 		// Get the context from extensions (set by mw_ctx_resolver)
 		let ctx_result = parts
 			.extensions
-			.get::<core::result::Result<CtxW, crate::middleware::mw_auth::CtxExtError>>()
+			.get::<core::result::Result<CtxW, crate::middleware::mw_auth::CtxExtError>>(
+			)
 			.ok_or(Error::CtxExt(
 				crate::middleware::mw_auth::CtxExtError::CtxNotInRequestExt,
 			))?;
 
-		let ctx = ctx_result
-			.as_ref()
-			.map_err(|e| Error::CtxExt(e.clone()))?;
+		let ctx = ctx_result.as_ref().map_err(|e| Error::CtxExt(e.clone()))?;
 
 		// Check permission
 		let permission = P::permission();
@@ -81,7 +80,7 @@ where
 pub fn check_permission(ctx: &Ctx, permission: Permission) -> Result<()> {
 	if !has_permission(ctx.role(), permission) {
 		return Err(Error::PermissionDenied {
-			required_permission: format!("{}", permission),
+			required_permission: format!("{permission}"),
 		});
 	}
 	Ok(())
@@ -97,7 +96,7 @@ pub fn check_any_permission(ctx: &Ctx, permissions: &[Permission]) -> Result<()>
 	Err(Error::PermissionDenied {
 		required_permission: permissions
 			.iter()
-			.map(|p| format!("{}", p))
+			.map(|p| format!("{p}"))
 			.collect::<Vec<_>>()
 			.join(" or "),
 	})
@@ -187,14 +186,13 @@ where
 	async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self> {
 		let ctx_result = parts
 			.extensions
-			.get::<core::result::Result<CtxW, crate::middleware::mw_auth::CtxExtError>>()
+			.get::<core::result::Result<CtxW, crate::middleware::mw_auth::CtxExtError>>(
+			)
 			.ok_or(Error::CtxExt(
 				crate::middleware::mw_auth::CtxExtError::CtxNotInRequestExt,
 			))?;
 
-		let ctx = ctx_result
-			.as_ref()
-			.map_err(|e| Error::CtxExt(e.clone()))?;
+		let ctx = ctx_result.as_ref().map_err(|e| Error::CtxExt(e.clone()))?;
 
 		if !R::check(ctx.0.role()) {
 			return Err(Error::AccessDenied {
@@ -260,29 +258,85 @@ define_permission_marker!(ReactionDelete, acs::REACTION_DELETE, "Reaction.Delete
 define_permission_marker!(ReactionList, acs::REACTION_LIST, "Reaction.List");
 
 // Test Result permissions
-define_permission_marker!(TestResultCreate, acs::TEST_RESULT_CREATE, "TestResult.Create");
+define_permission_marker!(
+	TestResultCreate,
+	acs::TEST_RESULT_CREATE,
+	"TestResult.Create"
+);
 define_permission_marker!(TestResultRead, acs::TEST_RESULT_READ, "TestResult.Read");
-define_permission_marker!(TestResultUpdate, acs::TEST_RESULT_UPDATE, "TestResult.Update");
-define_permission_marker!(TestResultDelete, acs::TEST_RESULT_DELETE, "TestResult.Delete");
+define_permission_marker!(
+	TestResultUpdate,
+	acs::TEST_RESULT_UPDATE,
+	"TestResult.Update"
+);
+define_permission_marker!(
+	TestResultDelete,
+	acs::TEST_RESULT_DELETE,
+	"TestResult.Delete"
+);
 define_permission_marker!(TestResultList, acs::TEST_RESULT_LIST, "TestResult.List");
 
 // Narrative permissions
-define_permission_marker!(NarrativeCreate, acs::NARRATIVE_CREATE, "Narrative.Create");
+define_permission_marker!(
+	NarrativeCreate,
+	acs::NARRATIVE_CREATE,
+	"Narrative.Create"
+);
 define_permission_marker!(NarrativeRead, acs::NARRATIVE_READ, "Narrative.Read");
-define_permission_marker!(NarrativeUpdate, acs::NARRATIVE_UPDATE, "Narrative.Update");
-define_permission_marker!(NarrativeDelete, acs::NARRATIVE_DELETE, "Narrative.Delete");
+define_permission_marker!(
+	NarrativeUpdate,
+	acs::NARRATIVE_UPDATE,
+	"Narrative.Update"
+);
+define_permission_marker!(
+	NarrativeDelete,
+	acs::NARRATIVE_DELETE,
+	"Narrative.Delete"
+);
 
 // MessageHeader permissions
-define_permission_marker!(MessageHeaderCreate, acs::MESSAGE_HEADER_CREATE, "MessageHeader.Create");
-define_permission_marker!(MessageHeaderRead, acs::MESSAGE_HEADER_READ, "MessageHeader.Read");
-define_permission_marker!(MessageHeaderUpdate, acs::MESSAGE_HEADER_UPDATE, "MessageHeader.Update");
-define_permission_marker!(MessageHeaderDelete, acs::MESSAGE_HEADER_DELETE, "MessageHeader.Delete");
+define_permission_marker!(
+	MessageHeaderCreate,
+	acs::MESSAGE_HEADER_CREATE,
+	"MessageHeader.Create"
+);
+define_permission_marker!(
+	MessageHeaderRead,
+	acs::MESSAGE_HEADER_READ,
+	"MessageHeader.Read"
+);
+define_permission_marker!(
+	MessageHeaderUpdate,
+	acs::MESSAGE_HEADER_UPDATE,
+	"MessageHeader.Update"
+);
+define_permission_marker!(
+	MessageHeaderDelete,
+	acs::MESSAGE_HEADER_DELETE,
+	"MessageHeader.Delete"
+);
 
 // SafetyReport permissions
-define_permission_marker!(SafetyReportCreate, acs::SAFETY_REPORT_CREATE, "SafetyReport.Create");
-define_permission_marker!(SafetyReportRead, acs::SAFETY_REPORT_READ, "SafetyReport.Read");
-define_permission_marker!(SafetyReportUpdate, acs::SAFETY_REPORT_UPDATE, "SafetyReport.Update");
-define_permission_marker!(SafetyReportDelete, acs::SAFETY_REPORT_DELETE, "SafetyReport.Delete");
+define_permission_marker!(
+	SafetyReportCreate,
+	acs::SAFETY_REPORT_CREATE,
+	"SafetyReport.Create"
+);
+define_permission_marker!(
+	SafetyReportRead,
+	acs::SAFETY_REPORT_READ,
+	"SafetyReport.Read"
+);
+define_permission_marker!(
+	SafetyReportUpdate,
+	acs::SAFETY_REPORT_UPDATE,
+	"SafetyReport.Update"
+);
+define_permission_marker!(
+	SafetyReportDelete,
+	acs::SAFETY_REPORT_DELETE,
+	"SafetyReport.Delete"
+);
 
 // User permissions
 define_permission_marker!(UserCreate, acs::USER_CREATE, "User.Create");
@@ -303,7 +357,11 @@ define_permission_marker!(AuditRead, acs::AUDIT_READ, "AuditLog.Read");
 define_permission_marker!(AuditList, acs::AUDIT_LIST, "AuditLog.List");
 
 // Terminology permissions
-define_permission_marker!(TerminologyRead, acs::TERMINOLOGY_READ, "Terminology.Read");
+define_permission_marker!(
+	TerminologyRead,
+	acs::TERMINOLOGY_READ,
+	"Terminology.Read"
+);
 
 // XML permissions
 define_permission_marker!(XmlExport, acs::XML_EXPORT, "Xml.Export");
@@ -322,8 +380,8 @@ mod tests {
 	use uuid::Uuid;
 
 	fn parts_with_ctx(role: &str) -> Parts {
-		let ctx = Ctx::new(Uuid::new_v4(), Uuid::new_v4(), role.to_string())
-			.expect("ctx");
+		let ctx =
+			Ctx::new(Uuid::new_v4(), Uuid::new_v4(), role.to_string()).expect("ctx");
 		let (mut parts, _) = Request::new(()).into_parts();
 		parts
 			.extensions
@@ -334,22 +392,18 @@ mod tests {
 	#[tokio::test]
 	async fn require_permission_allows_admin() {
 		let mut parts = parts_with_ctx(ROLE_ADMIN);
-		let res = RequirePermission::<CaseCreate>::from_request_parts(
-			&mut parts,
-			&(),
-		)
-		.await;
+		let res =
+			RequirePermission::<CaseCreate>::from_request_parts(&mut parts, &())
+				.await;
 		assert!(res.is_ok());
 	}
 
 	#[tokio::test]
 	async fn require_permission_denies_viewer() {
 		let mut parts = parts_with_ctx(ROLE_VIEWER);
-		let res = RequirePermission::<CaseCreate>::from_request_parts(
-			&mut parts,
-			&(),
-		)
-		.await;
+		let res =
+			RequirePermission::<CaseCreate>::from_request_parts(&mut parts, &())
+				.await;
 		assert!(matches!(res, Err(Error::PermissionDenied { .. })));
 	}
 
@@ -357,42 +411,31 @@ mod tests {
 	async fn require_role_admin_only() {
 		let mut parts = parts_with_ctx(ROLE_MANAGER);
 		let res =
-			RequireRole::<AdminRole>::from_request_parts(&mut parts, &())
-				.await;
+			RequireRole::<AdminRole>::from_request_parts(&mut parts, &()).await;
 		assert!(matches!(res, Err(Error::AccessDenied { .. })));
 	}
 
 	#[tokio::test]
 	async fn require_role_manager_or_above() {
 		let mut parts = parts_with_ctx(ROLE_MANAGER);
-		let res = RequireRole::<ManagerOrAboveRole>::from_request_parts(
-			&mut parts,
-			&(),
-		)
-		.await;
+		let res =
+			RequireRole::<ManagerOrAboveRole>::from_request_parts(&mut parts, &())
+				.await;
 		assert!(res.is_ok());
 	}
 
 	#[test]
 	fn check_organization_access_enforces_org() {
-		let ctx = Ctx::new(
-			Uuid::new_v4(),
-			Uuid::new_v4(),
-			ROLE_USER.to_string(),
-		)
-		.expect("ctx");
+		let ctx = Ctx::new(Uuid::new_v4(), Uuid::new_v4(), ROLE_USER.to_string())
+			.expect("ctx");
 		let res = check_organization_access(&ctx, Uuid::new_v4());
 		assert!(matches!(res, Err(Error::OrganizationAccessDenied { .. })));
 	}
 
 	#[test]
 	fn check_organization_access_allows_admin() {
-		let ctx = Ctx::new(
-			Uuid::new_v4(),
-			Uuid::new_v4(),
-			ROLE_ADMIN.to_string(),
-		)
-		.expect("ctx");
+		let ctx = Ctx::new(Uuid::new_v4(), Uuid::new_v4(), ROLE_ADMIN.to_string())
+			.expect("ctx");
 		let res = check_organization_access(&ctx, Uuid::new_v4());
 		assert!(res.is_ok());
 	}

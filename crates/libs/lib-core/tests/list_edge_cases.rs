@@ -1,6 +1,9 @@
 mod common;
 
-use common::{demo_ctx, create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user, Result, begin_test_ctx, commit_test_ctx};
+use common::{
+	begin_test_ctx, commit_test_ctx, create_case_fixture, demo_ctx, demo_org_id,
+	demo_user_id, init_test_mm, set_current_user, Result,
+};
 use lib_core::model::case::CaseBmc;
 use lib_core::model::drug::{
 	DrugActiveSubstanceBmc, DrugActiveSubstanceForCreate, DrugInformationBmc,
@@ -20,7 +23,6 @@ use serial_test::serial;
 async fn test_drug_list_empty_case() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = demo_ctx();
-	begin_test_ctx(&mm, &ctx).await?;
 
 	set_current_user(&mm, demo_user_id()).await?;
 	begin_test_ctx(&mm, &ctx).await?;
@@ -42,7 +44,6 @@ async fn test_drug_list_empty_case() -> Result<()> {
 async fn test_reaction_list_empty_case() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = demo_ctx();
-	begin_test_ctx(&mm, &ctx).await?;
 
 	set_current_user(&mm, demo_user_id()).await?;
 	begin_test_ctx(&mm, &ctx).await?;
@@ -68,7 +69,6 @@ async fn test_reaction_list_empty_case() -> Result<()> {
 async fn test_substance_list_with_limit() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = demo_ctx();
-	begin_test_ctx(&mm, &ctx).await?;
 
 	set_current_user(&mm, demo_user_id()).await?;
 	begin_test_ctx(&mm, &ctx).await?;
@@ -122,7 +122,6 @@ async fn test_substance_list_with_limit() -> Result<()> {
 async fn test_substance_list_with_offset() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = demo_ctx();
-	begin_test_ctx(&mm, &ctx).await?;
 
 	set_current_user(&mm, demo_user_id()).await?;
 	begin_test_ctx(&mm, &ctx).await?;
@@ -306,7 +305,6 @@ async fn test_reaction_list_by_nonexistent_case() -> Result<()> {
 async fn test_reaction_list_ordering() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = demo_ctx();
-	begin_test_ctx(&mm, &ctx).await?;
 
 	set_current_user(&mm, demo_user_id()).await?;
 	begin_test_ctx(&mm, &ctx).await?;
@@ -363,7 +361,6 @@ async fn test_reaction_list_ordering() -> Result<()> {
 async fn test_list_consistency_after_modifications() -> Result<()> {
 	let mm = init_test_mm().await;
 	let ctx = demo_ctx();
-	begin_test_ctx(&mm, &ctx).await?;
 
 	set_current_user(&mm, demo_user_id()).await?;
 	begin_test_ctx(&mm, &ctx).await?;

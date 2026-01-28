@@ -99,7 +99,8 @@ impl Dbx {
 			}
 			Ok(())
 		} else {
-			Err(Error::NoTxn)
+			// No active transaction; treat as a no-op to avoid masking original errors.
+			Ok(())
 		}
 	}
 
@@ -142,8 +143,18 @@ impl Dbx {
 	{
 		let data = if self.with_txn {
 			let mut txh_g = self.txn_holder.lock().await;
-			if let Some(txn) = txh_g.as_deref_mut() {
-				query.fetch_one(txn.as_mut()).await?
+			if let Some(mut txn_holder) = txh_g.take() {
+				let res = query.fetch_one(txn_holder.as_mut()).await;
+				match res {
+					Ok(data) => {
+						txh_g.replace(txn_holder);
+						data
+					}
+					Err(err) => {
+						let _ = txn_holder.txn.rollback().await;
+						return Err(err.into());
+					}
+				}
 			} else {
 				query.fetch_one(self.db()).await?
 			}
@@ -164,8 +175,18 @@ impl Dbx {
 	{
 		let data = if self.with_txn {
 			let mut txh_g = self.txn_holder.lock().await;
-			if let Some(txn) = txh_g.as_deref_mut() {
-				query.fetch_optional(txn.as_mut()).await?
+			if let Some(mut txn_holder) = txh_g.take() {
+				let res = query.fetch_optional(txn_holder.as_mut()).await;
+				match res {
+					Ok(data) => {
+						txh_g.replace(txn_holder);
+						data
+					}
+					Err(err) => {
+						let _ = txn_holder.txn.rollback().await;
+						return Err(err.into());
+					}
+				}
 			} else {
 				query.fetch_optional(self.db()).await?
 			}
@@ -186,8 +207,18 @@ impl Dbx {
 	{
 		let data = if self.with_txn {
 			let mut txh_g = self.txn_holder.lock().await;
-			if let Some(txn) = txh_g.as_deref_mut() {
-				query.fetch_all(txn.as_mut()).await?
+			if let Some(mut txn_holder) = txh_g.take() {
+				let res = query.fetch_all(txn_holder.as_mut()).await;
+				match res {
+					Ok(data) => {
+						txh_g.replace(txn_holder);
+						data
+					}
+					Err(err) => {
+						let _ = txn_holder.txn.rollback().await;
+						return Err(err.into());
+					}
+				}
 			} else {
 				query.fetch_all(self.db()).await?
 			}
@@ -204,8 +235,18 @@ impl Dbx {
 	{
 		let row_affected = if self.with_txn {
 			let mut txh_g = self.txn_holder.lock().await;
-			if let Some(txn) = txh_g.as_deref_mut() {
-				query.execute(txn.as_mut()).await?.rows_affected()
+			if let Some(mut txn_holder) = txh_g.take() {
+				let res = query.execute(txn_holder.as_mut()).await;
+				match res {
+					Ok(done) => {
+						txh_g.replace(txn_holder);
+						done.rows_affected()
+					}
+					Err(err) => {
+						let _ = txn_holder.txn.rollback().await;
+						return Err(err.into());
+					}
+				}
 			} else {
 				query.execute(self.db()).await?.rows_affected()
 			}

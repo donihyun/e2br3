@@ -1,7 +1,9 @@
 mod common;
 
-use common::{create_case_fixture, demo_ctx, demo_org_id, demo_user_id, init_test_mm, set_current_user, Result, begin_test_ctx, commit_test_ctx};
-use lib_core::model::store::set_full_context_dbx;
+use common::{
+	begin_test_ctx, commit_test_ctx, create_case_fixture, demo_ctx, demo_org_id,
+	demo_user_id, init_test_mm, set_current_user, Result,
+};
 use lib_core::model::case::CaseBmc;
 use lib_core::model::case_identifiers::{
 	LinkedReportNumberBmc, LinkedReportNumberForCreate, LinkedReportNumberForUpdate,
@@ -18,9 +20,6 @@ async fn test_case_identifiers_crud() -> Result<()> {
 
 	set_current_user(&mm, demo_user_id()).await?;
 	begin_test_ctx(&mm, &ctx).await?;
-	mm.dbx().begin_txn().await?;
-	set_full_context_dbx(mm.dbx(), ctx.user_id(), ctx.organization_id(), ctx.role())
-		.await?;
 	let case_id = create_case_fixture(&mm, demo_org_id(), demo_user_id()).await?;
 
 	let other_c = OtherCaseIdentifierForCreate {
@@ -67,7 +66,6 @@ async fn test_case_identifiers_crud() -> Result<()> {
 	OtherCaseIdentifierBmc::delete(&ctx, &mm, other_id).await?;
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 
-	mm.dbx().commit_txn().await?;
 	commit_test_ctx(&mm).await?;
 	Ok(())
 }

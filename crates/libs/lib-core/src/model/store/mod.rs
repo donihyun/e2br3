@@ -119,6 +119,21 @@ pub async fn set_full_context_dbx(
 	Ok(())
 }
 
+/// Sets full context, rolling back the active transaction if it fails.
+pub async fn set_full_context_dbx_or_rollback(
+	dbx: &dbx::Dbx,
+	user_id: Uuid,
+	organization_id: Uuid,
+	role: &str,
+) -> Result<(), Error> {
+	if let Err(err) = set_full_context_dbx(dbx, user_id, organization_id, role).await
+	{
+		let _ = dbx.rollback_txn().await;
+		return Err(err);
+	}
+	Ok(())
+}
+
 // endregion: --- Organization Context for RLS
 
 /// Gets the current user context from PostgreSQL session.

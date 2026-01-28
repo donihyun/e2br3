@@ -17,13 +17,13 @@ pub mod case_identifiers_rest;
 pub mod drug_reaction_assessment_rest;
 pub mod drug_recurrence_rest;
 pub mod drug_sub_rest;
+pub mod narrative_sub_rest;
 pub mod parent_history_rest;
 pub mod patient_sub_rest;
-pub mod relatedness_assessment_rest;
 pub mod receiver_rest;
+pub mod relatedness_assessment_rest;
 pub mod safety_report_sub_rest;
 pub mod terminology_rest;
-pub mod narrative_sub_rest;
 
 use axum::routing::get;
 use axum::Router;

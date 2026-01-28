@@ -986,34 +986,70 @@ CREATE POLICY relatedness_assessments_via_case ON relatedness_assessments
         )
     );
 
--- Terminology Tables (global read/write for app role)
+-- Terminology Tables (global read for app role, write for admins)
 ALTER TABLE meddra_terms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE meddra_terms FORCE ROW LEVEL SECURITY;
-CREATE POLICY meddra_terms_all ON meddra_terms
-    FOR ALL TO e2br3_app_role
+CREATE POLICY meddra_terms_read ON meddra_terms
+    FOR SELECT TO e2br3_app_role
+    USING (true);
+CREATE POLICY meddra_terms_insert ON meddra_terms
+    FOR INSERT TO e2br3_app_role
+    WITH CHECK (is_current_user_admin());
+CREATE POLICY meddra_terms_update ON meddra_terms
+    FOR UPDATE TO e2br3_app_role
     USING (is_current_user_admin())
     WITH CHECK (is_current_user_admin());
+CREATE POLICY meddra_terms_delete ON meddra_terms
+    FOR DELETE TO e2br3_app_role
+    USING (is_current_user_admin());
 
 ALTER TABLE whodrug_products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE whodrug_products FORCE ROW LEVEL SECURITY;
-CREATE POLICY whodrug_products_all ON whodrug_products
-    FOR ALL TO e2br3_app_role
+CREATE POLICY whodrug_products_read ON whodrug_products
+    FOR SELECT TO e2br3_app_role
+    USING (true);
+CREATE POLICY whodrug_products_insert ON whodrug_products
+    FOR INSERT TO e2br3_app_role
+    WITH CHECK (is_current_user_admin());
+CREATE POLICY whodrug_products_update ON whodrug_products
+    FOR UPDATE TO e2br3_app_role
     USING (is_current_user_admin())
     WITH CHECK (is_current_user_admin());
+CREATE POLICY whodrug_products_delete ON whodrug_products
+    FOR DELETE TO e2br3_app_role
+    USING (is_current_user_admin());
 
 ALTER TABLE iso_countries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE iso_countries FORCE ROW LEVEL SECURITY;
-CREATE POLICY iso_countries_all ON iso_countries
-    FOR ALL TO e2br3_app_role
+CREATE POLICY iso_countries_read ON iso_countries
+    FOR SELECT TO e2br3_app_role
+    USING (true);
+CREATE POLICY iso_countries_insert ON iso_countries
+    FOR INSERT TO e2br3_app_role
+    WITH CHECK (is_current_user_admin());
+CREATE POLICY iso_countries_update ON iso_countries
+    FOR UPDATE TO e2br3_app_role
     USING (is_current_user_admin())
     WITH CHECK (is_current_user_admin());
+CREATE POLICY iso_countries_delete ON iso_countries
+    FOR DELETE TO e2br3_app_role
+    USING (is_current_user_admin());
 
 ALTER TABLE e2b_code_lists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE e2b_code_lists FORCE ROW LEVEL SECURITY;
-CREATE POLICY e2b_code_lists_all ON e2b_code_lists
-    FOR ALL TO e2br3_app_role
+CREATE POLICY e2b_code_lists_read ON e2b_code_lists
+    FOR SELECT TO e2br3_app_role
+    USING (true);
+CREATE POLICY e2b_code_lists_insert ON e2b_code_lists
+    FOR INSERT TO e2br3_app_role
+    WITH CHECK (is_current_user_admin());
+CREATE POLICY e2b_code_lists_update ON e2b_code_lists
+    FOR UPDATE TO e2br3_app_role
     USING (is_current_user_admin())
     WITH CHECK (is_current_user_admin());
+CREATE POLICY e2b_code_lists_delete ON e2b_code_lists
+    FOR DELETE TO e2br3_app_role
+    USING (is_current_user_admin());
 
 -- Ensure application role has access to all tables created after initial grants.
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO e2br3_app_role;

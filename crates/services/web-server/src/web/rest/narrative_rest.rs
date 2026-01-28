@@ -2,7 +2,8 @@ use lib_core::model::acs::{
 	NARRATIVE_CREATE, NARRATIVE_DELETE, NARRATIVE_READ, NARRATIVE_UPDATE,
 };
 use lib_core::model::narrative::{
-	NarrativeInformationBmc, NarrativeInformationForCreate, NarrativeInformationForUpdate,
+	NarrativeInformationBmc, NarrativeInformationForCreate,
+	NarrativeInformationForUpdate,
 };
 use lib_rest_core::prelude::*;
 

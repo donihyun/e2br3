@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use lib_auth::pwd::{self, ContentToHash};
 use lib_core::_dev_utils;
 use lib_core::ctx::{ROLE_ADMIN, ROLE_VIEWER, SYSTEM_ORG_ID, SYSTEM_USER_ID};
@@ -74,26 +76,15 @@ pub async fn seed_org_with_users(
 ) -> Result<SeedOrgUsers> {
 	let dbx = mm.dbx();
 	dbx.begin_txn().await?;
-	set_full_context_dbx(dbx, system_user_id(), system_org_id(), ROLE_ADMIN)
-		.await?;
+	set_full_context_dbx(dbx, system_user_id(), system_org_id(), ROLE_ADMIN).await?;
 
 	let org_id = insert_org(mm, system_user_id()).await?;
-	let admin = insert_user(
-		mm,
-		org_id,
-		ROLE_ADMIN,
-		system_user_id(),
-		Some(admin_pwd),
-	)
-		.await?;
-	let viewer = insert_user(
-		mm,
-		org_id,
-		ROLE_VIEWER,
-		system_user_id(),
-		Some(viewer_pwd),
-	)
-		.await?;
+	let admin =
+		insert_user(mm, org_id, ROLE_ADMIN, system_user_id(), Some(admin_pwd))
+			.await?;
+	let viewer =
+		insert_user(mm, org_id, ROLE_VIEWER, system_user_id(), Some(viewer_pwd))
+			.await?;
 	dbx.commit_txn().await?;
 
 	Ok(SeedOrgUsers {
@@ -108,8 +99,7 @@ pub async fn seed_two_orgs_users_cases(
 ) -> Result<SeedOrgsUsersCases> {
 	let dbx = mm.dbx();
 	dbx.begin_txn().await?;
-	set_full_context_dbx(dbx, system_user_id(), system_org_id(), ROLE_ADMIN)
-		.await?;
+	set_full_context_dbx(dbx, system_user_id(), system_org_id(), ROLE_ADMIN).await?;
 
 	let org1_id = insert_org(mm, system_user_id()).await?;
 	let org2_id = insert_org(mm, system_user_id()).await?;
@@ -136,8 +126,7 @@ pub async fn seed_two_orgs_manager_cases(
 ) -> Result<SeedOrgsManagerCases> {
 	let dbx = mm.dbx();
 	dbx.begin_txn().await?;
-	set_full_context_dbx(dbx, system_user_id(), system_org_id(), ROLE_ADMIN)
-		.await?;
+	set_full_context_dbx(dbx, system_user_id(), system_org_id(), ROLE_ADMIN).await?;
 
 	let org1_id = insert_org(mm, system_user_id()).await?;
 	let org2_id = insert_org(mm, system_user_id()).await?;
@@ -170,14 +159,16 @@ pub async fn insert_case_version(
 		"version": version,
 	});
 	mm.dbx()
-		.execute(sqlx::query(
-			"INSERT INTO case_versions (case_id, version, snapshot, changed_by)
+		.execute(
+			sqlx::query(
+				"INSERT INTO case_versions (case_id, version, snapshot, changed_by)
 			 VALUES ($1, $2, $3, $4)",
+			)
+			.bind(case_id)
+			.bind(version)
+			.bind(snapshot)
+			.bind(changed_by),
 		)
-		.bind(case_id)
-		.bind(version)
-		.bind(snapshot)
-		.bind(changed_by))
 		.await?;
 	Ok(())
 }

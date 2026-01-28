@@ -1,7 +1,7 @@
 mod common;
 
 use common::{demo_ctx, demo_user_id, init_test_mm, Result};
-use lib_core::model::store::set_user_context_dbx;
+use lib_core::model::store::set_full_context_dbx;
 use lib_core::model::terminology::{
 	E2bCodeListBmc, IsoCountryBmc, MeddraTermBmc, WhodrugProductBmc,
 };
@@ -15,17 +15,20 @@ async fn test_terminology_queries() -> Result<()> {
 	let dbx = mm.dbx();
 
 	dbx.begin_txn().await?;
-	set_user_context_dbx(dbx, demo_user_id()).await?;
+	set_full_context_dbx(dbx, demo_user_id(), ctx.organization_id(), ctx.role())
+		.await?;
 
-	dbx.execute(sqlx::query(
-		"INSERT INTO meddra_terms (code, term, level, version, language)
+	dbx.execute(
+		sqlx::query(
+			"INSERT INTO meddra_terms (code, term, level, version, language)
 		 VALUES ($1, $2, $3, $4, $5)",
+		)
+		.bind("10000001")
+		.bind("TestTerm Alpha")
+		.bind("PT")
+		.bind("v1")
+		.bind("en"),
 	)
-	.bind("10000001")
-	.bind("TestTerm Alpha")
-	.bind("PT")
-	.bind("v1")
-	.bind("en"))
 	.await?;
 
 	dbx.execute(sqlx::query(
@@ -39,11 +42,13 @@ async fn test_terminology_queries() -> Result<()> {
 	.bind("en"))
 	.await?;
 
-	dbx.execute(sqlx::query(
-		"INSERT INTO iso_countries (code, name, active) VALUES ($1, $2, true)",
+	dbx.execute(
+		sqlx::query(
+			"INSERT INTO iso_countries (code, name, active) VALUES ($1, $2, true)",
+		)
+		.bind("ZZ")
+		.bind("Zedland"),
 	)
-	.bind("ZZ")
-	.bind("Zedland"))
 	.await?;
 	dbx.commit_txn().await?;
 
@@ -62,17 +67,21 @@ async fn test_terminology_queries() -> Result<()> {
 	assert!(!report_types.is_empty());
 
 	dbx.begin_txn().await?;
-	set_user_context_dbx(dbx, demo_user_id()).await?;
-	dbx.execute(sqlx::query("DELETE FROM meddra_terms WHERE code = $1 AND version = $2")
-		.bind("10000001")
-		.bind("v1"))
+	set_full_context_dbx(dbx, demo_user_id(), ctx.organization_id(), ctx.role())
 		.await?;
-	dbx.execute(sqlx::query("DELETE FROM whodrug_products WHERE code = $1 AND version = $2")
-		.bind("WTEST1")
-		.bind("v1"))
-		.await?;
-	dbx.execute(sqlx::query("DELETE FROM iso_countries WHERE code = $1")
-		.bind("ZZ"))
+	dbx.execute(
+		sqlx::query("DELETE FROM meddra_terms WHERE code = $1 AND version = $2")
+			.bind("10000001")
+			.bind("v1"),
+	)
+	.await?;
+	dbx.execute(
+		sqlx::query("DELETE FROM whodrug_products WHERE code = $1 AND version = $2")
+			.bind("WTEST1")
+			.bind("v1"),
+	)
+	.await?;
+	dbx.execute(sqlx::query("DELETE FROM iso_countries WHERE code = $1").bind("ZZ"))
 		.await?;
 
 	dbx.commit_txn().await?;

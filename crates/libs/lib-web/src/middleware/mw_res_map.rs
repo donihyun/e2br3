@@ -7,11 +7,11 @@ use axum::http::{Method, Uri};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use lib_core::model;
+use lib_rest_core::prelude::StatusCode;
 use serde_json::{json, to_value};
 use std::sync::Arc;
 use tracing::{debug, error};
 use uuid::Uuid;
-use lib_rest_core::prelude::StatusCode;
 
 pub async fn mw_reponse_map(
 	ctx: Result<CtxW>, // Axum 0.8 does not seem to support Option anymore
@@ -27,8 +27,10 @@ pub async fn mw_reponse_map(
 
 	// -- Get the eventual response error.
 	let web_error = res.extensions().get::<Arc<Error>>().map(Arc::as_ref);
-	let rest_error =
-		res.extensions().get::<Arc<lib_rest_core::Error>>().map(Arc::as_ref);
+	let rest_error = res
+		.extensions()
+		.get::<Arc<lib_rest_core::Error>>()
+		.map(Arc::as_ref);
 	let debug_errors = std::env::var("E2BR3_DEBUG_ERRORS")
 		.map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
 		.unwrap_or(false);
@@ -40,27 +42,39 @@ pub async fn mw_reponse_map(
 			debug_detail = Some(serde_json::Value::String(format!("{err:?}")));
 		}
 		let (status_code, client_error) = match err {
-			lib_rest_core::Error::PermissionDenied { required_permission } => (
+			lib_rest_core::Error::PermissionDenied {
+				required_permission,
+			} => (
 				StatusCode::FORBIDDEN,
 				ClientError::PERMISSION_DENIED {
 					required_permission: required_permission.clone(),
 				},
 			),
-			lib_rest_core::Error::Model(model::Error::EntityNotFound { entity, id }) => (
+			lib_rest_core::Error::Model(model::Error::EntityNotFound {
+				entity,
+				id,
+			}) => (
 				StatusCode::NOT_FOUND,
 				ClientError::ENTITY_NOT_FOUND { entity, id: *id },
 			),
-			lib_rest_core::Error::Model(model::Error::EntityUuidNotFound { entity, id }) => (
+			lib_rest_core::Error::Model(model::Error::EntityUuidNotFound {
+				entity,
+				id,
+			}) => (
 				StatusCode::NOT_FOUND,
 				ClientError::ENTITY_UUID_NOT_FOUND {
 					entity,
 					id: id.to_string(),
 				},
 			),
-			lib_rest_core::Error::SerdeJson(_) => {
-				(StatusCode::INTERNAL_SERVER_ERROR, ClientError::SERVICE_ERROR)
-			}
-			_ => (StatusCode::INTERNAL_SERVER_ERROR, ClientError::SERVICE_ERROR),
+			lib_rest_core::Error::SerdeJson(_) => (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				ClientError::SERVICE_ERROR,
+			),
+			_ => (
+				StatusCode::INTERNAL_SERVER_ERROR,
+				ClientError::SERVICE_ERROR,
+			),
 		};
 		Some((status_code, client_error))
 	} else {

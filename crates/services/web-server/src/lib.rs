@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub mod config;
 pub mod web;
 
@@ -12,10 +14,9 @@ use lib_web::routes::routes_static;
 use tower_cookies::CookieManagerLayer;
 
 pub fn app(mm: ModelManager) -> Router {
-	let routes_rest =
-		web::routes_rest::routes(mm.clone()).route_layer(
-			middleware::from_fn_with_state(mm.clone(), mw_ctx_require_and_set_dbx),
-		);
+	let routes_rest = web::routes_rest::routes(mm.clone()).route_layer(
+		middleware::from_fn_with_state(mm.clone(), mw_ctx_require_and_set_dbx),
+	);
 	let routes_login = web::routes_login::routes(mm.clone());
 
 	Router::new()

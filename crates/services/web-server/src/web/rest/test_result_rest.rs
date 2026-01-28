@@ -1,7 +1,10 @@
 use lib_core::model::acs::{
-	TEST_RESULT_CREATE, TEST_RESULT_DELETE, TEST_RESULT_LIST, TEST_RESULT_READ, TEST_RESULT_UPDATE,
+	TEST_RESULT_CREATE, TEST_RESULT_DELETE, TEST_RESULT_LIST, TEST_RESULT_READ,
+	TEST_RESULT_UPDATE,
 };
-use lib_core::model::test_result::{TestResultBmc, TestResultForCreate, TestResultForUpdate};
+use lib_core::model::test_result::{
+	TestResultBmc, TestResultForCreate, TestResultForUpdate,
+};
 use lib_rest_core::prelude::*;
 
 // Case-scoped CRUD functions:

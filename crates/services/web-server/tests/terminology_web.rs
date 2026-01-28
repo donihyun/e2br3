@@ -26,14 +26,12 @@ async fn test_admin_can_access_terminology_endpoints() -> Result<()> {
 	if res.status() != StatusCode::OK {
 		let status = res.status();
 		let body = to_bytes(res.into_body(), usize::MAX).await?;
-		return Err(
-			format!(
-				"meddra status {} body {}",
-				status,
-				String::from_utf8_lossy(&body)
-			)
-			.into(),
-		);
+		return Err(format!(
+			"meddra status {} body {}",
+			status,
+			String::from_utf8_lossy(&body)
+		)
+		.into());
 	}
 
 	let req = Request::builder()
@@ -45,14 +43,12 @@ async fn test_admin_can_access_terminology_endpoints() -> Result<()> {
 	if res.status() != StatusCode::OK {
 		let status = res.status();
 		let body = to_bytes(res.into_body(), usize::MAX).await?;
-		return Err(
-			format!(
-				"whodrug status {} body {}",
-				status,
-				String::from_utf8_lossy(&body)
-			)
-			.into(),
-		);
+		return Err(format!(
+			"whodrug status {} body {}",
+			status,
+			String::from_utf8_lossy(&body)
+		)
+		.into());
 	}
 
 	let req = Request::builder()
@@ -64,14 +60,12 @@ async fn test_admin_can_access_terminology_endpoints() -> Result<()> {
 	if res.status() != StatusCode::OK {
 		let status = res.status();
 		let body = to_bytes(res.into_body(), usize::MAX).await?;
-		return Err(
-			format!(
-				"countries status {} body {}",
-				status,
-				String::from_utf8_lossy(&body)
-			)
-			.into(),
-		);
+		return Err(format!(
+			"countries status {} body {}",
+			status,
+			String::from_utf8_lossy(&body)
+		)
+		.into());
 	}
 
 	let req = Request::builder()
@@ -83,14 +77,12 @@ async fn test_admin_can_access_terminology_endpoints() -> Result<()> {
 	if res.status() != StatusCode::OK {
 		let status = res.status();
 		let body = to_bytes(res.into_body(), usize::MAX).await?;
-		return Err(
-			format!(
-				"code-lists status {} body {}",
-				status,
-				String::from_utf8_lossy(&body)
-			)
-			.into(),
-		);
+		return Err(format!(
+			"code-lists status {} body {}",
+			status,
+			String::from_utf8_lossy(&body)
+		)
+		.into());
 	}
 
 	Ok(())

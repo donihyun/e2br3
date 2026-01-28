@@ -1,12 +1,15 @@
 mod common;
 
-use common::{create_case_fixture, init_test_mm, set_current_user, unique_suffix, Result, begin_test_ctx, commit_test_ctx};
+use common::{
+	begin_test_ctx, commit_test_ctx, create_case_fixture, init_test_mm,
+	rollback_test_ctx, set_current_user, unique_suffix, Result,
+};
 use lib_core::ctx::{Ctx, ROLE_ADMIN, ROLE_USER, SYSTEM_ORG_ID, SYSTEM_USER_ID};
 use lib_core::model::case::CaseBmc;
 use lib_core::model::drug::{
-	DrugActiveSubstanceBmc, DrugActiveSubstanceForCreate, DrugIndicationBmc,
-	DrugIndicationForCreate, DrugInformationBmc, DrugInformationForCreate,
-	DosageInformationBmc, DosageInformationForCreate,
+	DosageInformationBmc, DosageInformationForCreate, DrugActiveSubstanceBmc,
+	DrugActiveSubstanceForCreate, DrugIndicationBmc, DrugIndicationForCreate,
+	DrugInformationBmc, DrugInformationForCreate,
 };
 use lib_core::model::drug_reaction_assessment::{
 	DrugReactionAssessmentBmc, DrugReactionAssessmentForCreate,
@@ -22,15 +25,16 @@ use lib_core::model::narrative::{
 };
 use lib_core::model::organization::{OrganizationBmc, OrganizationForCreate};
 use lib_core::model::parent_history::{
-	ParentMedicalHistoryBmc, ParentMedicalHistoryForCreate, ParentPastDrugHistoryBmc,
-	ParentPastDrugHistoryForCreate,
+	ParentMedicalHistoryBmc, ParentMedicalHistoryForCreate,
+	ParentPastDrugHistoryBmc, ParentPastDrugHistoryForCreate,
 };
 use lib_core::model::patient::{
 	AutopsyCauseOfDeathBmc, AutopsyCauseOfDeathForCreate, MedicalHistoryEpisodeBmc,
-	MedicalHistoryEpisodeForCreate, ParentInformationBmc, ParentInformationForCreate,
-	PastDrugHistoryBmc, PastDrugHistoryForCreate, PatientDeathInformationBmc,
-	PatientDeathInformationForCreate, PatientInformationBmc, PatientInformationForCreate,
-	ReportedCauseOfDeathBmc, ReportedCauseOfDeathForCreate,
+	MedicalHistoryEpisodeForCreate, ParentInformationBmc,
+	ParentInformationForCreate, PastDrugHistoryBmc, PastDrugHistoryForCreate,
+	PatientDeathInformationBmc, PatientDeathInformationForCreate,
+	PatientInformationBmc, PatientInformationForCreate, ReportedCauseOfDeathBmc,
+	ReportedCauseOfDeathForCreate,
 };
 use lib_core::model::reaction::{ReactionBmc, ReactionForCreate};
 use lib_core::model::safety_report::{
@@ -44,9 +48,13 @@ use serial_test::serial;
 use sqlx::{query_as, types::Uuid};
 
 async fn enable_rls(mm: &lib_core::model::ModelManager) -> Result<()> {
-	mm.dbx().execute(sqlx::query("SET ROLE e2br3_app_role")).await?;
-	mm.dbx().execute(sqlx::query("SET row_security = on")).await?;
-	commit_test_ctx(&mm).await?;
+	mm.dbx()
+		.execute(sqlx::query("SET ROLE e2br3_app_role"))
+		.await?;
+	mm.dbx()
+		.execute(sqlx::query("SET row_security = on"))
+		.await?;
+	commit_test_ctx(mm).await?;
 	Ok(())
 }
 
@@ -69,7 +77,11 @@ async fn create_org(mm: &lib_core::model::ModelManager, ctx: &Ctx) -> Result<Uui
 	Ok(OrganizationBmc::create(ctx, mm, org_c).await?)
 }
 
-async fn create_user(mm: &lib_core::model::ModelManager, ctx: &Ctx, org_id: Uuid) -> Result<Uuid> {
+async fn create_user(
+	mm: &lib_core::model::ModelManager,
+	ctx: &Ctx,
+	org_id: Uuid,
+) -> Result<Uuid> {
 	let suffix = unique_suffix();
 	let user_c = UserForCreate {
 		organization_id: org_id,
@@ -83,7 +95,11 @@ async fn create_user(mm: &lib_core::model::ModelManager, ctx: &Ctx, org_id: Uuid
 	Ok(UserBmc::create(ctx, mm, user_c).await?)
 }
 
-async fn create_patient(mm: &lib_core::model::ModelManager, ctx: &Ctx, case_id: Uuid) -> Result<Uuid> {
+async fn create_patient(
+	mm: &lib_core::model::ModelManager,
+	ctx: &Ctx,
+	case_id: Uuid,
+) -> Result<Uuid> {
 	let data = PatientInformationForCreate {
 		case_id,
 		patient_initials: Some("AB".to_string()),
@@ -92,7 +108,11 @@ async fn create_patient(mm: &lib_core::model::ModelManager, ctx: &Ctx, case_id: 
 	Ok(PatientInformationBmc::create(ctx, mm, data).await?)
 }
 
-async fn create_drug(mm: &lib_core::model::ModelManager, ctx: &Ctx, case_id: Uuid) -> Result<Uuid> {
+async fn create_drug(
+	mm: &lib_core::model::ModelManager,
+	ctx: &Ctx,
+	case_id: Uuid,
+) -> Result<Uuid> {
 	let data = DrugInformationForCreate {
 		case_id,
 		sequence_number: 1,
@@ -102,7 +122,11 @@ async fn create_drug(mm: &lib_core::model::ModelManager, ctx: &Ctx, case_id: Uui
 	Ok(DrugInformationBmc::create(ctx, mm, data).await?)
 }
 
-async fn create_reaction(mm: &lib_core::model::ModelManager, ctx: &Ctx, case_id: Uuid) -> Result<Uuid> {
+async fn create_reaction(
+	mm: &lib_core::model::ModelManager,
+	ctx: &Ctx,
+	case_id: Uuid,
+) -> Result<Uuid> {
 	let data = ReactionForCreate {
 		case_id,
 		sequence_number: 1,
@@ -111,7 +135,11 @@ async fn create_reaction(mm: &lib_core::model::ModelManager, ctx: &Ctx, case_id:
 	Ok(ReactionBmc::create(ctx, mm, data).await?)
 }
 
-async fn create_narrative(mm: &lib_core::model::ModelManager, ctx: &Ctx, case_id: Uuid) -> Result<Uuid> {
+async fn create_narrative(
+	mm: &lib_core::model::ModelManager,
+	ctx: &Ctx,
+	case_id: Uuid,
+) -> Result<Uuid> {
 	let data = NarrativeInformationForCreate {
 		case_id,
 		case_narrative: "Test narrative".to_string(),
@@ -119,7 +147,11 @@ async fn create_narrative(mm: &lib_core::model::ModelManager, ctx: &Ctx, case_id
 	Ok(NarrativeInformationBmc::create(ctx, mm, data).await?)
 }
 
-async fn create_study(mm: &lib_core::model::ModelManager, ctx: &Ctx, case_id: Uuid) -> Result<Uuid> {
+async fn create_study(
+	mm: &lib_core::model::ModelManager,
+	ctx: &Ctx,
+	case_id: Uuid,
+) -> Result<Uuid> {
 	let data = StudyInformationForCreate {
 		case_id,
 		study_name: Some("Study".to_string()),
@@ -128,7 +160,11 @@ async fn create_study(mm: &lib_core::model::ModelManager, ctx: &Ctx, case_id: Uu
 	Ok(StudyInformationBmc::create(ctx, mm, data).await?)
 }
 
-async fn create_patient_death(mm: &lib_core::model::ModelManager, ctx: &Ctx, patient_id: Uuid) -> Result<Uuid> {
+async fn create_patient_death(
+	mm: &lib_core::model::ModelManager,
+	ctx: &Ctx,
+	patient_id: Uuid,
+) -> Result<Uuid> {
 	let data = PatientDeathInformationForCreate {
 		patient_id,
 		date_of_death: None,
@@ -137,7 +173,11 @@ async fn create_patient_death(mm: &lib_core::model::ModelManager, ctx: &Ctx, pat
 	Ok(PatientDeathInformationBmc::create(ctx, mm, data).await?)
 }
 
-async fn create_parent_info(mm: &lib_core::model::ModelManager, ctx: &Ctx, patient_id: Uuid) -> Result<Uuid> {
+async fn create_parent_info(
+	mm: &lib_core::model::ModelManager,
+	ctx: &Ctx,
+	patient_id: Uuid,
+) -> Result<Uuid> {
 	let data = ParentInformationForCreate {
 		patient_id,
 		sex: None,
@@ -152,7 +192,10 @@ async fn create_drug_reaction_assessment(
 	drug_id: Uuid,
 	reaction_id: Uuid,
 ) -> Result<Uuid> {
-	let data = DrugReactionAssessmentForCreate { drug_id, reaction_id };
+	let data = DrugReactionAssessmentForCreate {
+		drug_id,
+		reaction_id,
+	};
 	Ok(DrugReactionAssessmentBmc::create(ctx, mm, data).await?)
 }
 
@@ -164,7 +207,8 @@ fn assert_denied<T>(res: core::result::Result<T, ModelError>) {
 #[tokio::test]
 async fn test_rls_case_related_tables_org_isolation() -> Result<()> {
 	let mm = init_test_mm().await;
-	let admin_ctx = Ctx::new(system_user_id(), system_org_id(), ROLE_ADMIN.to_string())?;
+	let admin_ctx =
+		Ctx::new(system_user_id(), system_org_id(), ROLE_ADMIN.to_string())?;
 
 	let org1_id = system_org_id();
 	let user1_id = create_user(&mm, &admin_ctx, org1_id).await?;
@@ -177,8 +221,7 @@ async fn test_rls_case_related_tables_org_isolation() -> Result<()> {
 	begin_test_ctx(&mm, &ctx).await?;
 	let case_org1 = create_case_fixture(&mm, org1_id, user1_id).await?;
 	set_current_user(&mm, user2_id).await?;
-	let ctx = Ctx::new(user2_id, org2_id, ROLE_USER.to_string())?;
-	begin_test_ctx(&mm, &ctx).await?;
+	let _ctx = Ctx::new(user2_id, org2_id, ROLE_USER.to_string())?;
 	let case_org2 = create_case_fixture(&mm, org2_id, user2_id).await?;
 
 	let patient1 = create_patient(&mm, &admin_ctx, case_org1).await?;
@@ -196,8 +239,10 @@ async fn test_rls_case_related_tables_org_isolation() -> Result<()> {
 	let death2 = create_patient_death(&mm, &admin_ctx, patient2).await?;
 	let parent1 = create_parent_info(&mm, &admin_ctx, patient1).await?;
 	let parent2 = create_parent_info(&mm, &admin_ctx, patient2).await?;
-	let dra1 = create_drug_reaction_assessment(&mm, &admin_ctx, drug1, reaction1).await?;
-	let dra2 = create_drug_reaction_assessment(&mm, &admin_ctx, drug2, reaction2).await?;
+	let dra1 =
+		create_drug_reaction_assessment(&mm, &admin_ctx, drug1, reaction1).await?;
+	let dra2 =
+		create_drug_reaction_assessment(&mm, &admin_ctx, drug2, reaction2).await?;
 
 	let med_hist1 = MedicalHistoryEpisodeBmc::create(
 		&admin_ctx,
@@ -489,66 +534,103 @@ async fn test_rls_case_related_tables_org_isolation() -> Result<()> {
 	)
 	.await?;
 
-	let dbx = mm.dbx();
-	dbx.begin_txn().await?;
-	enable_rls(&mm).await?;
-	set_org_context_dbx(dbx, org1_id, ROLE_USER).await?;
+	commit_test_ctx(&mm).await?;
+	let _dbx = mm.dbx();
 	let user_ctx = Ctx::new(user1_id, org1_id, ROLE_USER.to_string())?;
-
+	enable_rls(&mm).await?;
+	begin_test_ctx(&mm, &user_ctx).await?;
 	assert!(CaseBmc::get(&user_ctx, &mm, case_org1).await.is_ok());
 	assert_denied(CaseBmc::get(&user_ctx, &mm, case_org2).await);
 
-	assert!(MedicalHistoryEpisodeBmc::get(&user_ctx, &mm, med_hist1).await.is_ok());
+	assert!(MedicalHistoryEpisodeBmc::get(&user_ctx, &mm, med_hist1)
+		.await
+		.is_ok());
 	assert_denied(MedicalHistoryEpisodeBmc::get(&user_ctx, &mm, med_hist2).await);
 
-	assert!(PastDrugHistoryBmc::get(&user_ctx, &mm, past_drug1).await.is_ok());
+	assert!(PastDrugHistoryBmc::get(&user_ctx, &mm, past_drug1)
+		.await
+		.is_ok());
 	assert_denied(PastDrugHistoryBmc::get(&user_ctx, &mm, past_drug2).await);
 
-	assert!(PatientDeathInformationBmc::get(&user_ctx, &mm, death1).await.is_ok());
+	assert!(PatientDeathInformationBmc::get(&user_ctx, &mm, death1)
+		.await
+		.is_ok());
 	assert_denied(PatientDeathInformationBmc::get(&user_ctx, &mm, death2).await);
 
-	assert!(ReportedCauseOfDeathBmc::get(&user_ctx, &mm, reported1).await.is_ok());
+	assert!(ReportedCauseOfDeathBmc::get(&user_ctx, &mm, reported1)
+		.await
+		.is_ok());
 	assert_denied(ReportedCauseOfDeathBmc::get(&user_ctx, &mm, reported2).await);
 
-	assert!(AutopsyCauseOfDeathBmc::get(&user_ctx, &mm, autopsy1).await.is_ok());
+	assert!(AutopsyCauseOfDeathBmc::get(&user_ctx, &mm, autopsy1)
+		.await
+		.is_ok());
 	assert_denied(AutopsyCauseOfDeathBmc::get(&user_ctx, &mm, autopsy2).await);
 
-	assert!(ParentInformationBmc::get(&user_ctx, &mm, parent1).await.is_ok());
+	assert!(ParentInformationBmc::get(&user_ctx, &mm, parent1)
+		.await
+		.is_ok());
 	assert_denied(ParentInformationBmc::get(&user_ctx, &mm, parent2).await);
 
-	assert!(ParentMedicalHistoryBmc::get(&user_ctx, &mm, parent_med1).await.is_ok());
+	assert!(ParentMedicalHistoryBmc::get(&user_ctx, &mm, parent_med1)
+		.await
+		.is_ok());
 	assert_denied(ParentMedicalHistoryBmc::get(&user_ctx, &mm, parent_med2).await);
 
-	assert!(ParentPastDrugHistoryBmc::get(&user_ctx, &mm, parent_past1).await.is_ok());
+	assert!(ParentPastDrugHistoryBmc::get(&user_ctx, &mm, parent_past1)
+		.await
+		.is_ok());
 	assert_denied(ParentPastDrugHistoryBmc::get(&user_ctx, &mm, parent_past2).await);
 
-	assert!(DrugActiveSubstanceBmc::get(&user_ctx, &mm, active_sub1).await.is_ok());
+	assert!(DrugActiveSubstanceBmc::get(&user_ctx, &mm, active_sub1)
+		.await
+		.is_ok());
 	assert_denied(DrugActiveSubstanceBmc::get(&user_ctx, &mm, active_sub2).await);
 
-	assert!(DosageInformationBmc::get(&user_ctx, &mm, dosage1).await.is_ok());
+	assert!(DosageInformationBmc::get(&user_ctx, &mm, dosage1)
+		.await
+		.is_ok());
 	assert_denied(DosageInformationBmc::get(&user_ctx, &mm, dosage2).await);
 
-	assert!(DrugIndicationBmc::get(&user_ctx, &mm, indication1).await.is_ok());
+	assert!(DrugIndicationBmc::get(&user_ctx, &mm, indication1)
+		.await
+		.is_ok());
 	assert_denied(DrugIndicationBmc::get(&user_ctx, &mm, indication2).await);
 
-	assert!(SenderDiagnosisBmc::get(&user_ctx, &mm, sender_diag1).await.is_ok());
+	assert!(SenderDiagnosisBmc::get(&user_ctx, &mm, sender_diag1)
+		.await
+		.is_ok());
 	assert_denied(SenderDiagnosisBmc::get(&user_ctx, &mm, sender_diag2).await);
 
-	assert!(CaseSummaryInformationBmc::get(&user_ctx, &mm, case_summary1).await.is_ok());
-	assert_denied(CaseSummaryInformationBmc::get(&user_ctx, &mm, case_summary2).await);
+	assert!(
+		CaseSummaryInformationBmc::get(&user_ctx, &mm, case_summary1)
+			.await
+			.is_ok()
+	);
+	assert_denied(
+		CaseSummaryInformationBmc::get(&user_ctx, &mm, case_summary2).await,
+	);
 
-	assert!(DrugRecurrenceInformationBmc::get(&user_ctx, &mm, recurrence1).await.is_ok());
-	assert_denied(DrugRecurrenceInformationBmc::get(&user_ctx, &mm, recurrence2).await);
+	assert!(
+		DrugRecurrenceInformationBmc::get(&user_ctx, &mm, recurrence1)
+			.await
+			.is_ok()
+	);
+	assert_denied(
+		DrugRecurrenceInformationBmc::get(&user_ctx, &mm, recurrence2).await,
+	);
 
-	assert!(RelatednessAssessmentBmc::get(&user_ctx, &mm, related1).await.is_ok());
+	assert!(RelatednessAssessmentBmc::get(&user_ctx, &mm, related1)
+		.await
+		.is_ok());
 	assert_denied(RelatednessAssessmentBmc::get(&user_ctx, &mm, related2).await);
 
-	assert!(StudyRegistrationNumberBmc::get(&user_ctx, &mm, study_reg1).await.is_ok());
+	assert!(StudyRegistrationNumberBmc::get(&user_ctx, &mm, study_reg1)
+		.await
+		.is_ok());
 	assert_denied(StudyRegistrationNumberBmc::get(&user_ctx, &mm, study_reg2).await);
 
-	dbx.rollback_txn().await?;
-
-	commit_test_ctx(&mm).await?;
+	rollback_test_ctx(&mm).await?;
 	Ok(())
 }
 
@@ -556,18 +638,19 @@ async fn test_rls_case_related_tables_org_isolation() -> Result<()> {
 #[tokio::test]
 async fn test_rls_terminology_admin_only() -> Result<()> {
 	let mm = init_test_mm().await;
-	let admin_ctx = Ctx::new(system_user_id(), system_org_id(), ROLE_ADMIN.to_string())?;
+	let admin_ctx =
+		Ctx::new(system_user_id(), system_org_id(), ROLE_ADMIN.to_string())?;
 	let org1_id = system_org_id();
-	let user1_id = create_user(&mm, &admin_ctx, org1_id).await?;
+	let _user1_id = create_user(&mm, &admin_ctx, org1_id).await?;
 
 	let dbx = mm.dbx();
 	dbx.begin_txn().await?;
 	enable_rls(&mm).await?;
 
 	set_org_context_dbx(dbx, org1_id, ROLE_USER).await?;
-	let (count_user,): (i64,) =
-		dbx.fetch_one(query_as::<_, (i64,)>("SELECT COUNT(*) FROM meddra_terms"))
-			.await?;
+	let (count_user,): (i64,) = dbx
+		.fetch_one(query_as::<_, (i64,)>("SELECT COUNT(*) FROM meddra_terms"))
+		.await?;
 	assert_eq!(count_user, 0);
 
 	set_org_context_dbx(dbx, org1_id, ROLE_ADMIN).await?;

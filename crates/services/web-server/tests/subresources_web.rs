@@ -25,7 +25,7 @@ async fn post_json(
 	cookie: &str,
 	uri: String,
 	body: Value,
-	) -> Result<(StatusCode, Vec<u8>)> {
+) -> Result<(StatusCode, Vec<u8>)> {
 	let req = Request::builder()
 		.method("POST")
 		.uri(uri)
@@ -38,7 +38,11 @@ async fn post_json(
 	Ok((status, body))
 }
 
-async fn get_json(app: &Router, cookie: &str, uri: String) -> Result<(StatusCode, Vec<u8>)> {
+async fn get_json(
+	app: &Router,
+	cookie: &str,
+	uri: String,
+) -> Result<(StatusCode, Vec<u8>)> {
 	let req = Request::builder()
 		.method("GET")
 		.uri(uri)
@@ -58,7 +62,8 @@ async fn create_case(app: &Router, cookie: &str, org_id: Uuid) -> Result<Uuid> {
 			"status": "draft"
 		}
 	});
-	let (status, body) = post_json(app, cookie, "/api/cases".to_string(), body).await?;
+	let (status, body) =
+		post_json(app, cookie, "/api/cases".to_string(), body).await?;
 	if status != StatusCode::CREATED {
 		return Err(format!(
 			"create case status {} body {}",
@@ -78,13 +83,9 @@ async fn create_patient(app: &Router, cookie: &str, case_id: Uuid) -> Result<Uui
 			"sex": "1"
 		}
 	});
-	let (status, body) = post_json(
-		app,
-		cookie,
-		format!("/api/cases/{case_id}/patient"),
-		body,
-	)
-	.await?;
+	let (status, body) =
+		post_json(app, cookie, format!("/api/cases/{case_id}/patient"), body)
+			.await?;
 	if status != StatusCode::CREATED {
 		return Err(format!(
 			"create patient status {} body {}",
@@ -96,20 +97,20 @@ async fn create_patient(app: &Router, cookie: &str, case_id: Uuid) -> Result<Uui
 	extract_id(&body)
 }
 
-async fn create_narrative(app: &Router, cookie: &str, case_id: Uuid) -> Result<Uuid> {
+async fn create_narrative(
+	app: &Router,
+	cookie: &str,
+	case_id: Uuid,
+) -> Result<Uuid> {
 	let body = json!({
 		"data": {
 			"case_id": case_id,
 			"case_narrative": "test narrative"
 		}
 	});
-	let (status, body) = post_json(
-		app,
-		cookie,
-		format!("/api/cases/{case_id}/narrative"),
-		body,
-	)
-	.await?;
+	let (status, body) =
+		post_json(app, cookie, format!("/api/cases/{case_id}/narrative"), body)
+			.await?;
 	if status != StatusCode::CREATED {
 		return Err(format!(
 			"create narrative status {} body {}",
@@ -121,7 +122,11 @@ async fn create_narrative(app: &Router, cookie: &str, case_id: Uuid) -> Result<U
 	extract_id(&body)
 }
 
-async fn create_safety_report(app: &Router, cookie: &str, case_id: Uuid) -> Result<Uuid> {
+async fn create_safety_report(
+	app: &Router,
+	cookie: &str,
+	case_id: Uuid,
+) -> Result<Uuid> {
 	let body = json!({
 		"data": {
 			"case_id": case_id,
@@ -159,13 +164,8 @@ async fn create_drug(app: &Router, cookie: &str, case_id: Uuid) -> Result<Uuid> 
 			"medicinal_product": "Test Drug"
 		}
 	});
-	let (status, body) = post_json(
-		app,
-		cookie,
-		format!("/api/cases/{case_id}/drugs"),
-		body,
-	)
-	.await?;
+	let (status, body) =
+		post_json(app, cookie, format!("/api/cases/{case_id}/drugs"), body).await?;
 	if status != StatusCode::CREATED {
 		return Err(format!(
 			"create drug status {} body {}",
@@ -185,13 +185,9 @@ async fn create_reaction(app: &Router, cookie: &str, case_id: Uuid) -> Result<Uu
 			"primary_source_reaction": "Headache"
 		}
 	});
-	let (status, body) = post_json(
-		app,
-		cookie,
-		format!("/api/cases/{case_id}/reactions"),
-		body,
-	)
-	.await?;
+	let (status, body) =
+		post_json(app, cookie, format!("/api/cases/{case_id}/reactions"), body)
+			.await?;
 	if status != StatusCode::CREATED {
 		return Err(format!(
 			"create reaction status {} body {}",
@@ -256,8 +252,12 @@ async fn test_patient_subresources_endpoints_ok() -> Result<()> {
 	)
 	.await?;
 	assert_eq!(status, StatusCode::CREATED);
-	let (status, body) =
-		get_json(&app, &cookie, format!("/api/cases/{case_id}/patient/medical-history")).await?;
+	let (status, body) = get_json(
+		&app,
+		&cookie,
+		format!("/api/cases/{case_id}/patient/medical-history"),
+	)
+	.await?;
 	if status != StatusCode::OK {
 		return Err(format!(
 			"medical-history list status {} body {}",
@@ -283,8 +283,12 @@ async fn test_patient_subresources_endpoints_ok() -> Result<()> {
 	)
 	.await?;
 	assert_eq!(status, StatusCode::CREATED);
-	let (status, body) =
-		get_json(&app, &cookie, format!("/api/cases/{case_id}/patient/past-drugs")).await?;
+	let (status, body) = get_json(
+		&app,
+		&cookie,
+		format!("/api/cases/{case_id}/patient/past-drugs"),
+	)
+	.await?;
 	if status != StatusCode::OK {
 		return Err(format!(
 			"past-drugs list status {} body {}",
@@ -301,7 +305,8 @@ async fn test_patient_subresources_endpoints_ok() -> Result<()> {
 	assert!(!data.is_empty());
 
 	// Death info
-	let body = json!({"data": {"patient_id": patient_id, "date_of_death": [2024, 1]}});
+	let body =
+		json!({"data": {"patient_id": patient_id, "date_of_death": [2024, 1]}});
 	let (status, body) = post_json(
 		&app,
 		&cookie,
@@ -328,7 +333,9 @@ async fn test_patient_subresources_endpoints_ok() -> Result<()> {
 	let (status, _) = post_json(
 		&app,
 		&cookie,
-		format!("/api/cases/{case_id}/patient/death-info/{death_info_id}/autopsy-causes"),
+		format!(
+			"/api/cases/{case_id}/patient/death-info/{death_info_id}/autopsy-causes"
+		),
 		body,
 	)
 	.await?;
@@ -485,7 +492,9 @@ async fn test_safety_report_subresources_endpoints_ok() -> Result<()> {
 	let (status, _) = post_json(
 		&app,
 		&cookie,
-		format!("/api/cases/{case_id}/safety-report/studies/{study_id}/registrations"),
+		format!(
+			"/api/cases/{case_id}/safety-report/studies/{study_id}/registrations"
+		),
 		body,
 	)
 	.await?;

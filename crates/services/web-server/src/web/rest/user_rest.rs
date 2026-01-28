@@ -3,8 +3,12 @@
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use lib_core::model::acs::{has_permission, USER_CREATE, USER_DELETE, USER_LIST, USER_READ, USER_UPDATE};
-use lib_core::model::user::{User, UserBmc, UserFilter, UserForCreate, UserForUpdate};
+use lib_core::model::acs::{
+	has_permission, USER_CREATE, USER_DELETE, USER_LIST, USER_READ, USER_UPDATE,
+};
+use lib_core::model::user::{
+	User, UserBmc, UserFilter, UserForCreate, UserForUpdate,
+};
 use lib_core::model::ModelManager;
 use lib_rest_core::rest_params::{ParamsForCreate, ParamsForUpdate, ParamsList};
 use lib_rest_core::rest_result::DataRestResult;
@@ -34,9 +38,7 @@ pub async fn create_user(
 	let id = UserBmc::create(&ctx, &mm, data)
 		.await
 		.map_err(WebError::Model)?;
-	let entity = UserBmc::get(&ctx, &mm, id)
-		.await
-		.map_err(WebError::Model)?;
+	let entity = UserBmc::get(&ctx, &mm, id).await.map_err(WebError::Model)?;
 
 	Ok((StatusCode::CREATED, Json(DataRestResult { data: entity })))
 }
@@ -61,9 +63,7 @@ pub async fn get_user(
 
 	// Non-admin users can only view users in their organization
 	// (RLS will enforce this at the database level)
-	let entity = UserBmc::get(&ctx, &mm, id)
-		.await
-		.map_err(WebError::Model)?;
+	let entity = UserBmc::get(&ctx, &mm, id).await.map_err(WebError::Model)?;
 
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
 }
@@ -117,9 +117,7 @@ pub async fn update_user(
 	UserBmc::update(&ctx, &mm, id, data)
 		.await
 		.map_err(WebError::Model)?;
-	let entity = UserBmc::get(&ctx, &mm, id)
-		.await
-		.map_err(WebError::Model)?;
+	let entity = UserBmc::get(&ctx, &mm, id).await.map_err(WebError::Model)?;
 
 	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
 }

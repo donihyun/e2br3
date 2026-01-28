@@ -40,7 +40,8 @@ impl Ctx {
 	/// Used for migrations, background jobs, and system operations.
 	pub fn root_ctx() -> Self {
 		Ctx {
-			user_id: uuid::Uuid::parse_str(SYSTEM_USER_ID).expect("Invalid system UUID"),
+			user_id: uuid::Uuid::parse_str(SYSTEM_USER_ID)
+				.expect("Invalid system UUID"),
 			organization_id: uuid::Uuid::parse_str(SYSTEM_ORG_ID)
 				.expect("Invalid system org UUID"),
 			role: ROLE_ADMIN.to_string(),
@@ -67,7 +68,10 @@ impl Ctx {
 
 	/// Creates a new context with just user_id (legacy support).
 	/// Uses system organization and user role as defaults.
-	#[deprecated(since = "0.3.0", note = "Use `Ctx::new(user_id, org_id, role)` instead")]
+	#[deprecated(
+		since = "0.3.0",
+		note = "Use `Ctx::new(user_id, org_id, role)` instead"
+	)]
 	pub fn new_with_user_id_only(user_id: uuid::Uuid) -> Result<Self> {
 		if user_id.is_nil() {
 			return Err(Error::CtxCannotNewNilUuid);

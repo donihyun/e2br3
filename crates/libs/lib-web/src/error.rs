@@ -122,7 +122,9 @@ impl Error {
 					required_role: required_role.clone(),
 				},
 			),
-			PermissionDenied { required_permission } => (
+			PermissionDenied {
+				required_permission,
+			} => (
 				StatusCode::FORBIDDEN,
 				ClientError::PERMISSION_DENIED {
 					required_permission: required_permission.clone(),

@@ -1,6 +1,9 @@
 mod common;
 
-use common::{demo_ctx, create_case_fixture, demo_org_id, demo_user_id, init_test_mm, set_current_user, Result, begin_test_ctx, commit_test_ctx};
+use common::{
+	begin_test_ctx, commit_test_ctx, create_case_fixture, demo_ctx, demo_org_id,
+	demo_user_id, init_test_mm, set_current_user, Result,
+};
 use lib_core::model::case::CaseBmc;
 use lib_core::model::safety_report::{
 	LiteratureReferenceBmc, LiteratureReferenceForCreate,
