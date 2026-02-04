@@ -15,6 +15,8 @@ pub fn routes(mm: ModelManager) -> Router {
 		.merge(rest::routes_users(mm.clone()))
 		// Terminology search
 		.merge(rest::routes_terminology(mm.clone()))
+		// XML import/validate
+		.merge(rest::routes_import(mm.clone()))
 		// Audit logs
 		.merge(rest::routes_audit(mm))
 }

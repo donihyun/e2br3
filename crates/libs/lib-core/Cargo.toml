@@ -31,6 +31,8 @@ uuid = {version = "1", features = ["v4","fast-rng","serde"]}
 time = { workspace = true }
 derive_more = { workspace = true }
 rust_decimal = { workspace = true }
+quick-xml = "0.31"
+libxml = "0.3"
 
 [dev-dependencies]
 serial_test = "3"

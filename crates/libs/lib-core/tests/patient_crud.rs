@@ -34,6 +34,7 @@ async fn test_patient_information_crud() -> Result<()> {
 		case_id,
 		patient_initials: Some("TU".to_string()),
 		sex: Some("1".to_string()),
+		concomitant_therapy: None,
 	};
 	let patient_id = PatientInformationBmc::create(&ctx, &mm, patient_c).await?;
 	let patient = PatientInformationBmc::get_by_case(&ctx, &mm, case_id).await?;
@@ -52,10 +53,15 @@ async fn test_patient_information_crud() -> Result<()> {
 		birth_date: None,
 		age_at_time_of_onset: None,
 		age_unit: None,
+		gestation_period: None,
+		gestation_period_unit: None,
+		age_group: None,
 		weight_kg: None,
 		height_cm: None,
 		sex: None,
+		last_menstrual_period_date: None,
 		medical_history_text: Some("Updated history".to_string()),
+		concomitant_therapy: None,
 	};
 	PatientInformationBmc::update_by_case(&ctx, &mm, case_id, patient_u).await?;
 	let patient = PatientInformationBmc::get_by_case(&ctx, &mm, case_id).await?;
@@ -81,6 +87,7 @@ async fn test_patient_submodels_crud() -> Result<()> {
 		case_id,
 		patient_initials: Some("SB".to_string()),
 		sex: Some("1".to_string()),
+		concomitant_therapy: None,
 	};
 	let patient_id = PatientInformationBmc::create(&ctx, &mm, patient_c).await?;
 
@@ -100,6 +107,7 @@ async fn test_patient_submodels_crud() -> Result<()> {
 		continuing: Some(true),
 		end_date: None,
 		comments: None,
+		family_history: None,
 	};
 	MedicalHistoryEpisodeBmc::update(&ctx, &mm, med_id, med_u).await?;
 	let med = MedicalHistoryEpisodeBmc::get(&ctx, &mm, med_id).await?;
@@ -112,6 +120,16 @@ async fn test_patient_submodels_crud() -> Result<()> {
 		patient_id,
 		sequence_number: 1,
 		drug_name: Some("Old Drug".to_string()),
+		mpid: None,
+		mpid_version: None,
+		phpid: None,
+		phpid_version: None,
+		start_date: None,
+		end_date: None,
+		indication_meddra_version: None,
+		indication_meddra_code: None,
+		reaction_meddra_version: None,
+		reaction_meddra_code: None,
 	};
 	let past_id = PastDrugHistoryBmc::create(&ctx, &mm, past_c).await?;
 	let past = PastDrugHistoryBmc::get(&ctx, &mm, past_id).await?;
@@ -127,6 +145,8 @@ async fn test_patient_submodels_crud() -> Result<()> {
 		end_date: None,
 		indication_meddra_version: None,
 		indication_meddra_code: None,
+		reaction_meddra_version: None,
+		reaction_meddra_code: None,
 	};
 	PastDrugHistoryBmc::update(&ctx, &mm, past_id, past_u).await?;
 	let past = PastDrugHistoryBmc::get(&ctx, &mm, past_id).await?;
@@ -194,6 +214,7 @@ async fn test_patient_submodels_crud() -> Result<()> {
 
 	let parent_u = ParentInformationForUpdate {
 		parent_identification: Some("Parent-1".to_string()),
+		parent_birth_date: None,
 		parent_age: Some(Decimal::new(30, 0)),
 		parent_age_unit: Some("801".to_string()),
 		last_menstrual_period_date: None,

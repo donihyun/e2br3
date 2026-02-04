@@ -41,6 +41,9 @@ CREATE TABLE patient_information (
     -- D.7.2 - Text for Relevant Medical History
     medical_history_text TEXT,  -- Max 10000 chars
 
+    -- D.7.3 - Concomitant Therapies
+    concomitant_therapy BOOLEAN,
+
     -- Null Flavor Support (E2B(R3) compliant: NI, UNK, ASKU, NASK, MSK)
     patient_initials_null_flavor VARCHAR(4) CHECK (patient_initials_null_flavor IN ('NI', 'UNK', 'ASKU', 'NASK', 'MSK')),
     birth_date_null_flavor VARCHAR(4) CHECK (birth_date_null_flavor IN ('NI', 'UNK', 'ASKU', 'NASK', 'MSK')),
@@ -57,6 +60,30 @@ CREATE TABLE patient_information (
 );
 
 CREATE INDEX idx_patient_info_case ON patient_information(case_id);
+
+-- ============================================================================
+-- D.1.1: Patient Medical Record Number(s) and Source(s) of the Record Number (Repeating)
+-- ============================================================================
+
+CREATE TABLE patient_identifiers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID NOT NULL REFERENCES patient_information(id) ON DELETE CASCADE,
+    sequence_number INTEGER NOT NULL,
+
+    -- D.1.1.x - Patient Medical Record Number(s) and Source(s) of the Record Number
+    identifier_type_code VARCHAR(1) NOT NULL, -- 1=GP, 2=Specialist, 3=Hospital, 4=Investigation
+    identifier_value VARCHAR(100) NOT NULL,
+
+    -- Audit fields
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
+
+    CONSTRAINT unique_patient_identifier_sequence UNIQUE (patient_id, sequence_number)
+);
+
+CREATE INDEX idx_patient_identifiers_patient ON patient_identifiers(patient_id);
 
 -- ============================================================================
 -- D.7.1.r: Medical History Episodes (Repeating)
@@ -82,6 +109,9 @@ CREATE TABLE medical_history_episodes (
 
     -- D.7.1.r.5 - Comments
     comments TEXT,
+
+    -- D.7.1.r.6 - Family History
+    family_history BOOLEAN,
 
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -124,7 +154,9 @@ CREATE TABLE past_drug_history (
     indication_meddra_version VARCHAR(10),
     indication_meddra_code VARCHAR(20),
 
-    -- D.8.r.7 - Reaction(s) (MedDRA coded - repeating, handled separately if needed)
+    -- D.8.r.7 - Reaction(s) (MedDRA coded)
+    reaction_meddra_version VARCHAR(10),
+    reaction_meddra_code VARCHAR(20),
 
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -208,6 +240,9 @@ CREATE TABLE parent_information (
 
     -- D.10.1 - Parent Identification
     parent_identification VARCHAR(60),
+
+    -- D.10.2.1 - Date of Birth of Parent
+    parent_birth_date DATE,
 
     -- D.10.2 - Parent Age
     parent_age DECIMAL(5,2),

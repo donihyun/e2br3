@@ -30,6 +30,7 @@ async fn test_parent_history_crud() -> Result<()> {
 		case_id,
 		patient_initials: Some("PH".to_string()),
 		sex: Some("2".to_string()),
+		concomitant_therapy: None,
 	};
 	let patient_id = PatientInformationBmc::create(&ctx, &mm, patient_c).await?;
 
@@ -47,6 +48,7 @@ async fn test_parent_history_crud() -> Result<()> {
 
 	let parent_u = ParentInformationForUpdate {
 		parent_identification: None,
+		parent_birth_date: None,
 		parent_age: None,
 		parent_age_unit: None,
 		last_menstrual_period_date: None,

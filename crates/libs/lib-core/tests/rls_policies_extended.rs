@@ -103,6 +103,7 @@ async fn create_patient(
 		case_id,
 		patient_initials: Some("AB".to_string()),
 		sex: Some("1".to_string()),
+		concomitant_therapy: None,
 	};
 	Ok(PatientInformationBmc::create(ctx, mm, data).await?)
 }
@@ -271,6 +272,16 @@ async fn test_rls_case_related_tables_org_isolation() -> Result<()> {
 			patient_id: patient1,
 			sequence_number: 1,
 			drug_name: None,
+			mpid: None,
+			mpid_version: None,
+			phpid: None,
+			phpid_version: None,
+			start_date: None,
+			end_date: None,
+			indication_meddra_version: None,
+			indication_meddra_code: None,
+			reaction_meddra_version: None,
+			reaction_meddra_code: None,
 		},
 	)
 	.await?;
@@ -281,6 +292,16 @@ async fn test_rls_case_related_tables_org_isolation() -> Result<()> {
 			patient_id: patient2,
 			sequence_number: 1,
 			drug_name: None,
+			mpid: None,
+			mpid_version: None,
+			phpid: None,
+			phpid_version: None,
+			start_date: None,
+			end_date: None,
+			indication_meddra_version: None,
+			indication_meddra_code: None,
+			reaction_meddra_version: None,
+			reaction_meddra_code: None,
 		},
 	)
 	.await?;

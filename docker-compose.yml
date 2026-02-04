@@ -57,6 +57,12 @@ services:
       SERVICE_TOKEN_DURATION_SEC: "1800"
       SERVICE_WEB_FOLDER: "/app/web-folder/"
       RUST_LOG: "web_server=debug,lib_core=debug,lib_web=debug"
+      # XML validation/export config
+      E2BR3_XSD_PATH: "/app/schemas/multicacheschemas/MCCI_IN200100UV01.xsd"
+      E2BR3_EXPORT_TEMPLATE: "/app/xml/template.xml"
+    volumes:
+      - /Users/hyundonghoon/Documents/4_ICH_ICSR_Schema_Files:/app/schemas:ro
+      - ./docs/e2b/template.xml:/app/xml/template.xml:ro
     depends_on:
       postgres:
         condition: service_healthy

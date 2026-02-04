@@ -45,6 +45,8 @@ pub struct PatientInformation {
 
 	// D.7.2 - Medical history
 	pub medical_history_text: Option<String>,
+	// D.7.3 - Concomitant Therapies
+	pub concomitant_therapy: Option<bool>,
 
 	// Timestamps
 	pub created_at: OffsetDateTime,
@@ -58,6 +60,7 @@ pub struct PatientInformationForCreate {
 	pub case_id: Uuid,
 	pub patient_initials: Option<String>,
 	pub sex: Option<String>,
+	pub concomitant_therapy: Option<bool>,
 }
 
 #[derive(Fields, Deserialize)]
@@ -68,10 +71,15 @@ pub struct PatientInformationForUpdate {
 	pub birth_date: Option<Date>,
 	pub age_at_time_of_onset: Option<Decimal>,
 	pub age_unit: Option<String>,
+	pub gestation_period: Option<Decimal>,
+	pub gestation_period_unit: Option<String>,
+	pub age_group: Option<String>,
 	pub weight_kg: Option<Decimal>,
 	pub height_cm: Option<Decimal>,
 	pub sex: Option<String>,
+	pub last_menstrual_period_date: Option<Date>,
 	pub medical_history_text: Option<String>,
+	pub concomitant_therapy: Option<bool>,
 }
 
 #[derive(FilterNodes, Deserialize, Default)]
@@ -80,6 +88,42 @@ pub struct PatientInformationFilter {
 	pub patient_given_name: Option<OpValsString>,
 	pub patient_family_name: Option<OpValsString>,
 	pub sex: Option<OpValsString>,
+}
+
+// -- PatientIdentifier (D.1.1.x)
+
+#[derive(Debug, Clone, Fields, FromRow, Serialize)]
+pub struct PatientIdentifier {
+	pub id: Uuid,
+	pub patient_id: Uuid,
+	pub sequence_number: i32,
+	pub identifier_type_code: String,
+	pub identifier_value: String,
+	pub created_at: OffsetDateTime,
+	pub updated_at: OffsetDateTime,
+	pub created_by: Uuid,
+	pub updated_by: Option<Uuid>,
+}
+
+#[derive(Fields, Deserialize)]
+pub struct PatientIdentifierForCreate {
+	pub patient_id: Uuid,
+	pub sequence_number: i32,
+	pub identifier_type_code: String,
+	pub identifier_value: String,
+}
+
+#[derive(Fields, Deserialize)]
+pub struct PatientIdentifierForUpdate {
+	pub identifier_type_code: Option<String>,
+	pub identifier_value: Option<String>,
+}
+
+#[derive(FilterNodes, Deserialize, Default)]
+pub struct PatientIdentifierFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
+	pub patient_id: Option<OpValsValue>,
+	pub sequence_number: Option<OpValsValue>,
 }
 
 // -- MedicalHistoryEpisode
@@ -99,6 +143,7 @@ pub struct MedicalHistoryEpisode {
 	pub continuing: Option<bool>,
 	pub end_date: Option<Date>,
 	pub comments: Option<String>,
+	pub family_history: Option<bool>,
 
 	pub created_at: OffsetDateTime,
 	pub updated_at: OffsetDateTime,
@@ -121,6 +166,7 @@ pub struct MedicalHistoryEpisodeForUpdate {
 	pub continuing: Option<bool>,
 	pub end_date: Option<Date>,
 	pub comments: Option<String>,
+	pub family_history: Option<bool>,
 }
 
 #[derive(FilterNodes, Deserialize, Default)]
@@ -155,6 +201,10 @@ pub struct PastDrugHistory {
 	pub indication_meddra_version: Option<String>,
 	pub indication_meddra_code: Option<String>,
 
+	// D.8.r.7 - Reaction(s)
+	pub reaction_meddra_version: Option<String>,
+	pub reaction_meddra_code: Option<String>,
+
 	pub created_at: OffsetDateTime,
 	pub updated_at: OffsetDateTime,
 	pub created_by: Uuid,
@@ -166,6 +216,16 @@ pub struct PastDrugHistoryForCreate {
 	pub patient_id: Uuid,
 	pub sequence_number: i32,
 	pub drug_name: Option<String>,
+	pub mpid: Option<String>,
+	pub mpid_version: Option<String>,
+	pub phpid: Option<String>,
+	pub phpid_version: Option<String>,
+	pub start_date: Option<Date>,
+	pub end_date: Option<Date>,
+	pub indication_meddra_version: Option<String>,
+	pub indication_meddra_code: Option<String>,
+	pub reaction_meddra_version: Option<String>,
+	pub reaction_meddra_code: Option<String>,
 }
 
 #[derive(Fields, Deserialize)]
@@ -179,6 +239,8 @@ pub struct PastDrugHistoryForUpdate {
 	pub end_date: Option<Date>,
 	pub indication_meddra_version: Option<String>,
 	pub indication_meddra_code: Option<String>,
+	pub reaction_meddra_version: Option<String>,
+	pub reaction_meddra_code: Option<String>,
 }
 
 #[derive(FilterNodes, Deserialize, Default)]
@@ -304,6 +366,7 @@ pub struct ParentInformation {
 	pub patient_id: Uuid,
 
 	pub parent_identification: Option<String>,
+	pub parent_birth_date: Option<Date>,
 	pub parent_age: Option<Decimal>,
 	pub parent_age_unit: Option<String>,
 	pub last_menstrual_period_date: Option<Date>,
@@ -328,6 +391,7 @@ pub struct ParentInformationForCreate {
 #[derive(Fields, Deserialize)]
 pub struct ParentInformationForUpdate {
 	pub parent_identification: Option<String>,
+	pub parent_birth_date: Option<Date>,
 	pub parent_age: Option<Decimal>,
 	pub parent_age_unit: Option<String>,
 	pub last_menstrual_period_date: Option<Date>,
@@ -366,8 +430,8 @@ impl PatientInformationBmc {
 		.await?;
 
 		let sql = format!(
-			"INSERT INTO {} (case_id, patient_initials, sex, created_at, updated_at, created_by)
-			 VALUES ($1, $2, $3, now(), now(), $4)
+			"INSERT INTO {} (case_id, patient_initials, sex, concomitant_therapy, created_at, updated_at, created_by)
+			 VALUES ($1, $2, $3, $4, now(), now(), $5)
 			 RETURNING id",
 			Self::TABLE
 		);
@@ -378,6 +442,7 @@ impl PatientInformationBmc {
 					.bind(data.case_id)
 					.bind(data.patient_initials)
 					.bind(data.sex)
+					.bind(data.concomitant_therapy)
 					.bind(ctx.user_id()),
 			)
 			.await?;
@@ -434,12 +499,17 @@ impl PatientInformationBmc {
 			     birth_date = COALESCE($5, birth_date),
 			     age_at_time_of_onset = COALESCE($6, age_at_time_of_onset),
 			     age_unit = COALESCE($7, age_unit),
-			     weight_kg = COALESCE($8, weight_kg),
-			     height_cm = COALESCE($9, height_cm),
-			     sex = COALESCE($10, sex),
-			     medical_history_text = COALESCE($11, medical_history_text),
+			     gestation_period = COALESCE($8, gestation_period),
+			     gestation_period_unit = COALESCE($9, gestation_period_unit),
+			     age_group = COALESCE($10, age_group),
+			     weight_kg = COALESCE($11, weight_kg),
+			     height_cm = COALESCE($12, height_cm),
+			     sex = COALESCE($13, sex),
+			     last_menstrual_period_date = COALESCE($14, last_menstrual_period_date),
+			     medical_history_text = COALESCE($15, medical_history_text),
+			     concomitant_therapy = COALESCE($16, concomitant_therapy),
 			     updated_at = now(),
-			     updated_by = $12
+			     updated_by = $17
 			 WHERE id = $1",
 			Self::TABLE
 		);
@@ -454,10 +524,15 @@ impl PatientInformationBmc {
 					.bind(data.birth_date)
 					.bind(data.age_at_time_of_onset)
 					.bind(data.age_unit)
+					.bind(data.gestation_period)
+					.bind(data.gestation_period_unit)
+					.bind(data.age_group)
 					.bind(data.weight_kg)
 					.bind(data.height_cm)
 					.bind(data.sex)
+					.bind(data.last_menstrual_period_date)
 					.bind(data.medical_history_text)
+					.bind(data.concomitant_therapy)
 					.bind(ctx.user_id()),
 			)
 			.await?;
@@ -538,12 +613,17 @@ impl PatientInformationBmc {
 			     birth_date = COALESCE($5, birth_date),
 			     age_at_time_of_onset = COALESCE($6, age_at_time_of_onset),
 			     age_unit = COALESCE($7, age_unit),
-			     weight_kg = COALESCE($8, weight_kg),
-			     height_cm = COALESCE($9, height_cm),
-			     sex = COALESCE($10, sex),
-			     medical_history_text = COALESCE($11, medical_history_text),
+			     gestation_period = COALESCE($8, gestation_period),
+			     gestation_period_unit = COALESCE($9, gestation_period_unit),
+			     age_group = COALESCE($10, age_group),
+			     weight_kg = COALESCE($11, weight_kg),
+			     height_cm = COALESCE($12, height_cm),
+			     sex = COALESCE($13, sex),
+			     last_menstrual_period_date = COALESCE($14, last_menstrual_period_date),
+			     medical_history_text = COALESCE($15, medical_history_text),
+			     concomitant_therapy = COALESCE($16, concomitant_therapy),
 			     updated_at = now(),
-			     updated_by = $12
+			     updated_by = $17
 			 WHERE case_id = $1",
 			Self::TABLE
 		);
@@ -558,10 +638,15 @@ impl PatientInformationBmc {
 					.bind(data.birth_date)
 					.bind(data.age_at_time_of_onset)
 					.bind(data.age_unit)
+					.bind(data.gestation_period)
+					.bind(data.gestation_period_unit)
+					.bind(data.age_group)
 					.bind(data.weight_kg)
 					.bind(data.height_cm)
 					.bind(data.sex)
+					.bind(data.last_menstrual_period_date)
 					.bind(data.medical_history_text)
+					.bind(data.concomitant_therapy)
 					.bind(ctx.user_id()),
 			)
 			.await?;
@@ -601,6 +686,51 @@ impl PatientInformationBmc {
 		}
 		mm.dbx().commit_txn().await?;
 		Ok(())
+	}
+}
+
+pub struct PatientIdentifierBmc;
+impl DbBmc for PatientIdentifierBmc {
+	const TABLE: &'static str = "patient_identifiers";
+}
+
+impl PatientIdentifierBmc {
+	pub async fn create(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		data: PatientIdentifierForCreate,
+	) -> Result<Uuid> {
+		base_uuid::create::<Self, _>(ctx, mm, data).await
+	}
+
+	pub async fn get(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+	) -> Result<PatientIdentifier> {
+		base_uuid::get::<Self, _>(ctx, mm, id).await
+	}
+
+	pub async fn list(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		filters: Option<Vec<PatientIdentifierFilter>>,
+		list_options: Option<ListOptions>,
+	) -> Result<Vec<PatientIdentifier>> {
+		base_uuid::list::<Self, _, _>(ctx, mm, filters, list_options).await
+	}
+
+	pub async fn update(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+		data: PatientIdentifierForUpdate,
+	) -> Result<()> {
+		base_uuid::update::<Self, _>(ctx, mm, id, data).await
+	}
+
+	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
+		base_uuid::delete::<Self>(ctx, mm, id).await
 	}
 }
 

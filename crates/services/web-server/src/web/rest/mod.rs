@@ -17,6 +17,7 @@ pub mod case_identifiers_rest;
 pub mod drug_reaction_assessment_rest;
 pub mod drug_recurrence_rest;
 pub mod drug_sub_rest;
+pub mod import_rest;
 pub mod narrative_sub_rest;
 pub mod parent_history_rest;
 pub mod patient_sub_rest;
@@ -396,6 +397,7 @@ pub fn routes_cases(mm: ModelManager) -> Router {
 		"/cases/{case_id}/versions",
 		get(audit_rest::list_case_versions),
 	)
+	.route("/cases/{id}/export/xml", get(case_rest::export_case))
 	.with_state(mm)
 }
 
@@ -448,6 +450,17 @@ pub fn routes_terminology(mm: ModelManager) -> Router {
 			"/terminology/code-lists",
 			get(terminology_rest::get_code_list),
 		)
+		.with_state(mm)
+}
+
+/// Routes for /api/import
+pub fn routes_import(mm: ModelManager) -> Router {
+	Router::new()
+		.route(
+			"/import/xml/validate",
+			axum::routing::post(import_rest::validate_xml),
+		)
+		.route("/import/xml", axum::routing::post(import_rest::import_xml))
 		.with_state(mm)
 }
 

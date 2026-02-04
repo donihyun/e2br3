@@ -39,6 +39,9 @@ pub struct SafetyReportIdentification {
 	// C.1.8.1 - Worldwide Unique Case Identification
 	pub worldwide_unique_id: Option<String>,
 
+	// C.1.11.1 - Nullification/Amendment Code
+	pub nullification_code: Option<String>,
+
 	// C.1.11.2 - Nullification Reason
 	pub nullification_reason: Option<String>,
 
@@ -67,6 +70,7 @@ pub struct SafetyReportIdentificationForUpdate {
 	pub transmission_date: Option<Date>,
 	pub report_type: Option<String>,
 	pub worldwide_unique_id: Option<String>,
+	pub nullification_code: Option<String>,
 	pub nullification_reason: Option<String>,
 	pub receiver_organization: Option<String>,
 }
@@ -205,6 +209,10 @@ pub struct LiteratureReference {
 	pub case_id: Uuid,
 	pub reference_text: String,
 	pub sequence_number: i32,
+	pub document_base64: Option<String>,
+	pub media_type: Option<String>,
+	pub representation: Option<String>,
+	pub compression: Option<String>,
 	pub created_at: OffsetDateTime,
 	pub updated_at: OffsetDateTime,
 	pub created_by: Uuid,
@@ -216,12 +224,20 @@ pub struct LiteratureReferenceForCreate {
 	pub case_id: Uuid,
 	pub reference_text: String,
 	pub sequence_number: i32,
+	pub document_base64: Option<String>,
+	pub media_type: Option<String>,
+	pub representation: Option<String>,
+	pub compression: Option<String>,
 }
 
 #[derive(Fields, Deserialize)]
 pub struct LiteratureReferenceForUpdate {
 	pub reference_text: Option<String>,
 	pub sequence_number: Option<i32>,
+	pub document_base64: Option<String>,
+	pub media_type: Option<String>,
+	pub representation: Option<String>,
+	pub compression: Option<String>,
 }
 
 #[derive(FilterNodes, Deserialize, Default)]
@@ -231,6 +247,51 @@ pub struct LiteratureReferenceFilter {
 	pub sequence_number: Option<OpValsValue>,
 }
 
+// -- DocumentsHeldBySender
+
+#[derive(Debug, Clone, Fields, FromRow, Serialize)]
+pub struct DocumentsHeldBySender {
+	pub id: Uuid,
+	pub case_id: Uuid,
+	pub title: Option<String>,
+	pub document_base64: Option<String>,
+	pub media_type: Option<String>,
+	pub representation: Option<String>,
+	pub compression: Option<String>,
+	pub sequence_number: i32,
+	pub created_at: OffsetDateTime,
+	pub updated_at: OffsetDateTime,
+	pub created_by: Uuid,
+	pub updated_by: Option<Uuid>,
+}
+
+#[derive(Fields, Deserialize)]
+pub struct DocumentsHeldBySenderForCreate {
+	pub case_id: Uuid,
+	pub title: Option<String>,
+	pub document_base64: Option<String>,
+	pub media_type: Option<String>,
+	pub representation: Option<String>,
+	pub compression: Option<String>,
+	pub sequence_number: i32,
+}
+
+#[derive(Fields, Deserialize)]
+pub struct DocumentsHeldBySenderForUpdate {
+	pub title: Option<String>,
+	pub document_base64: Option<String>,
+	pub media_type: Option<String>,
+	pub representation: Option<String>,
+	pub compression: Option<String>,
+	pub sequence_number: Option<i32>,
+}
+
+#[derive(FilterNodes, Deserialize, Default)]
+pub struct DocumentsHeldBySenderFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
+	pub case_id: Option<OpValsValue>,
+	pub sequence_number: Option<OpValsValue>,
+}
 // -- StudyInformation
 
 #[derive(Debug, Clone, Fields, FromRow, Serialize)]
@@ -388,10 +449,11 @@ impl SafetyReportIdentificationBmc {
 			 SET transmission_date = COALESCE($2, transmission_date),
 			     report_type = COALESCE($3, report_type),
 			     worldwide_unique_id = COALESCE($4, worldwide_unique_id),
-			     nullification_reason = COALESCE($5, nullification_reason),
-			     receiver_organization = COALESCE($6, receiver_organization),
+			     nullification_code = COALESCE($5, nullification_code),
+			     nullification_reason = COALESCE($6, nullification_reason),
+			     receiver_organization = COALESCE($7, receiver_organization),
 			     updated_at = now(),
-			     updated_by = $7
+			     updated_by = $8
 			 WHERE case_id = $1",
 			Self::TABLE
 		);
@@ -403,6 +465,7 @@ impl SafetyReportIdentificationBmc {
 					.bind(data.transmission_date)
 					.bind(data.report_type)
 					.bind(data.worldwide_unique_id)
+					.bind(data.nullification_code)
 					.bind(data.nullification_reason)
 					.bind(data.receiver_organization)
 					.bind(ctx.user_id()),
@@ -573,6 +636,51 @@ impl LiteratureReferenceBmc {
 		mm: &ModelManager,
 		id: Uuid,
 		data: LiteratureReferenceForUpdate,
+	) -> Result<()> {
+		base_uuid::update::<Self, _>(ctx, mm, id, data).await
+	}
+
+	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
+		base_uuid::delete::<Self>(ctx, mm, id).await
+	}
+}
+
+pub struct DocumentsHeldBySenderBmc;
+impl DbBmc for DocumentsHeldBySenderBmc {
+	const TABLE: &'static str = "documents_held_by_sender";
+}
+
+impl DocumentsHeldBySenderBmc {
+	pub async fn create(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		data: DocumentsHeldBySenderForCreate,
+	) -> Result<Uuid> {
+		base_uuid::create::<Self, _>(ctx, mm, data).await
+	}
+
+	pub async fn get(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+	) -> Result<DocumentsHeldBySender> {
+		base_uuid::get::<Self, _>(ctx, mm, id).await
+	}
+
+	pub async fn list(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		filters: Option<Vec<DocumentsHeldBySenderFilter>>,
+		list_options: Option<ListOptions>,
+	) -> Result<Vec<DocumentsHeldBySender>> {
+		base_uuid::list::<Self, _, _>(ctx, mm, filters, list_options).await
+	}
+
+	pub async fn update(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+		data: DocumentsHeldBySenderForUpdate,
 	) -> Result<()> {
 		base_uuid::update::<Self, _>(ctx, mm, id, data).await
 	}

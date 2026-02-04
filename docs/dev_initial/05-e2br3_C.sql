@@ -27,6 +27,9 @@ CREATE TABLE safety_report_identification (
 
     -- C.1.10.r - Linked Report Numbers (handled in separate table)
 
+    -- C.1.11.1 - Nullification/Amendment Code
+    nullification_code VARCHAR(10),
+
     -- C.1.11.2 - Nullification Reason
     nullification_reason TEXT,
 
@@ -98,6 +101,10 @@ CREATE TABLE literature_references (
     case_id UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
     reference_text TEXT NOT NULL,  -- C.4.r
     sequence_number INTEGER NOT NULL,  -- For ordering
+    document_base64 TEXT, -- C.4.r.2 Included Documents (base64)
+    media_type VARCHAR(100),
+    representation VARCHAR(10),
+    compression VARCHAR(10),
 
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -109,6 +116,31 @@ CREATE TABLE literature_references (
 );
 
 CREATE INDEX idx_literature_refs_case ON literature_references(case_id);
+
+-- ============================================================================
+-- SECTION C.1.6.1.r: Documents Held by Sender (Repeating)
+-- ============================================================================
+
+CREATE TABLE documents_held_by_sender (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    case_id UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    title TEXT, -- C.1.6.1.r.1
+    document_base64 TEXT, -- C.1.6.1.r.2 Included Documents
+    media_type VARCHAR(100),
+    representation VARCHAR(10),
+    compression VARCHAR(10),
+    sequence_number INTEGER NOT NULL,
+
+    -- Audit fields
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
+
+    CONSTRAINT unique_documents_held_sequence UNIQUE (case_id, sequence_number)
+);
+
+CREATE INDEX idx_documents_held_by_sender_case ON documents_held_by_sender(case_id);
 
 -- ============================================================================
 -- SECTION C.5: Study Information

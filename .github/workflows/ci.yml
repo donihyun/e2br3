@@ -47,6 +47,9 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Install libxml2
+        run: sudo apt-get update && sudo apt-get install -y libxml2-dev pkg-config
+
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
@@ -84,7 +87,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Install psql
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client libxml2-dev pkg-config
 
       - name: Initialize database schema
         env:

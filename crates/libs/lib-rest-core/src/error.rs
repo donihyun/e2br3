@@ -16,10 +16,15 @@ pub enum Error {
 	// -- App Libs
 	#[from]
 	Model(lib_core::model::Error),
+	#[from]
+	Xml(lib_core::xml::Error),
 
 	// -- Authorization
 	PermissionDenied {
 		required_permission: String,
+	},
+	BadRequest {
+		message: String,
 	},
 
 	// -- External Modules

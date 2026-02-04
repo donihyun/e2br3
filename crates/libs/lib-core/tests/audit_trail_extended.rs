@@ -55,6 +55,11 @@ async fn test_audit_trail_drug_information() -> Result<()> {
 		manufacturer_name: None,
 		batch_lot_number: None,
 		action_taken: None,
+		investigational_product_blinded: None,
+		parent_route: None,
+		parent_route_termid: None,
+		parent_route_termid_version: None,
+		parent_dosage_text: None,
 	};
 	DrugInformationBmc::update_in_case(&ctx, &mm, case_id, drug_id, drug_u).await?;
 	assert_eq!(
@@ -188,6 +193,7 @@ async fn test_audit_trail_patient_information() -> Result<()> {
 		case_id,
 		patient_initials: Some("AT".to_string()),
 		sex: Some("1".to_string()),
+		concomitant_therapy: None,
 	};
 	let patient_id = PatientInformationBmc::create(&ctx, &mm, patient_c).await?;
 	assert_eq!(
@@ -203,10 +209,15 @@ async fn test_audit_trail_patient_information() -> Result<()> {
 		birth_date: None,
 		age_at_time_of_onset: None,
 		age_unit: None,
+		gestation_period: None,
+		gestation_period_unit: None,
+		age_group: None,
 		weight_kg: None,
 		height_cm: None,
 		sex: None,
+		last_menstrual_period_date: None,
 		medical_history_text: Some("Test history".to_string()),
+		concomitant_therapy: None,
 	};
 	PatientInformationBmc::update_by_case(&ctx, &mm, case_id, patient_u).await?;
 	assert_eq!(
@@ -518,6 +529,11 @@ async fn test_audit_log_captures_all_changed_fields() -> Result<()> {
 		manufacturer_name: Some("Test Manufacturer".to_string()),
 		batch_lot_number: None,
 		action_taken: Some("1".to_string()),
+		investigational_product_blinded: None,
+		parent_route: None,
+		parent_route_termid: None,
+		parent_route_termid_version: None,
+		parent_dosage_text: None,
 	};
 	DrugInformationBmc::update_in_case(&ctx, &mm, case_id, drug_id, drug_u).await?;
 

@@ -24,6 +24,9 @@ CREATE TABLE drug_information (
     phpid VARCHAR(100),
     phpid_version VARCHAR(10),
 
+    -- G.k.2.5 - Investigational Product Blinded
+    investigational_product_blinded BOOLEAN,
+
     -- G.k.3.1 - Obtain Drug Country
     obtain_drug_country VARCHAR(2),  -- ISO 3166-1 alpha-2
 
@@ -53,8 +56,10 @@ CREATE TABLE drug_information (
 
     -- G.k.9 - Additional Information (handled in primary_sources table with drug FK)
 
-    -- G.k.10 - Parent Route of Administration
-    parent_route VARCHAR(3),  -- E2B(R3) code list
+    -- G.k.10 - Parent Route of Administration (free text)
+    parent_route VARCHAR(50),
+    parent_route_termid VARCHAR(50),
+    parent_route_termid_version VARCHAR(10),
 
     -- G.k.11 - Parent Dosage Information
     parent_dosage_text TEXT,
@@ -142,12 +147,16 @@ CREATE TABLE dosage_information (
 
     -- G.k.4.r.9.1 - Pharmaceutical Dose Form
     dose_form VARCHAR(200),
+    dose_form_termid VARCHAR(50),
+    dose_form_termid_version VARCHAR(10),
 
     -- G.k.4.r.10 - Route of Administration
     route_of_administration VARCHAR(3),  -- E2B(R3) code list
 
     -- G.k.4.r.11 - Parent Route of Administration
-    parent_route VARCHAR(3),
+    parent_route VARCHAR(50),
+    parent_route_termid VARCHAR(50),
+    parent_route_termid_version VARCHAR(10),
 
     -- Null Flavor Support (E2B(R3) compliant: NI, UNK, ASKU, NASK, MSK)
     first_administration_date_null_flavor VARCHAR(4) CHECK (first_administration_date_null_flavor IN ('NI', 'UNK', 'ASKU', 'NASK', 'MSK')),

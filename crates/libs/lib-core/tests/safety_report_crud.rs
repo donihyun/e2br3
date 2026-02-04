@@ -55,6 +55,7 @@ async fn test_safety_report_identification_crud() -> Result<()> {
 		transmission_date: None,
 		report_type: Some("2".to_string()),
 		worldwide_unique_id: Some("WUID-1".to_string()),
+		nullification_code: None,
 		nullification_reason: None,
 		receiver_organization: Some("Receiver".to_string()),
 	};
@@ -128,6 +129,10 @@ async fn test_safety_report_submodels_crud() -> Result<()> {
 		case_id,
 		reference_text: "Ref 1".to_string(),
 		sequence_number: 1,
+		document_base64: None,
+		media_type: None,
+		representation: None,
+		compression: None,
 	};
 	let lit_id = LiteratureReferenceBmc::create(&ctx, &mm, lit_c).await?;
 	let lit = LiteratureReferenceBmc::get(&ctx, &mm, lit_id).await?;
@@ -136,6 +141,10 @@ async fn test_safety_report_submodels_crud() -> Result<()> {
 	let lit_u = LiteratureReferenceForUpdate {
 		reference_text: Some("Ref 1 updated".to_string()),
 		sequence_number: None,
+		document_base64: None,
+		media_type: None,
+		representation: None,
+		compression: None,
 	};
 	LiteratureReferenceBmc::update(&ctx, &mm, lit_id, lit_u).await?;
 	let lit = LiteratureReferenceBmc::get(&ctx, &mm, lit_id).await?;

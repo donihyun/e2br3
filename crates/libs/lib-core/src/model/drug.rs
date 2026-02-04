@@ -34,6 +34,8 @@ pub struct DrugInformation {
 	pub mpid_version: Option<String>,
 	pub phpid: Option<String>,
 	pub phpid_version: Option<String>,
+	// G.k.2.5 - Investigational Product Blinded
+	pub investigational_product_blinded: Option<bool>,
 
 	// G.k.3.1 - Obtain Drug Country
 	pub obtain_drug_country: Option<String>,
@@ -59,6 +61,8 @@ pub struct DrugInformation {
 
 	// G.k.10 - Parent Route
 	pub parent_route: Option<String>,
+	pub parent_route_termid: Option<String>,
+	pub parent_route_termid_version: Option<String>,
 
 	// G.k.11 - Parent Dosage
 	pub parent_dosage_text: Option<String>,
@@ -86,6 +90,11 @@ pub struct DrugInformationForUpdate {
 	pub manufacturer_name: Option<String>,
 	pub batch_lot_number: Option<String>,
 	pub action_taken: Option<String>,
+	pub investigational_product_blinded: Option<bool>,
+	pub parent_route: Option<String>,
+	pub parent_route_termid: Option<String>,
+	pub parent_route_termid_version: Option<String>,
+	pub parent_dosage_text: Option<String>,
 }
 
 // -- DrugActiveSubstance
@@ -174,12 +183,16 @@ pub struct DosageInformation {
 
 	// G.k.4.r.9.1 - Pharmaceutical Dose Form
 	pub dose_form: Option<String>,
+	pub dose_form_termid: Option<String>,
+	pub dose_form_termid_version: Option<String>,
 
 	// G.k.4.r.10 - Route of Administration
 	pub route_of_administration: Option<String>,
 
 	// G.k.4.r.11 - Parent Route
 	pub parent_route: Option<String>,
+	pub parent_route_termid: Option<String>,
+	pub parent_route_termid_version: Option<String>,
 
 	// Timestamps
 	pub created_at: OffsetDateTime,
@@ -348,8 +361,13 @@ impl DrugInformationBmc {
 			     manufacturer_name = COALESCE($5, manufacturer_name),
 			     batch_lot_number = COALESCE($6, batch_lot_number),
 			     action_taken = COALESCE($7, action_taken),
+			     investigational_product_blinded = COALESCE($8, investigational_product_blinded),
+			     parent_route = COALESCE($9, parent_route),
+			     parent_route_termid = COALESCE($10, parent_route_termid),
+			     parent_route_termid_version = COALESCE($11, parent_route_termid_version),
+			     parent_dosage_text = COALESCE($12, parent_dosage_text),
 			     updated_at = now(),
-			     updated_by = $8
+			     updated_by = $13
 			 WHERE id = $1",
 			Self::TABLE
 		);
@@ -364,6 +382,11 @@ impl DrugInformationBmc {
 					.bind(drug_u.manufacturer_name)
 					.bind(drug_u.batch_lot_number)
 					.bind(drug_u.action_taken)
+					.bind(drug_u.investigational_product_blinded)
+					.bind(drug_u.parent_route)
+					.bind(drug_u.parent_route_termid)
+					.bind(drug_u.parent_route_termid_version)
+					.bind(drug_u.parent_dosage_text)
 					.bind(ctx.user_id()),
 			)
 			.await?;

@@ -50,6 +50,14 @@ pub async fn mw_response_map(
 					required_permission: required_permission.clone(),
 				},
 			),
+			lib_rest_core::Error::BadRequest { message } => {
+				debug_detail = Some(serde_json::Value::String(message.clone()));
+				(StatusCode::BAD_REQUEST, ClientError::SERVICE_ERROR)
+			}
+			lib_rest_core::Error::Xml(err) => {
+				debug_detail = Some(serde_json::Value::String(format!("{err:?}")));
+				(StatusCode::BAD_REQUEST, ClientError::SERVICE_ERROR)
+			}
 			lib_rest_core::Error::Model(model::Error::EntityNotFound {
 				entity,
 				id,

@@ -5,7 +5,10 @@ FROM rust:1.85-slim AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
+    clang \
     pkg-config \
+    libclang-dev \
+    libxml2-dev \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -26,6 +29,7 @@ FROM debian:bookworm-slim AS runtime
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
+    libxml2 \
     libssl3 \
     && rm -rf /var/lib/apt/lists/*
 

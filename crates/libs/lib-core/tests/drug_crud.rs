@@ -42,6 +42,11 @@ async fn test_drug_information_crud() -> Result<()> {
 		manufacturer_name: None,
 		batch_lot_number: None,
 		action_taken: Some("1".to_string()),
+		investigational_product_blinded: None,
+		parent_route: None,
+		parent_route_termid: None,
+		parent_route_termid_version: None,
+		parent_dosage_text: None,
 	};
 	DrugInformationBmc::update_in_case(&ctx, &mm, case_id, drug_id, drug_u).await?;
 	let drug = DrugInformationBmc::get_in_case(&ctx, &mm, case_id, drug_id).await?;

@@ -89,8 +89,36 @@ BEGIN
     VALUES (v_med_history_id, v_patient_id, 1, '26.0', '12345678', CURRENT_DATE - 365, v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO past_drug_history (id, patient_id, sequence_number, drug_name, start_date, end_date, created_by, created_at, updated_at)
-    VALUES (v_past_drug_id, v_patient_id, 1, 'Historical Drug', CURRENT_DATE - 400, CURRENT_DATE - 350, v_user_id, NOW(), NOW())
+    INSERT INTO past_drug_history (
+        id,
+        patient_id,
+        sequence_number,
+        drug_name,
+        start_date,
+        end_date,
+        indication_meddra_version,
+        indication_meddra_code,
+        reaction_meddra_version,
+        reaction_meddra_code,
+        created_by,
+        created_at,
+        updated_at
+    )
+    VALUES (
+        v_past_drug_id,
+        v_patient_id,
+        1,
+        'Historical Drug',
+        CURRENT_DATE - 400,
+        CURRENT_DATE - 350,
+        '26.0',
+        '11223344',
+        '26.0',
+        '55667788',
+        v_user_id,
+        NOW(),
+        NOW()
+    )
     ON CONFLICT (id) DO NOTHING;
 
     INSERT INTO patient_death_information (id, patient_id, date_of_death, autopsy_performed, created_by, created_at, updated_at)
@@ -105,8 +133,36 @@ BEGIN
     VALUES (v_autopsy_death_id, v_death_info_id, 1, '26.0', '87654322', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO parent_information (id, patient_id, parent_identification, sex, created_by, created_at, updated_at)
-    VALUES (v_parent_info_id, v_patient_id, 'Parent-1', '2', v_user_id, NOW(), NOW())
+    INSERT INTO parent_information (
+        id,
+        patient_id,
+        parent_identification,
+        parent_age,
+        parent_age_unit,
+        last_menstrual_period_date,
+        weight_kg,
+        height_cm,
+        sex,
+        medical_history_text,
+        created_by,
+        created_at,
+        updated_at
+    )
+    VALUES (
+        v_parent_info_id,
+        v_patient_id,
+        'Parent-1',
+        30,
+        'a',
+        CURRENT_DATE - 100,
+        55,
+        165,
+        '2',
+        'Parent history text',
+        v_user_id,
+        NOW(),
+        NOW()
+    )
     ON CONFLICT (id) DO NOTHING;
 
     INSERT INTO reactions (id, case_id, sequence_number, primary_source_reaction, serious, outcome, created_by, created_at, updated_at)
@@ -144,5 +200,42 @@ BEGIN
     INSERT INTO case_summary_information (id, narrative_id, sequence_number, summary_type, language_code, summary_text, created_by, created_at, updated_at)
     VALUES (v_case_summary_id, v_narrative_id, 1, '01', 'en', 'Case summary text', v_user_id, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
+
+    -- ------------------------------------------------------------------------
+    -- DEV-ONLY MedDRA stub set (non-production)
+    -- ------------------------------------------------------------------------
+    INSERT INTO meddra_terms (code, term, level, version, language, active)
+    VALUES
+        ('10000001', 'Stub MedDRA Term 0001', 'PT', '26.0', 'en', true),
+        ('10000002', 'Stub MedDRA Term 0002', 'PT', '26.0', 'en', true),
+        ('10000003', 'Stub MedDRA Term 0003', 'LLT', '26.0', 'en', true),
+        ('10000004', 'Stub MedDRA Term 0004', 'PT', '26.0', 'en', true),
+        ('10000005', 'Stub MedDRA Term 0005', 'LLT', '26.0', 'en', true),
+        ('10000006', 'Stub MedDRA Term 0006', 'HLT', '26.0', 'en', true),
+        ('10000007', 'Stub MedDRA Term 0007', 'HLGT', '26.0', 'en', true),
+        ('10000008', 'Stub MedDRA Term 0008', 'SOC', '26.0', 'en', true),
+        ('10000009', 'Stub MedDRA Term 0009', 'PT', '26.0', 'en', true),
+        ('10000010', 'Stub MedDRA Term 0010', 'PT', '26.0', 'en', true),
+        ('10000011', 'Stub MedDRA Term 0011', 'LLT', '26.0', 'en', true),
+        ('10000012', 'Stub MedDRA Term 0012', 'LLT', '26.0', 'en', true),
+        ('10000013', 'Stub MedDRA Term 0013', 'PT', '26.0', 'en', true),
+        ('10000014', 'Stub MedDRA Term 0014', 'PT', '26.0', 'en', true),
+        ('10000015', 'Stub MedDRA Term 0015', 'HLT', '26.0', 'en', true),
+        ('10000016', 'Stub MedDRA Term 0016', 'HLGT', '26.0', 'en', true),
+        ('10000017', 'Stub MedDRA Term 0017', 'SOC', '26.0', 'en', true),
+        ('10000018', 'Stub MedDRA Term 0018', 'PT', '26.0', 'en', true),
+        ('10000019', 'Stub MedDRA Term 0019', 'PT', '26.0', 'en', true),
+        ('10000020', 'Stub MedDRA Term 0020', 'LLT', '26.0', 'en', true)
+    ON CONFLICT (code, version, language) DO NOTHING;
+
+    -- ------------------------------------------------------------------------
+    -- DEV-ONLY WHODrug stub set (non-production)
+    -- ------------------------------------------------------------------------
+    INSERT INTO whodrug_products (code, drug_name, atc_code, version, language, active)
+    VALUES
+        ('WTEST1', 'Stub WHODrug Product 1', 'A01AA01', '2024.1', 'en', true),
+        ('WTEST2', 'Stub WHODrug Product 2', 'A01AA02', '2024.1', 'en', true),
+        ('WTEST3', 'Stub WHODrug Product 3', 'A01AA03', '2024.1', 'en', true)
+    ON CONFLICT (code, version, language) DO NOTHING;
 END;
 $$;

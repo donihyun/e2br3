@@ -75,6 +75,51 @@ Goal: Add a safe, deterministic XML validation + import pipeline for E2B(R3) pay
 - Monitor logs and metrics.
 
 ---
+## Compliance Checklist (Step-by-step to pass validator tests)
+
+**Step 0 — Baseline plumbing (done)**
+- XSD validation via `E2BR3_XSD_PATH`
+- Root/ITSVersion/schemaLocation checks
+- telecom tel/fax/mailto validation + nullFlavor rules
+- start/end/duration checks
+- test result structural checks (F.r.3.*)
+- dosing structural checks (G.k.4.*)
+- nullFlavor rules (required when missing + forbidden when value present)
+
+**Step 1 — Add validator tests**
+- Add `crates/libs/lib-core/tests/xml_validation.rs`
+- Validate 2–3 XMLs from `~/Documents/6_Example Instances`
+- Add one negative sample per rule group
+
+**Step 2 — Expand nullFlavor rules (reference instance)**
+- Add remaining nullFlavor checks from technical reference table
+- Scope to exact XPath nodes in the reference instance
+
+**Step 3 — Reaction rules**
+- Reaction node (`code=29`) structural requirements
+- Outcome (`code=27`) must include value or nullFlavor
+- MedDRA reaction term must be present or nullFlavor
+
+**Step 4 — Drug rules**
+- Substance name nullFlavor (G.k.2.3.r.1)
+- Dose + period value/unit (G.k.4.*)
+- EffectiveTime combos (G.k.4.r.4/5/8)
+- Route + dose form require text or nullFlavor
+
+**Step 5 — Patient/report rules**
+- Patient demographics required or nullFlavor
+- Primary source fields required or nullFlavor
+- Privacy/telecom rules per ICH tech info
+
+**Step 6 — Tests on examples**
+- All example XMLs must pass
+- Add malformed XML per rule group to assert errors
+
+**Step 7 — Import pipeline (optional for compliance tests)**
+- Parse XML → JSONB → case + case_version
+- Persist original XML to S3
+
+---
 ### Implementation Order (Recommended)
 1) XML DTO + parsing
 2) XSD validation + business rules

@@ -148,7 +148,13 @@ CREATE TRIGGER audit_study_registration_numbers AFTER INSERT OR UPDATE OR DELETE
 CREATE TRIGGER audit_primary_sources AFTER INSERT OR UPDATE OR DELETE ON primary_sources
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
 
+CREATE TRIGGER audit_documents_held_by_sender AFTER INSERT OR UPDATE OR DELETE ON documents_held_by_sender
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
+
 CREATE TRIGGER audit_medical_history_episodes AFTER INSERT OR UPDATE OR DELETE ON medical_history_episodes
+    FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
+
+CREATE TRIGGER audit_patient_identifiers AFTER INSERT OR UPDATE OR DELETE ON patient_identifiers
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
 
 CREATE TRIGGER audit_past_drug_history AFTER INSERT OR UPDATE OR DELETE ON past_drug_history
@@ -254,10 +260,16 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
 CREATE TRIGGER update_literature_references_updated_at BEFORE UPDATE ON literature_references
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_documents_held_by_sender_updated_at BEFORE UPDATE ON documents_held_by_sender
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_study_registration_numbers_updated_at BEFORE UPDATE ON study_registration_numbers
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_medical_history_episodes_updated_at BEFORE UPDATE ON medical_history_episodes
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_patient_identifiers_updated_at BEFORE UPDATE ON patient_identifiers
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_past_drug_history_updated_at BEFORE UPDATE ON past_drug_history
@@ -514,6 +526,26 @@ CREATE POLICY linked_reports_via_case ON linked_report_numbers
         )
     );
 
+-- Documents Held by Sender
+ALTER TABLE documents_held_by_sender ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documents_held_by_sender FORCE ROW LEVEL SECURITY;
+CREATE POLICY documents_held_by_sender_via_case ON documents_held_by_sender
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = documents_held_by_sender.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM cases c
+            WHERE c.id = documents_held_by_sender.case_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
 -- Primary Sources
 ALTER TABLE primary_sources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE primary_sources FORCE ROW LEVEL SECURITY;
@@ -654,6 +686,28 @@ CREATE POLICY medical_history_via_case ON medical_history_episodes
             SELECT 1 FROM patient_information pi
             JOIN cases c ON c.id = pi.case_id
             WHERE pi.id = medical_history_episodes.patient_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    );
+
+-- Patient Identifiers (via patient_information)
+ALTER TABLE patient_identifiers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patient_identifiers FORCE ROW LEVEL SECURITY;
+CREATE POLICY patient_identifiers_via_case ON patient_identifiers
+    FOR ALL TO e2br3_app_role
+    USING (
+        EXISTS (
+            SELECT 1 FROM patient_information pi
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pi.id = patient_identifiers.patient_id
+            AND (c.organization_id = current_organization_id() OR is_current_user_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM patient_information pi
+            JOIN cases c ON c.id = pi.case_id
+            WHERE pi.id = patient_identifiers.patient_id
             AND (c.organization_id = current_organization_id() OR is_current_user_admin())
         )
     );
@@ -986,12 +1040,12 @@ CREATE POLICY relatedness_assessments_via_case ON relatedness_assessments
         )
     );
 
--- Terminology Tables (global read for app role, write for admins)
+-- Terminology Tables (admin-only read/write)
 ALTER TABLE meddra_terms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE meddra_terms FORCE ROW LEVEL SECURITY;
 CREATE POLICY meddra_terms_read ON meddra_terms
     FOR SELECT TO e2br3_app_role
-    USING (true);
+    USING (is_current_user_admin());
 CREATE POLICY meddra_terms_insert ON meddra_terms
     FOR INSERT TO e2br3_app_role
     WITH CHECK (is_current_user_admin());
@@ -1007,7 +1061,7 @@ ALTER TABLE whodrug_products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE whodrug_products FORCE ROW LEVEL SECURITY;
 CREATE POLICY whodrug_products_read ON whodrug_products
     FOR SELECT TO e2br3_app_role
-    USING (true);
+    USING (is_current_user_admin());
 CREATE POLICY whodrug_products_insert ON whodrug_products
     FOR INSERT TO e2br3_app_role
     WITH CHECK (is_current_user_admin());
@@ -1023,7 +1077,7 @@ ALTER TABLE iso_countries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE iso_countries FORCE ROW LEVEL SECURITY;
 CREATE POLICY iso_countries_read ON iso_countries
     FOR SELECT TO e2br3_app_role
-    USING (true);
+    USING (is_current_user_admin());
 CREATE POLICY iso_countries_insert ON iso_countries
     FOR INSERT TO e2br3_app_role
     WITH CHECK (is_current_user_admin());
@@ -1039,7 +1093,7 @@ ALTER TABLE e2b_code_lists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE e2b_code_lists FORCE ROW LEVEL SECURITY;
 CREATE POLICY e2b_code_lists_read ON e2b_code_lists
     FOR SELECT TO e2br3_app_role
-    USING (true);
+    USING (is_current_user_admin());
 CREATE POLICY e2b_code_lists_insert ON e2b_code_lists
     FOR INSERT TO e2br3_app_role
     WITH CHECK (is_current_user_admin());

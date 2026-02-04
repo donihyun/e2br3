@@ -584,6 +584,7 @@ async fn test_patient_create_invalid_case() -> Result<()> {
 		case_id: fake_case_id,
 		patient_initials: Some("XX".to_string()),
 		sex: Some("1".to_string()),
+		concomitant_therapy: None,
 	};
 
 	let result = PatientInformationBmc::create(&ctx, &mm, patient_c).await;
@@ -669,6 +670,11 @@ async fn test_drug_update_in_wrong_case() -> Result<()> {
 		manufacturer_name: None,
 		batch_lot_number: None,
 		action_taken: None,
+		investigational_product_blinded: None,
+		parent_route: None,
+		parent_route_termid: None,
+		parent_route_termid_version: None,
+		parent_dosage_text: None,
 	};
 	let result =
 		DrugInformationBmc::update_in_case(&ctx, &mm, case_id_2, drug_id, drug_u)

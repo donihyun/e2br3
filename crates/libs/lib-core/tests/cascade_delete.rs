@@ -161,6 +161,7 @@ async fn test_case_delete_cascades_to_patient_information() -> Result<()> {
 		case_id,
 		patient_initials: Some("CT".to_string()),
 		sex: Some("1".to_string()),
+		concomitant_therapy: None,
 	};
 	let patient_id = PatientInformationBmc::create(&ctx, &mm, patient_c).await?;
 
@@ -393,6 +394,7 @@ async fn test_patient_delete_cascades_to_medical_history() -> Result<()> {
 		case_id,
 		patient_initials: Some("PD".to_string()),
 		sex: Some("1".to_string()),
+		concomitant_therapy: None,
 	};
 	let patient_id = PatientInformationBmc::create(&ctx, &mm, patient_c).await?;
 
@@ -542,6 +544,10 @@ async fn test_case_delete_cascades_all_children_comprehensive() -> Result<()> {
 		case_id,
 		reference_text: "Test Reference".to_string(),
 		sequence_number: 1,
+		document_base64: None,
+		media_type: None,
+		representation: None,
+		compression: None,
 	};
 	LiteratureReferenceBmc::create(&ctx, &mm, lit_c).await?;
 
@@ -550,6 +556,7 @@ async fn test_case_delete_cascades_all_children_comprehensive() -> Result<()> {
 		case_id,
 		patient_initials: Some("FC".to_string()),
 		sex: Some("1".to_string()),
+		concomitant_therapy: None,
 	};
 	PatientInformationBmc::create(&ctx, &mm, patient_c).await?;
 
