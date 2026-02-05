@@ -23,8 +23,7 @@ async fn main() -> Result<()> {
 	let root_ctx = lib_core::ctx::Ctx::root_ctx();
 	let user_id = Uuid::parse_str(DEMO_USER_ID)?;
 	lib_core::model::user::UserBmc::update_pwd(&root_ctx, &mm, user_id, DEMO_PWD)
-	)
-	.await?;
+		.await?;
 	println!(">> Demo user password set successfully!");
 
 	let hc = httpc_test::new_client(BASE_URL)?;
@@ -85,9 +84,9 @@ async fn seed_minimum_case_data(hc: &Client, case_id: &str) -> Result<()> {
 				"message_sender_identifier": "DSJP",
 				"message_type": "ichicsr"
 			}
-			}),
-		)
-		.await?;
+		}),
+	)
+	.await?;
 
 	// Safety report
 	post_json_required(
@@ -96,10 +95,10 @@ async fn seed_minimum_case_data(hc: &Client, case_id: &str) -> Result<()> {
 		json!({
 			"data": {
 				"case_id": case_id,
-				"transmission_date": "2024-01-15",
+				"transmission_date": [2024, 15],
 				"report_type": "1",
-				"date_first_received_from_source": "2024-01-10",
-				"date_of_most_recent_information": "2024-01-15",
+				"date_first_received_from_source": [2024, 10],
+				"date_of_most_recent_information": [2024, 15],
 				"fulfil_expedited_criteria": true
 			}
 		}),
@@ -115,8 +114,8 @@ async fn seed_minimum_case_data(hc: &Client, case_id: &str) -> Result<()> {
 				"combination_product_report_indicator": "false"
 			}
 		}),
-		})
-		.await?;
+	)
+	.await?;
 
 	// Sender information (C.3.x)
 	let sender_id = post_json_required(
@@ -129,8 +128,8 @@ async fn seed_minimum_case_data(hc: &Client, case_id: &str) -> Result<()> {
 				"organization_name": "Sender Org"
 			}
 		}),
-		})
-		.await?;
+	)
+	.await?;
 	if let Some(sender_id) = sender_id {
 		put_json_required(
 			hc,
@@ -151,7 +150,6 @@ async fn seed_minimum_case_data(hc: &Client, case_id: &str) -> Result<()> {
 					"fax": "6170000001",
 					"email": "sender@example.com"
 				}
-				}
 			}),
 		)
 		.await?;
@@ -165,9 +163,17 @@ async fn seed_minimum_case_data(hc: &Client, case_id: &str) -> Result<()> {
 			"data": {
 				"case_id": case_id,
 				"patient_initials": "PT",
-				"sex": "2",
-				"gestation_period": 10,
-				"gestation_period_unit": "a",
+				"sex": "2"
+			}
+		}),
+	)
+	.await?;
+	// Populate FDA-required patient fields (race + history)
+	put_json_required(
+		hc,
+		&format!("/api/cases/{case_id}/patient"),
+		json!({
+			"data": {
 				"age_group": "5",
 				"race_code": "C41260",
 				"medical_history_text": "None"
@@ -177,7 +183,7 @@ async fn seed_minimum_case_data(hc: &Client, case_id: &str) -> Result<()> {
 	.await?;
 
 	// Reaction
-	post_json_required(
+	let reaction_id = post_json_required(
 		hc,
 		&format!("/api/cases/{case_id}/reactions"),
 		json!({
@@ -186,12 +192,12 @@ async fn seed_minimum_case_data(hc: &Client, case_id: &str) -> Result<()> {
 				"sequence_number": 1,
 				"primary_source_reaction": "Headache",
 				"serious": false,
-				"outcome": "1",
-				"required_intervention": "false"
+				"outcome": "1"
 			}
 		}),
 	)
 	.await?;
+	let _ = reaction_id;
 
 	// Drug
 	post_json_required(
@@ -205,8 +211,8 @@ async fn seed_minimum_case_data(hc: &Client, case_id: &str) -> Result<()> {
 				"medicinal_product": "Drug A"
 			}
 		}),
-		})
-		.await?;
+	)
+	.await?;
 
 	// Test result (optional but good to exercise)
 	post_json_required(
@@ -219,7 +225,7 @@ async fn seed_minimum_case_data(hc: &Client, case_id: &str) -> Result<()> {
 	.await?;
 
 	// Narrative
-	post_json_required(
+	let narrative_id = post_json_required(
 		hc,
 		&format!("/api/cases/{case_id}/narrative"),
 		json!({ "data": { "case_id": case_id, "case_narrative": "Case narrative" } }),
@@ -227,20 +233,37 @@ async fn seed_minimum_case_data(hc: &Client, case_id: &str) -> Result<()> {
 	.await?;
 
 	// Narrative summary (H.5.r)
-	let _ = post_json_required(
-		hc,
-		&format!("/api/cases/{case_id}/narrative/summaries"),
-		json!({
-			"data": {
-				"case_id": case_id,
-				"sequence_number": 1,
-				"summary_type": "2",
-				"language_code": "eng",
-				"summary_text": "Case summary for FDA validation"
-			}
-		}),
-	)
-	.await?;
+	if let Some(narrative_id) = narrative_id {
+		let summary_id = post_json(
+			hc,
+			&format!("/api/cases/{case_id}/narrative/summaries"),
+			json!({
+				"data": {
+					"case_id": case_id,
+					"narrative_id": narrative_id,
+					"sequence_number": 1,
+					"summary_text": "Case summary for FDA validation"
+				}
+			}),
+		)
+		.await?;
+		let summary_id = summary_id
+			.or(get_first_id(hc, &format!("/api/cases/{case_id}/narrative/summaries")).await?);
+		if let Some(summary_id) = summary_id {
+			let _ = put_json(
+				hc,
+				&format!("/api/cases/{case_id}/narrative/summaries/{summary_id}"),
+				json!({
+					"data": {
+						"summary_type": "2",
+						"language_code": "eng",
+						"summary_text": "Case summary for FDA validation"
+					}
+				}),
+			)
+			.await?;
+		}
+	}
 
 	Ok(())
 }
@@ -348,6 +371,43 @@ async fn post_json_required(hc: &Client, path: &str, body: Value) -> Result<Opti
 }
 
 async fn put_json_required(hc: &Client, path: &str, body: Value) -> Result<()> {
-	put_json(hc, path, body).await?;
+	let cookie = auth_cookie_header(hc)?;
+	let res = hc
+		.reqwest_client()
+		.put(format!("{BASE_URL}{path}"))
+		.header("cookie", cookie)
+		.json(&body)
+		.send()
+		.await?;
+	let status = res.status();
+	let text = res.text().await?;
+	if !status.is_success() {
+		return Err(format!("required PUT failed: {path} {status} {text}").into());
+	}
 	Ok(())
+}
+
+async fn get_first_id(hc: &Client, path: &str) -> Result<Option<String>> {
+	let cookie = auth_cookie_header(hc)?;
+	let res = hc
+		.reqwest_client()
+		.get(format!("{BASE_URL}{path}"))
+		.header("cookie", cookie)
+		.send()
+		.await?;
+	let status = res.status();
+	let text = res.text().await?;
+	if !status.is_success() {
+		println!(">> GET {path} failed: {status} {text}");
+		return Ok(None);
+	}
+	let value: Value = serde_json::from_str(&text)?;
+	let id = value
+		.get("data")
+		.and_then(|v| v.as_array())
+		.and_then(|arr| arr.first())
+		.and_then(|v| v.get("id"))
+		.and_then(|v| v.as_str())
+		.map(|v| v.to_string());
+	Ok(id)
 }

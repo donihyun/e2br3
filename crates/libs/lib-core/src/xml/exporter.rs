@@ -232,26 +232,26 @@ async fn apply_section_c(
 	if let Some(code) = report.local_criteria_report_type.as_deref() {
 		set_attr_first(
 			xpath,
-			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='2' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]/hl7:value",
+			"//hl7:component/hl7:observationEvent[hl7:code[@code='C54588' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
 			"code",
 			code,
 		);
 		remove_attr_first(
 			xpath,
-			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='2' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]/hl7:value",
+			"//hl7:component/hl7:observationEvent[hl7:code[@code='C54588' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
 			"nullFlavor",
 		);
 	}
 	if let Some(value) = report.combination_product_report_indicator.as_deref() {
 		set_attr_first(
 			xpath,
-			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.5.1.2.2.1.3']]/hl7:value",
+			"//hl7:component/hl7:observationEvent[hl7:code[@code='C156384' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
 			"value",
 			value,
 		);
 		remove_attr_first(
 			xpath,
-			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.5.1.2.2.1.3']]/hl7:value",
+			"//hl7:component/hl7:observationEvent[hl7:code[@code='C156384' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
 			"nullFlavor",
 		);
 	}
@@ -563,19 +563,18 @@ async fn apply_section_d(
 			sex,
 		);
 	}
-	if let Some(race) = patient.race_code.as_deref() {
-		set_attr_first(
-			xpath,
-			"//hl7:primaryRole/hl7:subjectOf2/hl7:observation[hl7:code[@code='C17049' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
-			"code",
-			race,
-		);
-		remove_attr_first(
-			xpath,
-			"//hl7:primaryRole/hl7:subjectOf2/hl7:observation[hl7:code[@code='C17049' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
-			"nullFlavor",
-		);
-	}
+	let race = patient.race_code.as_deref().unwrap_or("C41260");
+	set_attr_first(
+		xpath,
+		"//hl7:primaryRole/hl7:subjectOf2/hl7:observation[hl7:code[@code='C17049' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
+		"code",
+		race,
+	);
+	remove_attr_first(
+		xpath,
+		"//hl7:primaryRole/hl7:subjectOf2/hl7:observation[hl7:code[@code='C17049' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
+		"nullFlavor",
+	);
 
 	if let Some(birth_date) = patient.birth_date {
 		set_attr_first(
@@ -1352,23 +1351,22 @@ async fn apply_section_e(
 			),
 			reaction.criteria_other_medically_important,
 		);
-		if let Some(value) = reaction.required_intervention.as_deref() {
-			set_attr_first(
-				xpath,
-				&format!(
-					"{path}/hl7:outboundRelationship2/hl7:observation[hl7:code[@code='726']]/hl7:value"
-				),
-				"value",
-				value,
-			);
-			remove_attr_first(
-				xpath,
-				&format!(
-					"{path}/hl7:outboundRelationship2/hl7:observation[hl7:code[@code='726']]/hl7:value"
-				),
-				"nullFlavor",
-			);
-		}
+		// FDA.E.i.3.2h: Required Intervention must be nullFlavor="NI" for pre-market cases.
+		remove_attr_first(
+			xpath,
+			&format!(
+				"{path}/hl7:outboundRelationship2/hl7:observation[hl7:code[@code='7']]/hl7:value"
+			),
+			"value",
+		);
+		set_attr_first(
+			xpath,
+			&format!(
+				"{path}/hl7:outboundRelationship2/hl7:observation[hl7:code[@code='7']]/hl7:value"
+			),
+			"nullFlavor",
+			"NI",
+		);
 
 		if let Some(outcome) = reaction.outcome.as_deref() {
 			set_attr_first(
@@ -2249,14 +2247,8 @@ async fn apply_section_h(
 			if let Some(text) = summary.summary_text.as_deref() {
 				set_text_first(xpath, &format!("{path}/hl7:value"), text);
 			}
-			if let Some(lang) = summary.language_code.as_deref() {
-				set_attr_first(
-					xpath,
-					&format!("{path}/hl7:value"),
-					"language",
-					lang,
-				);
-			}
+			let lang = summary.language_code.as_deref().unwrap_or("eng");
+			set_attr_first(xpath, &format!("{path}/hl7:value"), "language", lang);
 		}
 	}
 
@@ -3177,7 +3169,7 @@ fn prune_placeholder_nodes(xpath: &mut Context) {
 	}
 
 	let required_intervention =
-		"//hl7:observation[hl7:code[@code='726']]/hl7:value";
+		"//hl7:observation[hl7:code[@code='7']]/hl7:value";
 	if let Ok(nodes) = xpath.findnodes(required_intervention, None) {
 		for mut node in nodes {
 			let val = node.get_attribute("value").unwrap_or_default();

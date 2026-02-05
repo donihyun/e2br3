@@ -149,6 +149,18 @@ The Japanese Respiratory Society, 47: p.316</bibliographicDesignationText>
                   </subjectOf2>
                   <subjectOf2 typeCode="SBJ">
                     <organizer classCode="CATEGORY" moodCode="EVN">
+                      <code code="1" codeSystem="2.16.840.1.113883.3.989.2.1.1.20"/>
+                      <component typeCode="COMP">
+                        <observation classCode="OBS" moodCode="EVN">
+                          <code code="18" codeSystem="2.16.840.1.113883.3.989.2.1.1.19"/>
+                          <value xsi:type="ED">D.7.2</value>
+                          <!-- D.7.2: Text for Relevant Medical History and Concurrent Conditions (not including reaction / event) -->
+                        </observation>
+                      </component>
+                    </organizer>
+                  </subjectOf2>
+                  <subjectOf2 typeCode="SBJ">
+                    <organizer classCode="CATEGORY" moodCode="EVN">
                       <code code="2" codeSystem="2.16.840.1.113883.3.989.2.1.1.20" codeSystemVersion="1.0" displayName="drugHistory"/>
                       <component typeCode="COMP">
                         <substanceAdministration classCode="SBADM" moodCode="EVN">
@@ -310,7 +322,7 @@ The Japanese Respiratory Society, 47: p.316</bibliographicDesignationText>
                       </outboundRelationship2>
                       <outboundRelationship2 typeCode="PERT">
                         <observation classCode="OBS" moodCode="EVN">
-                          <code code="726" codeSystem="2.16.840.1.113883.3.989.5.1.2.2.1.32"/>
+                          <code code="7" codeSystem="2.16.840.1.113883.3.989.5.1.2.2.1.3"/>
                           <value xsi:type="BL" nullFlavor="NI"/>
                           <!-- FDA.E.i.3.2h: Required Intervention -->
                         </observation>
@@ -586,6 +598,20 @@ The Japanese Respiratory Society, 47: p.316</bibliographicDesignationText>
           </component>
           <component typeCode="COMP">
             <observationEvent classCode="OBS" moodCode="EVN">
+              <code code="C156384" codeSystem="2.16.840.1.113883.3.26.1.1"/>
+              <value xsi:type="BL" nullFlavor="NI"/>
+              <!-- FDA.C.1.12 Combination Product Report Indicator -->
+            </observationEvent>
+          </component>
+          <component typeCode="COMP">
+            <observationEvent classCode="OBS" moodCode="EVN">
+              <code code="C54588" codeSystem="2.16.840.1.113883.3.26.1.1"/>
+              <value xsi:type="CE" codeSystem="2.16.840.1.113883.3.989.5.1.2.2.1.1.1" nullFlavor="NI"/>
+              <!-- FDA.C.1.7.1 Local Criteria Report Type -->
+            </observationEvent>
+          </component>
+          <component typeCode="COMP">
+            <observationEvent classCode="OBS" moodCode="EVN">
               <code code="36" codeSystem="2.16.840.1.113883.3.989.2.1.1.19"/>
               <value xsi:type="ED" language="JA">DLSTの結果は陰性であるが間質性肺炎の発症時期、陰影の性状、経過からも薬剤性肺炎が最も考えられる。原因薬剤は特定できていない。</value>
               <!-- H.5.r.1a: Case Summary and Reporter's Comments Text -->
@@ -682,25 +708,65 @@ The Japanese Respiratory Society, 47: p.316</bibliographicDesignationText>
               </subjectOf2>
             </relatedInvestigation>
           </outboundRelationship>
+          <subjectOf1 typeCode="SUBJ">
+            <controlActEvent classCode="CACT" moodCode="EVN">
+              <author typeCode="AUT">
+                <assignedEntity classCode="ASSIGNED">
+                  <code code="1" codeSystem="2.16.840.1.113883.3.989.2.1.1.7"/>
+                  <!-- C.3.1: Sender Type -->
+                  <addr>
+                    <streetAddressLine>C.3.4.1</streetAddressLine>
+                    <!-- C.3.4.1: Sender's Street Address -->
+                    <city>C.3.4.2</city>
+                    <!-- C.3.4.2: Sender's City -->
+                    <state>C.3.4.3</state>
+                    <!-- C.3.4.3: Sender's State or Province -->
+                    <postalCode>C.3.4.4</postalCode>
+                    <!-- C.3.4.4: Sender's Postcode -->
+                  </addr>
+                  <telecom value="tel:C.3.4.6"/>
+                  <!-- C.3.4.6: Sender's Telephone -->
+                  <telecom value="fax:C.3.4.7"/>
+                  <!-- C.3.4.7: Sender's Fax -->
+                  <telecom value="mailto:C.3.4.8"/>
+                  <!-- C.3.4.8: Sender's E-mail Address -->
+                  <assignedPerson classCode="PSN" determinerCode="INSTANCE">
+                    <name>
+                      <prefix>C.3.3.2</prefix>
+                      <!-- C.3.3.2: Sender's Title -->
+                      <given>C.3.3.3</given>
+                      <!-- C.3.3.3: Sender's Given Name -->
+                      <given>C.3.3.4</given>
+                      <!-- C.3.3.4: Sender's Middle Name -->
+                      <family>C.3.3.5</family>
+                      <!-- C.3.3.5: Sender's Family Name -->
+                    </name>
+                    <asLocatedEntity classCode="LOCE">
+                      <location classCode="COUNTRY" determinerCode="INSTANCE">
+                        <code code="C.3.4.5" codeSystem="1.0.3166.1.2.2"/>
+                        <!-- C.3.4.5: Sender's Country Code -->
+                      </location>
+                    </asLocatedEntity>
+                  </assignedPerson>
+                  <representedOrganization classCode="ORG" determinerCode="INSTANCE">
+                    <name>C.3.3.1</name>
+                    <!-- C.3.3.1: Sender's Department -->
+                    <assignedEntity classCode="ASSIGNED">
+                      <representedOrganization classCode="ORG" determinerCode="INSTANCE">
+                        <name>C.3.2</name>
+                        <!-- C.3.2: Sender's Organisation -->
+                      </representedOrganization>
+                    </assignedEntity>
+                  </representedOrganization>
+                </assignedEntity>
+              </author>
+            </controlActEvent>
+          </subjectOf1>
           <subjectOf2 typeCode="SUBJ">
             <investigationCharacteristic classCode="OBS" moodCode="EVN">
               <code code="1" codeSystem="2.16.840.1.113883.3.989.2.1.1.23"/>
               <value xsi:type="CE" code="1" codeSystem="2.16.840.1.113883.3.989.2.1.1.2"/>
               <!-- C.1.3 Type of Report -->
-            </investigationCharacteristic>
-          </subjectOf2>
-          <subjectOf2 typeCode="SUBJ">
-            <investigationCharacteristic classCode="OBS" moodCode="EVN">
-              <code code="1" codeSystem="2.16.840.1.113883.3.989.5.1.2.2.1.3"/>
-              <value xsi:type="BL" nullFlavor="NI"/>
-              <!-- FDA.C.1.12 Combination Product Report Indicator -->
-            </investigationCharacteristic>
-          </subjectOf2>
-          <subjectOf2 typeCode="SUBJ">
-            <investigationCharacteristic classCode="OBS" moodCode="EVN">
-              <code code="2" codeSystem="2.16.840.1.113883.3.989.2.1.1.19"/>
-              <value xsi:type="CE" codeSystem="2.16.840.1.113883.3.989.5.1.2.2.1.1.1" nullFlavor="NI"/>
-              <!-- FDA.C.1.7.1 Local Criteria Report Type -->
             </investigationCharacteristic>
           </subjectOf2>
           <subjectOf2 typeCode="SUBJ">

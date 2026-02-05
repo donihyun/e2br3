@@ -1883,12 +1883,23 @@ fn looks_placeholder(value: &str) -> bool {
 	if v.is_empty() {
 		return false;
 	}
-	if let Some(first) = v.chars().next() {
-		if first.is_ascii_uppercase() && v.contains('.') {
-			return true;
-		}
+	if v.chars().any(|c| c.is_whitespace()) {
+		return false;
 	}
-	false
+	if v.len() > 24 {
+		return false;
+	}
+	let mut chars = v.chars();
+	let Some(first) = chars.next() else {
+		return false;
+	};
+	if !first.is_ascii_uppercase() {
+		return false;
+	}
+	if !v.contains('.') {
+		return false;
+	}
+	v.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-')
 }
 
 fn is_digits_len(value: &str, len: usize) -> bool {
