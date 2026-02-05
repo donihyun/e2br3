@@ -12,6 +12,7 @@ pub enum Resource {
 	// Core entities
 	Case,
 	Patient,
+	PatientIdentifier,
 	Drug,
 	Reaction,
 	TestResult,
@@ -127,6 +128,18 @@ pub const PATIENT_DELETE: Permission =
 	Permission::new(Resource::Patient, Action::Delete);
 pub const PATIENT_LIST: Permission =
 	Permission::new(Resource::Patient, Action::List);
+
+// Patient identifiers (D.1.1.x)
+pub const PATIENT_IDENTIFIER_CREATE: Permission =
+	Permission::new(Resource::PatientIdentifier, Action::Create);
+pub const PATIENT_IDENTIFIER_READ: Permission =
+	Permission::new(Resource::PatientIdentifier, Action::Read);
+pub const PATIENT_IDENTIFIER_UPDATE: Permission =
+	Permission::new(Resource::PatientIdentifier, Action::Update);
+pub const PATIENT_IDENTIFIER_DELETE: Permission =
+	Permission::new(Resource::PatientIdentifier, Action::Delete);
+pub const PATIENT_IDENTIFIER_LIST: Permission =
+	Permission::new(Resource::PatientIdentifier, Action::List);
 
 // Drug permissions
 pub const DRUG_CREATE: Permission = Permission::new(Resource::Drug, Action::Create);
@@ -495,6 +508,11 @@ fn admin_permissions() -> &'static [Permission] {
 		PATIENT_UPDATE,
 		PATIENT_DELETE,
 		PATIENT_LIST,
+		PATIENT_IDENTIFIER_CREATE,
+		PATIENT_IDENTIFIER_READ,
+		PATIENT_IDENTIFIER_UPDATE,
+		PATIENT_IDENTIFIER_DELETE,
+		PATIENT_IDENTIFIER_LIST,
 		// Drug
 		DRUG_CREATE,
 		DRUG_READ,
@@ -685,6 +703,11 @@ fn manager_permissions() -> &'static [Permission] {
 		PATIENT_UPDATE,
 		PATIENT_DELETE,
 		PATIENT_LIST,
+		PATIENT_IDENTIFIER_CREATE,
+		PATIENT_IDENTIFIER_READ,
+		PATIENT_IDENTIFIER_UPDATE,
+		PATIENT_IDENTIFIER_DELETE,
+		PATIENT_IDENTIFIER_LIST,
 		// Drug
 		DRUG_CREATE,
 		DRUG_READ,
@@ -865,6 +888,10 @@ fn user_permissions() -> &'static [Permission] {
 		PATIENT_READ,
 		PATIENT_UPDATE,
 		PATIENT_LIST,
+		PATIENT_IDENTIFIER_CREATE,
+		PATIENT_IDENTIFIER_READ,
+		PATIENT_IDENTIFIER_UPDATE,
+		PATIENT_IDENTIFIER_LIST,
 		// Drug
 		DRUG_CREATE,
 		DRUG_READ,
@@ -1008,6 +1035,8 @@ fn viewer_permissions() -> &'static [Permission] {
 		// Patient
 		PATIENT_READ,
 		PATIENT_LIST,
+		PATIENT_IDENTIFIER_READ,
+		PATIENT_IDENTIFIER_LIST,
 		// Drug
 		DRUG_READ,
 		DRUG_LIST,

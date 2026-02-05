@@ -43,6 +43,8 @@ pub struct Reaction {
 	pub criteria_disabling: bool,
 	pub criteria_congenital_anomaly: bool,
 	pub criteria_other_medically_important: bool,
+	// FDA.E.i.3.2h - Required Intervention (FDA)
+	pub required_intervention: Option<String>,
 
 	// E.i.4-6 - Timing
 	pub start_date: Option<Date>,
@@ -76,15 +78,25 @@ pub struct ReactionForCreate {
 #[derive(Fields, Deserialize)]
 pub struct ReactionForUpdate {
 	pub primary_source_reaction: Option<String>,
+	pub reaction_language: Option<String>,
 	pub reaction_meddra_code: Option<String>,
 	pub reaction_meddra_version: Option<String>,
+	pub term_highlighted: Option<bool>,
 	pub serious: Option<bool>,
 	pub criteria_death: Option<bool>,
 	pub criteria_life_threatening: Option<bool>,
 	pub criteria_hospitalization: Option<bool>,
+	pub criteria_disabling: Option<bool>,
+	pub criteria_congenital_anomaly: Option<bool>,
+	pub criteria_other_medically_important: Option<bool>,
+	pub required_intervention: Option<String>,
 	pub start_date: Option<Date>,
 	pub end_date: Option<Date>,
+	pub duration_value: Option<Decimal>,
+	pub duration_unit: Option<String>,
 	pub outcome: Option<String>,
+	pub medical_confirmation: Option<bool>,
+	pub country_code: Option<String>,
 }
 
 #[derive(FilterNodes, Deserialize, Default)]
@@ -168,17 +180,27 @@ impl ReactionBmc {
 		let sql = format!(
 			"UPDATE {}
 			 SET primary_source_reaction = COALESCE($2, primary_source_reaction),
-			     reaction_meddra_code = COALESCE($3, reaction_meddra_code),
-			     reaction_meddra_version = COALESCE($4, reaction_meddra_version),
-			     serious = COALESCE($5, serious),
-			     criteria_death = COALESCE($6, criteria_death),
-			     criteria_life_threatening = COALESCE($7, criteria_life_threatening),
-			     criteria_hospitalization = COALESCE($8, criteria_hospitalization),
-			     start_date = COALESCE($9, start_date),
-			     end_date = COALESCE($10, end_date),
-			     outcome = COALESCE($11, outcome),
+			     reaction_language = COALESCE($3, reaction_language),
+			     reaction_meddra_code = COALESCE($4, reaction_meddra_code),
+			     reaction_meddra_version = COALESCE($5, reaction_meddra_version),
+			     term_highlighted = COALESCE($6, term_highlighted),
+			     serious = COALESCE($7, serious),
+			     criteria_death = COALESCE($8, criteria_death),
+			     criteria_life_threatening = COALESCE($9, criteria_life_threatening),
+			     criteria_hospitalization = COALESCE($10, criteria_hospitalization),
+			     criteria_disabling = COALESCE($11, criteria_disabling),
+			     criteria_congenital_anomaly = COALESCE($12, criteria_congenital_anomaly),
+			     criteria_other_medically_important = COALESCE($13, criteria_other_medically_important),
+			     required_intervention = COALESCE($14, required_intervention),
+			     start_date = COALESCE($15, start_date),
+			     end_date = COALESCE($16, end_date),
+			     duration_value = COALESCE($17, duration_value),
+			     duration_unit = COALESCE($18, duration_unit),
+			     outcome = COALESCE($19, outcome),
+			     medical_confirmation = COALESCE($20, medical_confirmation),
+			     country_code = COALESCE($21, country_code),
 			     updated_at = now(),
-			     updated_by = $12
+			     updated_by = $22
 			 WHERE id = $1",
 			Self::TABLE
 		);
@@ -188,15 +210,25 @@ impl ReactionBmc {
 				sqlx::query(&sql)
 					.bind(id)
 					.bind(reaction_u.primary_source_reaction)
+					.bind(reaction_u.reaction_language)
 					.bind(reaction_u.reaction_meddra_code)
 					.bind(reaction_u.reaction_meddra_version)
+					.bind(reaction_u.term_highlighted)
 					.bind(reaction_u.serious)
 					.bind(reaction_u.criteria_death)
 					.bind(reaction_u.criteria_life_threatening)
 					.bind(reaction_u.criteria_hospitalization)
+					.bind(reaction_u.criteria_disabling)
+					.bind(reaction_u.criteria_congenital_anomaly)
+					.bind(reaction_u.criteria_other_medically_important)
+					.bind(reaction_u.required_intervention)
 					.bind(reaction_u.start_date)
 					.bind(reaction_u.end_date)
+					.bind(reaction_u.duration_value)
+					.bind(reaction_u.duration_unit)
 					.bind(reaction_u.outcome)
+					.bind(reaction_u.medical_confirmation)
+					.bind(reaction_u.country_code)
 					.bind(ctx.user_id()),
 			)
 			.await?;
@@ -269,17 +301,27 @@ impl ReactionBmc {
 		let sql = format!(
 			"UPDATE {}
 			 SET primary_source_reaction = COALESCE($3, primary_source_reaction),
-			     reaction_meddra_code = COALESCE($4, reaction_meddra_code),
-			     reaction_meddra_version = COALESCE($5, reaction_meddra_version),
-			     serious = COALESCE($6, serious),
-			     criteria_death = COALESCE($7, criteria_death),
-			     criteria_life_threatening = COALESCE($8, criteria_life_threatening),
-			     criteria_hospitalization = COALESCE($9, criteria_hospitalization),
-			     start_date = COALESCE($10, start_date),
-			     end_date = COALESCE($11, end_date),
-			     outcome = COALESCE($12, outcome),
+			     reaction_language = COALESCE($4, reaction_language),
+			     reaction_meddra_code = COALESCE($5, reaction_meddra_code),
+			     reaction_meddra_version = COALESCE($6, reaction_meddra_version),
+			     term_highlighted = COALESCE($7, term_highlighted),
+			     serious = COALESCE($8, serious),
+			     criteria_death = COALESCE($9, criteria_death),
+			     criteria_life_threatening = COALESCE($10, criteria_life_threatening),
+			     criteria_hospitalization = COALESCE($11, criteria_hospitalization),
+			     criteria_disabling = COALESCE($12, criteria_disabling),
+			     criteria_congenital_anomaly = COALESCE($13, criteria_congenital_anomaly),
+			     criteria_other_medically_important = COALESCE($14, criteria_other_medically_important),
+			     required_intervention = COALESCE($15, required_intervention),
+			     start_date = COALESCE($16, start_date),
+			     end_date = COALESCE($17, end_date),
+			     duration_value = COALESCE($18, duration_value),
+			     duration_unit = COALESCE($19, duration_unit),
+			     outcome = COALESCE($20, outcome),
+			     medical_confirmation = COALESCE($21, medical_confirmation),
+			     country_code = COALESCE($22, country_code),
 			     updated_at = now(),
-			     updated_by = $13
+			     updated_by = $23
 			 WHERE id = $1 AND case_id = $2",
 			Self::TABLE
 		);
@@ -290,15 +332,25 @@ impl ReactionBmc {
 					.bind(id)
 					.bind(case_id)
 					.bind(reaction_u.primary_source_reaction)
+					.bind(reaction_u.reaction_language)
 					.bind(reaction_u.reaction_meddra_code)
 					.bind(reaction_u.reaction_meddra_version)
+					.bind(reaction_u.term_highlighted)
 					.bind(reaction_u.serious)
 					.bind(reaction_u.criteria_death)
 					.bind(reaction_u.criteria_life_threatening)
 					.bind(reaction_u.criteria_hospitalization)
+					.bind(reaction_u.criteria_disabling)
+					.bind(reaction_u.criteria_congenital_anomaly)
+					.bind(reaction_u.criteria_other_medically_important)
+					.bind(reaction_u.required_intervention)
 					.bind(reaction_u.start_date)
 					.bind(reaction_u.end_date)
+					.bind(reaction_u.duration_value)
+					.bind(reaction_u.duration_unit)
 					.bind(reaction_u.outcome)
+					.bind(reaction_u.medical_confirmation)
+					.bind(reaction_u.country_code)
 					.bind(ctx.user_id()),
 			)
 			.await?;

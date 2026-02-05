@@ -397,6 +397,10 @@ async fn test_rls_case_related_tables_org_isolation() -> Result<()> {
 			drug_id: drug1,
 			sequence_number: 1,
 			substance_name: None,
+			substance_termid: None,
+			substance_termid_version: None,
+			strength_value: None,
+			strength_unit: None,
 		},
 	)
 	.await?;
@@ -407,6 +411,10 @@ async fn test_rls_case_related_tables_org_isolation() -> Result<()> {
 			drug_id: drug2,
 			sequence_number: 1,
 			substance_name: None,
+			substance_termid: None,
+			substance_termid_version: None,
+			strength_value: None,
+			strength_unit: None,
 		},
 	)
 	.await?;
@@ -417,6 +425,28 @@ async fn test_rls_case_related_tables_org_isolation() -> Result<()> {
 		DosageInformationForCreate {
 			drug_id: drug1,
 			sequence_number: 1,
+			dose_value: None,
+			dose_unit: None,
+			number_of_units: None,
+			frequency_value: None,
+			frequency_unit: None,
+			first_administration_date: None,
+			first_administration_time: None,
+			last_administration_date: None,
+			last_administration_time: None,
+			duration_value: None,
+			duration_unit: None,
+			batch_lot_number: None,
+			dosage_text: None,
+			dose_form: None,
+			dose_form_termid: None,
+			dose_form_termid_version: None,
+			route_of_administration: None,
+			parent_route: None,
+			parent_route_termid: None,
+			parent_route_termid_version: None,
+			first_administration_date_null_flavor: None,
+			last_administration_date_null_flavor: None,
 		},
 	)
 	.await?;
@@ -426,6 +456,28 @@ async fn test_rls_case_related_tables_org_isolation() -> Result<()> {
 		DosageInformationForCreate {
 			drug_id: drug2,
 			sequence_number: 1,
+			dose_value: None,
+			dose_unit: None,
+			number_of_units: None,
+			frequency_value: None,
+			frequency_unit: None,
+			first_administration_date: None,
+			first_administration_time: None,
+			last_administration_date: None,
+			last_administration_time: None,
+			duration_value: None,
+			duration_unit: None,
+			batch_lot_number: None,
+			dosage_text: None,
+			dose_form: None,
+			dose_form_termid: None,
+			dose_form_termid_version: None,
+			route_of_administration: None,
+			parent_route: None,
+			parent_route_termid: None,
+			parent_route_termid_version: None,
+			first_administration_date_null_flavor: None,
+			last_administration_date_null_flavor: None,
 		},
 	)
 	.await?;
@@ -437,6 +489,8 @@ async fn test_rls_case_related_tables_org_isolation() -> Result<()> {
 			drug_id: drug1,
 			sequence_number: 1,
 			indication_text: None,
+			indication_meddra_version: None,
+			indication_meddra_code: None,
 		},
 	)
 	.await?;
@@ -447,6 +501,8 @@ async fn test_rls_case_related_tables_org_isolation() -> Result<()> {
 			drug_id: drug2,
 			sequence_number: 1,
 			indication_text: None,
+			indication_meddra_version: None,
+			indication_meddra_code: None,
 		},
 	)
 	.await?;

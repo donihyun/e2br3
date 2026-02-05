@@ -2,6 +2,7 @@
 
 use crate::ctx::Ctx;
 use crate::model::base::DbBmc;
+use crate::model::store::set_full_context_dbx;
 use crate::model::ModelManager;
 use crate::model::Result;
 use modql::filter::{FilterNodes, ListOptions, OpValsString};
@@ -78,11 +79,19 @@ impl CaseVersionBmc {
 		mm: &ModelManager,
 		version_c: CaseVersionForCreate,
 	) -> Result<Uuid> {
+		let dbx = mm.dbx();
+		dbx.begin_txn().await?;
+		if let Err(err) =
+			set_full_context_dbx(dbx, ctx.user_id(), ctx.organization_id(), ctx.role())
+				.await
+		{
+			dbx.rollback_txn().await?;
+			return Err(err.into());
+		}
 		let user_id = ctx.user_id();
 		let sql = "INSERT INTO case_versions (case_id, version, snapshot, change_reason, changed_by) VALUES ($1, $2, $3, $4, $5) RETURNING id";
 
-		let (id,) = mm
-			.dbx()
+		let res = dbx
 			.fetch_one(
 				sqlx::query_as::<_, (Uuid,)>(sql)
 					.bind(version_c.case_id)
@@ -91,7 +100,15 @@ impl CaseVersionBmc {
 					.bind(version_c.change_reason)
 					.bind(user_id),
 			)
-			.await?;
+			.await;
+		let (id,) = match res {
+			Ok(val) => val,
+			Err(err) => {
+				dbx.rollback_txn().await?;
+				return Err(err.into());
+			}
+		};
+		dbx.commit_txn().await?;
 
 		Ok(id)
 	}

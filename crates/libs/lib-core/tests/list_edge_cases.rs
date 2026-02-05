@@ -90,6 +90,10 @@ async fn test_substance_list_with_limit() -> Result<()> {
 			drug_id,
 			sequence_number: i,
 			substance_name: Some(format!("Substance {i}")),
+			substance_termid: None,
+			substance_termid_version: None,
+			strength_value: None,
+			strength_unit: None,
 		};
 		let substance_id =
 			DrugActiveSubstanceBmc::create(&ctx, &mm, substance_c).await?;
@@ -143,6 +147,10 @@ async fn test_substance_list_with_offset() -> Result<()> {
 			drug_id,
 			sequence_number: i,
 			substance_name: Some(format!("Offset Substance {i}")),
+			substance_termid: None,
+			substance_termid_version: None,
+			strength_value: None,
+			strength_unit: None,
 		};
 		let substance_id =
 			DrugActiveSubstanceBmc::create(&ctx, &mm, substance_c).await?;

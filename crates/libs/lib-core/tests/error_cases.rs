@@ -192,6 +192,13 @@ async fn test_case_update_not_found() -> Result<()> {
 		status: Some("validated".to_string()),
 		submitted_by: None,
 		submitted_at: None,
+		raw_xml: None,
+		dirty_c: None,
+		dirty_d: None,
+		dirty_e: None,
+		dirty_f: None,
+		dirty_g: None,
+		dirty_h: None,
 	};
 
 	let result = CaseBmc::update(&ctx, &mm, fake_id, case_u).await;
@@ -668,13 +675,20 @@ async fn test_drug_update_in_wrong_case() -> Result<()> {
 		drug_characterization: None,
 		brand_name: None,
 		manufacturer_name: None,
+		manufacturer_country: None,
 		batch_lot_number: None,
+		dosage_text: None,
 		action_taken: None,
+		rechallenge: None,
 		investigational_product_blinded: None,
+		mpid: None,
+		mpid_version: None,
+		obtain_drug_country: None,
 		parent_route: None,
 		parent_route_termid: None,
 		parent_route_termid_version: None,
 		parent_dosage_text: None,
+		fda_additional_info_coded: None,
 	};
 	let result =
 		DrugInformationBmc::update_in_case(&ctx, &mm, case_id_2, drug_id, drug_u)

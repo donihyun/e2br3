@@ -64,6 +64,9 @@ CREATE TABLE drug_information (
     -- G.k.11 - Parent Dosage Information
     parent_dosage_text TEXT,
 
+    -- FDA.G.k.10a - Additional Information on Drug (coded)
+    fda_additional_info_coded VARCHAR(10),
+
     -- Audit fields (standardized UUID-based)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -199,6 +202,34 @@ CREATE TABLE drug_indications (
 );
 
 CREATE INDEX idx_drug_indications_drug ON drug_indications(drug_id);
+
+-- ============================================================================
+-- FDA Scenario 7: Device/Product Characteristics (Repeating)
+-- ============================================================================
+
+CREATE TABLE drug_device_characteristics (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    drug_id UUID NOT NULL REFERENCES drug_information(id) ON DELETE CASCADE,
+    sequence_number INTEGER NOT NULL,
+
+    code VARCHAR(50),
+    code_system VARCHAR(200),
+    code_display_name VARCHAR(200),
+    value_type VARCHAR(10),
+    value_value VARCHAR(200),
+    value_code VARCHAR(50),
+    value_code_system VARCHAR(200),
+    value_display_name VARCHAR(200),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updated_by UUID REFERENCES users(id) ON DELETE RESTRICT,
+
+    CONSTRAINT unique_drug_device_characteristic_sequence UNIQUE (drug_id, sequence_number)
+);
+
+CREATE INDEX idx_drug_device_characteristics_drug ON drug_device_characteristics(drug_id);
 
 -- ============================================================================
 -- G.k.8.r: Drug Recurrence Information (Repeating)

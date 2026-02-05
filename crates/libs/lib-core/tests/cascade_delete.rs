@@ -332,6 +332,28 @@ async fn test_drug_delete_cascades_to_dosage_and_substances() -> Result<()> {
 	let dosage_c = DosageInformationForCreate {
 		drug_id,
 		sequence_number: 1,
+		dose_value: None,
+		dose_unit: None,
+		number_of_units: None,
+		frequency_value: None,
+		frequency_unit: None,
+		first_administration_date: None,
+		first_administration_time: None,
+		last_administration_date: None,
+		last_administration_time: None,
+		duration_value: None,
+		duration_unit: None,
+		batch_lot_number: None,
+		dosage_text: None,
+		dose_form: None,
+		dose_form_termid: None,
+		dose_form_termid_version: None,
+		route_of_administration: None,
+		parent_route: None,
+		parent_route_termid: None,
+		parent_route_termid_version: None,
+		first_administration_date_null_flavor: None,
+		last_administration_date_null_flavor: None,
 	};
 	let dosage_id = DosageInformationBmc::create(&ctx, &mm, dosage_c).await?;
 
@@ -340,6 +362,10 @@ async fn test_drug_delete_cascades_to_dosage_and_substances() -> Result<()> {
 		drug_id,
 		sequence_number: 1,
 		substance_name: Some("Test Substance".to_string()),
+		substance_termid: None,
+		substance_termid_version: None,
+		strength_value: None,
+		strength_unit: None,
 	};
 	let substance_id =
 		DrugActiveSubstanceBmc::create(&ctx, &mm, substance_c).await?;
@@ -349,6 +375,8 @@ async fn test_drug_delete_cascades_to_dosage_and_substances() -> Result<()> {
 		drug_id,
 		sequence_number: 1,
 		indication_text: Some("Test Indication".to_string()),
+		indication_meddra_version: None,
+		indication_meddra_code: None,
 	};
 	let indication_id = DrugIndicationBmc::create(&ctx, &mm, indication_c).await?;
 
@@ -580,6 +608,28 @@ async fn test_case_delete_cascades_all_children_comprehensive() -> Result<()> {
 	let dosage_c = DosageInformationForCreate {
 		drug_id,
 		sequence_number: 1,
+		dose_value: None,
+		dose_unit: None,
+		number_of_units: None,
+		frequency_value: None,
+		frequency_unit: None,
+		first_administration_date: None,
+		first_administration_time: None,
+		last_administration_date: None,
+		last_administration_time: None,
+		duration_value: None,
+		duration_unit: None,
+		batch_lot_number: None,
+		dosage_text: None,
+		dose_form: None,
+		dose_form_termid: None,
+		dose_form_termid_version: None,
+		route_of_administration: None,
+		parent_route: None,
+		parent_route_termid: None,
+		parent_route_termid_version: None,
+		first_administration_date_null_flavor: None,
+		last_administration_date_null_flavor: None,
 	};
 	DosageInformationBmc::create(&ctx, &mm, dosage_c).await?;
 

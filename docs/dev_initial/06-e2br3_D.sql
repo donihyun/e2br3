@@ -35,6 +35,10 @@ CREATE TABLE patient_information (
     -- D.5 - Sex (E2B(R3) codes)
     sex VARCHAR(1) CHECK (sex IN ('0', '1', '2')),  -- 0=Unknown, 1=Male, 2=Female
 
+    -- FDA.D.11 / FDA.D.12 - Race / Ethnicity (FDA)
+    race_code VARCHAR(10),
+    ethnicity_code VARCHAR(10),
+
     -- D.6 - Last Menstrual Period Date
     last_menstrual_period_date DATE,
 

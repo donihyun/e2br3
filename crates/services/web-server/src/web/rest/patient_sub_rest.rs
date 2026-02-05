@@ -11,7 +11,9 @@ use lib_core::model::acs::{
 	PARENT_INFORMATION_READ, PARENT_INFORMATION_UPDATE, PAST_DRUG_CREATE,
 	PAST_DRUG_DELETE, PAST_DRUG_LIST, PAST_DRUG_READ, PAST_DRUG_UPDATE,
 	PATIENT_DEATH_CREATE, PATIENT_DEATH_DELETE, PATIENT_DEATH_LIST,
-	PATIENT_DEATH_READ, PATIENT_DEATH_UPDATE,
+	PATIENT_DEATH_READ, PATIENT_DEATH_UPDATE, PATIENT_IDENTIFIER_CREATE,
+	PATIENT_IDENTIFIER_DELETE, PATIENT_IDENTIFIER_LIST, PATIENT_IDENTIFIER_READ,
+	PATIENT_IDENTIFIER_UPDATE,
 };
 use lib_core::model::patient::{
 	AutopsyCauseOfDeath, AutopsyCauseOfDeathBmc, AutopsyCauseOfDeathFilter,
@@ -26,6 +28,8 @@ use lib_core::model::patient::{
 	PatientDeathInformationForUpdate, PatientInformationBmc, ReportedCauseOfDeath,
 	ReportedCauseOfDeathBmc, ReportedCauseOfDeathFilter,
 	ReportedCauseOfDeathForCreate, ReportedCauseOfDeathForUpdate,
+	PatientIdentifier, PatientIdentifierBmc, PatientIdentifierFilter,
+	PatientIdentifierForCreate, PatientIdentifierForUpdate,
 };
 use lib_core::model::{self, ModelManager};
 use lib_rest_core::rest_params::{ParamsForCreate, ParamsForUpdate};
@@ -80,6 +84,97 @@ async fn ensure_death_info_case(
 		"patient_death_information",
 	)
 	.await
+}
+
+// -- Patient Identifiers (D.1.1.x)
+
+/// POST /api/cases/{case_id}/patient/identifiers
+pub async fn create_patient_identifier(
+	State(mm): State<ModelManager>,
+	ctx_w: CtxW,
+	Path(case_id): Path<Uuid>,
+	Json(params): Json<ParamsForCreate<PatientIdentifierForCreate>>,
+) -> Result<(StatusCode, Json<DataRestResult<PatientIdentifier>>)> {
+	let ctx = ctx_w.0;
+	require_permission(&ctx, PATIENT_IDENTIFIER_CREATE)?;
+	let patient_id = patient_id_for_case(&ctx, &mm, case_id).await?;
+
+	let ParamsForCreate { data } = params;
+	let mut data = data;
+	data.patient_id = patient_id;
+
+	let id = PatientIdentifierBmc::create(&ctx, &mm, data).await?;
+	let entity = PatientIdentifierBmc::get(&ctx, &mm, id).await?;
+	Ok((StatusCode::CREATED, Json(DataRestResult { data: entity })))
+}
+
+/// GET /api/cases/{case_id}/patient/identifiers
+pub async fn list_patient_identifiers(
+	State(mm): State<ModelManager>,
+	ctx_w: CtxW,
+	Path(case_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<DataRestResult<Vec<PatientIdentifier>>>)> {
+	let ctx = ctx_w.0;
+	require_permission(&ctx, PATIENT_IDENTIFIER_LIST)?;
+	let patient_id = patient_id_for_case(&ctx, &mm, case_id).await?;
+
+	let filter = PatientIdentifierFilter {
+		patient_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(
+			patient_id.to_string()
+		))])),
+		..Default::default()
+	};
+	let entities = PatientIdentifierBmc::list(
+		&ctx,
+		&mm,
+		Some(vec![filter]),
+		Some(ListOptions::default()),
+	)
+	.await?;
+	Ok((StatusCode::OK, Json(DataRestResult { data: entities })))
+}
+
+/// GET /api/cases/{case_id}/patient/identifiers/{id}
+pub async fn get_patient_identifier(
+	State(mm): State<ModelManager>,
+	ctx_w: CtxW,
+	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<DataRestResult<PatientIdentifier>>)> {
+	let ctx = ctx_w.0;
+	require_permission(&ctx, PATIENT_IDENTIFIER_READ)?;
+
+	let entity = PatientIdentifierBmc::get(&ctx, &mm, id).await?;
+	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
+}
+
+/// PUT /api/cases/{case_id}/patient/identifiers/{id}
+pub async fn update_patient_identifier(
+	State(mm): State<ModelManager>,
+	ctx_w: CtxW,
+	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+	Json(params): Json<ParamsForUpdate<PatientIdentifierForUpdate>>,
+) -> Result<(StatusCode, Json<DataRestResult<PatientIdentifier>>)> {
+	let ctx = ctx_w.0;
+	require_permission(&ctx, PATIENT_IDENTIFIER_UPDATE)?;
+
+	let ParamsForUpdate { data } = params;
+	PatientIdentifierBmc::update(&ctx, &mm, id, data).await?;
+	let entity = PatientIdentifierBmc::get(&ctx, &mm, id).await?;
+	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
+}
+
+/// DELETE /api/cases/{case_id}/patient/identifiers/{id}
+pub async fn delete_patient_identifier(
+	State(mm): State<ModelManager>,
+	ctx_w: CtxW,
+	Path((_case_id, id)): Path<(Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<DataRestResult<PatientIdentifier>>)> {
+	let ctx = ctx_w.0;
+	require_permission(&ctx, PATIENT_IDENTIFIER_DELETE)?;
+
+	let entity = PatientIdentifierBmc::get(&ctx, &mm, id).await?;
+	PatientIdentifierBmc::delete(&ctx, &mm, id).await?;
+	Ok((StatusCode::OK, Json(DataRestResult { data: entity })))
 }
 
 // -- Medical History Episodes (D.7.1.r)

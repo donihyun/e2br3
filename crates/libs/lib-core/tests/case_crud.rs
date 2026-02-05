@@ -28,6 +28,13 @@ async fn test_case_crud() -> Result<()> {
 		status: Some("validated".to_string()),
 		submitted_by: None,
 		submitted_at: None,
+		raw_xml: None,
+		dirty_c: None,
+		dirty_d: None,
+		dirty_e: None,
+		dirty_f: None,
+		dirty_g: None,
+		dirty_h: None,
 	};
 	CaseBmc::update(&ctx, &mm, case_id, case_u).await?;
 	let case = CaseBmc::get(&ctx, &mm, case_id).await?;

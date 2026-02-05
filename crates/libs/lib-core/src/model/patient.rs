@@ -40,6 +40,10 @@ pub struct PatientInformation {
 	pub height_cm: Option<Decimal>,
 	pub sex: Option<String>,
 
+	// FDA.D.11 / FDA.D.12 - Race / Ethnicity (FDA)
+	pub race_code: Option<String>,
+	pub ethnicity_code: Option<String>,
+
 	// D.6 - Last Menstrual Period
 	pub last_menstrual_period_date: Option<Date>,
 
@@ -77,6 +81,8 @@ pub struct PatientInformationForUpdate {
 	pub weight_kg: Option<Decimal>,
 	pub height_cm: Option<Decimal>,
 	pub sex: Option<String>,
+	pub race_code: Option<String>,
+	pub ethnicity_code: Option<String>,
 	pub last_menstrual_period_date: Option<Date>,
 	pub medical_history_text: Option<String>,
 	pub concomitant_therapy: Option<bool>,
@@ -505,11 +511,13 @@ impl PatientInformationBmc {
 			     weight_kg = COALESCE($11, weight_kg),
 			     height_cm = COALESCE($12, height_cm),
 			     sex = COALESCE($13, sex),
-			     last_menstrual_period_date = COALESCE($14, last_menstrual_period_date),
-			     medical_history_text = COALESCE($15, medical_history_text),
-			     concomitant_therapy = COALESCE($16, concomitant_therapy),
+			     race_code = COALESCE($14, race_code),
+			     ethnicity_code = COALESCE($15, ethnicity_code),
+			     last_menstrual_period_date = COALESCE($16, last_menstrual_period_date),
+			     medical_history_text = COALESCE($17, medical_history_text),
+			     concomitant_therapy = COALESCE($18, concomitant_therapy),
 			     updated_at = now(),
-			     updated_by = $17
+			     updated_by = $19
 			 WHERE id = $1",
 			Self::TABLE
 		);
@@ -530,6 +538,8 @@ impl PatientInformationBmc {
 					.bind(data.weight_kg)
 					.bind(data.height_cm)
 					.bind(data.sex)
+					.bind(data.race_code)
+					.bind(data.ethnicity_code)
 					.bind(data.last_menstrual_period_date)
 					.bind(data.medical_history_text)
 					.bind(data.concomitant_therapy)

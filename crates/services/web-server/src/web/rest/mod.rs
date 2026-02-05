@@ -49,6 +49,18 @@ pub fn routes_cases(mm: ModelManager) -> Router {
 			.put(patient_rest::update_patient)
 			.delete(patient_rest::delete_patient),
 	)
+	// Patient Identifiers (collection per patient) - D.1.1.x
+	.route(
+		"/cases/{case_id}/patient/identifiers",
+		get(patient_sub_rest::list_patient_identifiers)
+			.post(patient_sub_rest::create_patient_identifier),
+	)
+	.route(
+		"/cases/{case_id}/patient/identifiers/{id}",
+		get(patient_sub_rest::get_patient_identifier)
+			.put(patient_sub_rest::update_patient_identifier)
+			.delete(patient_sub_rest::delete_patient_identifier),
+	)
 	// Medical History Episodes (collection per patient) - D.7.1.r
 	.route(
 		"/cases/{case_id}/patient/medical-history",

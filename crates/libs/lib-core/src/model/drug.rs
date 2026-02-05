@@ -67,6 +67,9 @@ pub struct DrugInformation {
 	// G.k.11 - Parent Dosage
 	pub parent_dosage_text: Option<String>,
 
+	// FDA.G.k.10a - Additional Information on Drug (coded)
+	pub fda_additional_info_coded: Option<String>,
+
 	// Timestamps
 	pub created_at: OffsetDateTime,
 	pub updated_at: OffsetDateTime,
@@ -88,13 +91,20 @@ pub struct DrugInformationForUpdate {
 	pub drug_characterization: Option<String>,
 	pub brand_name: Option<String>,
 	pub manufacturer_name: Option<String>,
+	pub manufacturer_country: Option<String>,
 	pub batch_lot_number: Option<String>,
+	pub dosage_text: Option<String>,
 	pub action_taken: Option<String>,
+	pub rechallenge: Option<String>,
 	pub investigational_product_blinded: Option<bool>,
+	pub mpid: Option<String>,
+	pub mpid_version: Option<String>,
+	pub obtain_drug_country: Option<String>,
 	pub parent_route: Option<String>,
 	pub parent_route_termid: Option<String>,
 	pub parent_route_termid_version: Option<String>,
 	pub parent_dosage_text: Option<String>,
+	pub fda_additional_info_coded: Option<String>,
 }
 
 // -- DrugActiveSubstance
@@ -126,6 +136,10 @@ pub struct DrugActiveSubstanceForCreate {
 	pub drug_id: Uuid,
 	pub sequence_number: i32,
 	pub substance_name: Option<String>,
+	pub substance_termid: Option<String>,
+	pub substance_termid_version: Option<String>,
+	pub strength_value: Option<Decimal>,
+	pub strength_unit: Option<String>,
 }
 
 #[derive(Fields, Deserialize)]
@@ -205,6 +219,28 @@ pub struct DosageInformation {
 pub struct DosageInformationForCreate {
 	pub drug_id: Uuid,
 	pub sequence_number: i32,
+	pub dose_value: Option<Decimal>,
+	pub dose_unit: Option<String>,
+	pub number_of_units: Option<i32>,
+	pub frequency_value: Option<Decimal>,
+	pub frequency_unit: Option<String>,
+	pub first_administration_date: Option<Date>,
+	pub first_administration_time: Option<Time>,
+	pub last_administration_date: Option<Date>,
+	pub last_administration_time: Option<Time>,
+	pub duration_value: Option<Decimal>,
+	pub duration_unit: Option<String>,
+	pub batch_lot_number: Option<String>,
+	pub dosage_text: Option<String>,
+	pub dose_form: Option<String>,
+	pub dose_form_termid: Option<String>,
+	pub dose_form_termid_version: Option<String>,
+	pub route_of_administration: Option<String>,
+	pub parent_route: Option<String>,
+	pub parent_route_termid: Option<String>,
+	pub parent_route_termid_version: Option<String>,
+	pub first_administration_date_null_flavor: Option<String>,
+	pub last_administration_date_null_flavor: Option<String>,
 }
 
 #[derive(Fields, Deserialize)]
@@ -223,8 +259,14 @@ pub struct DosageInformationForUpdate {
 	pub batch_lot_number: Option<String>,
 	pub dosage_text: Option<String>,
 	pub dose_form: Option<String>,
+	pub dose_form_termid: Option<String>,
+	pub dose_form_termid_version: Option<String>,
 	pub route_of_administration: Option<String>,
 	pub parent_route: Option<String>,
+	pub parent_route_termid: Option<String>,
+	pub parent_route_termid_version: Option<String>,
+	pub first_administration_date_null_flavor: Option<String>,
+	pub last_administration_date_null_flavor: Option<String>,
 }
 
 #[derive(FilterNodes, Deserialize, Default)]
@@ -261,6 +303,8 @@ pub struct DrugIndicationForCreate {
 	pub drug_id: Uuid,
 	pub sequence_number: i32,
 	pub indication_text: Option<String>,
+	pub indication_meddra_version: Option<String>,
+	pub indication_meddra_code: Option<String>,
 }
 
 #[derive(Fields, Deserialize)]
@@ -275,6 +319,60 @@ pub struct DrugIndicationFilter {
 	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
 	pub drug_id: Option<OpValsValue>,
 	pub sequence_number: Option<OpValsValue>,
+}
+
+#[derive(Fields, Deserialize)]
+pub struct DrugDeviceCharacteristicForCreate {
+	pub drug_id: Uuid,
+	pub sequence_number: i32,
+	pub code: Option<String>,
+	pub code_system: Option<String>,
+	pub code_display_name: Option<String>,
+	pub value_type: Option<String>,
+	pub value_value: Option<String>,
+	pub value_code: Option<String>,
+	pub value_code_system: Option<String>,
+	pub value_display_name: Option<String>,
+}
+
+#[derive(Fields, Deserialize)]
+pub struct DrugDeviceCharacteristicForUpdate {
+	pub code: Option<String>,
+	pub code_system: Option<String>,
+	pub code_display_name: Option<String>,
+	pub value_type: Option<String>,
+	pub value_value: Option<String>,
+	pub value_code: Option<String>,
+	pub value_code_system: Option<String>,
+	pub value_display_name: Option<String>,
+}
+
+#[derive(FilterNodes, Deserialize, Default)]
+pub struct DrugDeviceCharacteristicFilter {
+	#[modql(to_sea_value_fn = "uuid_to_sea_value")]
+	pub drug_id: Option<OpValsValue>,
+	pub sequence_number: Option<OpValsValue>,
+}
+
+// -- DrugDeviceCharacteristic (FDA Scenario 7)
+
+#[derive(Debug, Clone, Fields, FromRow, Serialize)]
+pub struct DrugDeviceCharacteristic {
+	pub id: Uuid,
+	pub drug_id: Uuid,
+	pub sequence_number: i32,
+	pub code: Option<String>,
+	pub code_system: Option<String>,
+	pub code_display_name: Option<String>,
+	pub value_type: Option<String>,
+	pub value_value: Option<String>,
+	pub value_code: Option<String>,
+	pub value_code_system: Option<String>,
+	pub value_display_name: Option<String>,
+	pub created_at: OffsetDateTime,
+	pub updated_at: OffsetDateTime,
+	pub created_by: Uuid,
+	pub updated_by: Option<Uuid>,
 }
 
 // -- BMCs
@@ -359,15 +457,22 @@ impl DrugInformationBmc {
 			     drug_characterization = COALESCE($3, drug_characterization),
 			     brand_name = COALESCE($4, brand_name),
 			     manufacturer_name = COALESCE($5, manufacturer_name),
-			     batch_lot_number = COALESCE($6, batch_lot_number),
-			     action_taken = COALESCE($7, action_taken),
-			     investigational_product_blinded = COALESCE($8, investigational_product_blinded),
-			     parent_route = COALESCE($9, parent_route),
-			     parent_route_termid = COALESCE($10, parent_route_termid),
-			     parent_route_termid_version = COALESCE($11, parent_route_termid_version),
-			     parent_dosage_text = COALESCE($12, parent_dosage_text),
+			     manufacturer_country = COALESCE($6, manufacturer_country),
+			     batch_lot_number = COALESCE($7, batch_lot_number),
+			     dosage_text = COALESCE($8, dosage_text),
+			     action_taken = COALESCE($9, action_taken),
+			     rechallenge = COALESCE($10, rechallenge),
+			     investigational_product_blinded = COALESCE($11, investigational_product_blinded),
+			     mpid = COALESCE($12, mpid),
+			     mpid_version = COALESCE($13, mpid_version),
+			     obtain_drug_country = COALESCE($14, obtain_drug_country),
+			     parent_route = COALESCE($15, parent_route),
+			     parent_route_termid = COALESCE($16, parent_route_termid),
+			     parent_route_termid_version = COALESCE($17, parent_route_termid_version),
+			     parent_dosage_text = COALESCE($18, parent_dosage_text),
+			     fda_additional_info_coded = COALESCE($19, fda_additional_info_coded),
 			     updated_at = now(),
-			     updated_by = $13
+			     updated_by = $20
 			 WHERE id = $1",
 			Self::TABLE
 		);
@@ -380,13 +485,20 @@ impl DrugInformationBmc {
 					.bind(drug_u.drug_characterization)
 					.bind(drug_u.brand_name)
 					.bind(drug_u.manufacturer_name)
+					.bind(drug_u.manufacturer_country)
 					.bind(drug_u.batch_lot_number)
+					.bind(drug_u.dosage_text)
 					.bind(drug_u.action_taken)
+					.bind(drug_u.rechallenge)
 					.bind(drug_u.investigational_product_blinded)
+					.bind(drug_u.mpid)
+					.bind(drug_u.mpid_version)
+					.bind(drug_u.obtain_drug_country)
 					.bind(drug_u.parent_route)
 					.bind(drug_u.parent_route_termid)
 					.bind(drug_u.parent_route_termid_version)
 					.bind(drug_u.parent_dosage_text)
+					.bind(drug_u.fda_additional_info_coded)
 					.bind(ctx.user_id()),
 			)
 			.await?;
@@ -464,10 +576,22 @@ impl DrugInformationBmc {
 			     drug_characterization = COALESCE($4, drug_characterization),
 			     brand_name = COALESCE($5, brand_name),
 			     manufacturer_name = COALESCE($6, manufacturer_name),
-			     batch_lot_number = COALESCE($7, batch_lot_number),
-			     action_taken = COALESCE($8, action_taken),
+			     manufacturer_country = COALESCE($7, manufacturer_country),
+			     batch_lot_number = COALESCE($8, batch_lot_number),
+			     dosage_text = COALESCE($9, dosage_text),
+			     action_taken = COALESCE($10, action_taken),
+			     rechallenge = COALESCE($11, rechallenge),
+			     investigational_product_blinded = COALESCE($12, investigational_product_blinded),
+			     mpid = COALESCE($13, mpid),
+			     mpid_version = COALESCE($14, mpid_version),
+			     obtain_drug_country = COALESCE($15, obtain_drug_country),
+			     parent_route = COALESCE($16, parent_route),
+			     parent_route_termid = COALESCE($17, parent_route_termid),
+			     parent_route_termid_version = COALESCE($18, parent_route_termid_version),
+			     parent_dosage_text = COALESCE($19, parent_dosage_text),
+			     fda_additional_info_coded = COALESCE($20, fda_additional_info_coded),
 			     updated_at = now(),
-			     updated_by = $9
+			     updated_by = $21
 			 WHERE id = $1 AND case_id = $2",
 			Self::TABLE
 		);
@@ -481,8 +605,20 @@ impl DrugInformationBmc {
 					.bind(drug_u.drug_characterization)
 					.bind(drug_u.brand_name)
 					.bind(drug_u.manufacturer_name)
+					.bind(drug_u.manufacturer_country)
 					.bind(drug_u.batch_lot_number)
+					.bind(drug_u.dosage_text)
 					.bind(drug_u.action_taken)
+					.bind(drug_u.rechallenge)
+					.bind(drug_u.investigational_product_blinded)
+					.bind(drug_u.mpid)
+					.bind(drug_u.mpid_version)
+					.bind(drug_u.obtain_drug_country)
+					.bind(drug_u.parent_route)
+					.bind(drug_u.parent_route_termid)
+					.bind(drug_u.parent_route_termid_version)
+					.bind(drug_u.parent_dosage_text)
+					.bind(drug_u.fda_additional_info_coded)
 					.bind(ctx.user_id()),
 			)
 			.await?;
@@ -679,6 +815,53 @@ impl DrugIndicationBmc {
 		mm: &ModelManager,
 		id: Uuid,
 		data: DrugIndicationForUpdate,
+	) -> Result<()> {
+		base_uuid::update::<Self, _>(ctx, mm, id, data).await
+	}
+
+	pub async fn delete(ctx: &Ctx, mm: &ModelManager, id: Uuid) -> Result<()> {
+		base_uuid::delete::<Self>(ctx, mm, id).await
+	}
+}
+
+// -- DrugDeviceCharacteristic BMC
+
+pub struct DrugDeviceCharacteristicBmc;
+impl DbBmc for DrugDeviceCharacteristicBmc {
+	const TABLE: &'static str = "drug_device_characteristics";
+}
+
+impl DrugDeviceCharacteristicBmc {
+	pub async fn create(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		data: DrugDeviceCharacteristicForCreate,
+	) -> Result<Uuid> {
+		base_uuid::create::<Self, _>(ctx, mm, data).await
+	}
+
+	pub async fn get(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+	) -> Result<DrugDeviceCharacteristic> {
+		base_uuid::get::<Self, _>(ctx, mm, id).await
+	}
+
+	pub async fn list(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		filters: Option<Vec<DrugDeviceCharacteristicFilter>>,
+		list_options: Option<ListOptions>,
+	) -> Result<Vec<DrugDeviceCharacteristic>> {
+		base_uuid::list::<Self, _, _>(ctx, mm, filters, list_options).await
+	}
+
+	pub async fn update(
+		ctx: &Ctx,
+		mm: &ModelManager,
+		id: Uuid,
+		data: DrugDeviceCharacteristicForUpdate,
 	) -> Result<()> {
 		base_uuid::update::<Self, _>(ctx, mm, id, data).await
 	}

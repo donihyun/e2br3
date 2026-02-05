@@ -58,6 +58,8 @@ async fn test_safety_report_identification_crud() -> Result<()> {
 		nullification_code: None,
 		nullification_reason: None,
 		receiver_organization: Some("Receiver".to_string()),
+		local_criteria_report_type: None,
+		combination_product_report_indicator: None,
 	};
 	SafetyReportIdentificationBmc::update_by_case(&ctx, &mm, case_id, report_u)
 		.await?;

@@ -56,6 +56,8 @@ async fn test_patient_information_crud() -> Result<()> {
 		gestation_period: None,
 		gestation_period_unit: None,
 		age_group: None,
+		race_code: None,
+		ethnicity_code: None,
 		weight_kg: None,
 		height_cm: None,
 		sex: None,

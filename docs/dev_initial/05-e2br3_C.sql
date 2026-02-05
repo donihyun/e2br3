@@ -22,6 +22,12 @@ CREATE TABLE safety_report_identification (
     -- C.1.7 - Fulfils Expedited Criteria (MANDATORY)
     fulfil_expedited_criteria BOOLEAN NOT NULL,
 
+    -- FDA.C.1.7.1 - Local Criteria Report Type (FDA)
+    local_criteria_report_type VARCHAR(10),
+
+    -- FDA.C.1.12 - Combination Product Report Indicator (FDA)
+    combination_product_report_indicator VARCHAR(10),
+
     -- C.1.8.1 - Worldwide Unique Case Identification
     worldwide_unique_id VARCHAR(100),
 

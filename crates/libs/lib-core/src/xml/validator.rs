@@ -101,6 +101,16 @@ pub fn validate_e2b_xml(
 
 	if let Some(xsd_path) = config.xsd_path.as_ref() {
 		let mut xsd_errors = validate_e2b_xml_xsd(xml, xsd_path)?;
+		let xml_str = std::str::from_utf8(xml).unwrap_or_default();
+		let has_porr = xml_str.contains("<PORR_IN049016UV")
+			|| xml_str.contains("<PORR_IN049017UV")
+			|| xml_str.contains("<PORR_IN049018UV");
+		if has_porr {
+			xsd_errors.retain(|err| {
+				!err.message.contains("Missing child element(s)")
+					|| !err.message.contains("PORR_IN04901")
+			});
+		}
 		errors.append(&mut xsd_errors);
 	} else {
 		errors.push(XmlValidationError {
@@ -504,6 +514,349 @@ fn validate_e2b_xml_rules(
 		}
 	}
 
+	// Determine whether FDA-specific rules should be enforced
+	let batch_receiver = xpath
+		.findvalues(
+			"/hl7:MCCI_IN200100UV01/hl7:receiver/hl7:device/hl7:id/@extension",
+			None,
+		)
+		.ok()
+		.and_then(|vals| vals.get(0).cloned());
+	let msg_receiver = xpath
+		.findvalues(
+			"/hl7:MCCI_IN200100UV01/hl7:PORR_IN049016UV/hl7:receiver/hl7:device/hl7:id/@extension",
+			None,
+		)
+		.ok()
+		.and_then(|vals| vals.get(0).cloned());
+	let is_fda = matches!(
+		batch_receiver.as_deref(),
+		Some("ZZFDA") | Some("ZZFDA_PREMKT")
+	) || matches!(
+		msg_receiver.as_deref(),
+		Some("CDER")
+			| Some("CBER")
+			| Some("CDER_IND")
+			| Some("CBER_IND")
+			| Some("CDER_IND_EXEMPT_BA_BE")
+	);
+
+		if is_fda {
+			// FDA Rule: N.1.4 Batch Receiver Identifier is required
+			let has_batch_receiver = batch_receiver
+				.as_deref()
+				.map(|val| !val.trim().is_empty())
+				.unwrap_or(false);
+			if !has_batch_receiver {
+				errors.push(XmlValidationError {
+					message: "FDA.N.1.4 batch receiver identifier missing".to_string(),
+					line: None,
+					column: None,
+				});
+			}
+
+			// FDA Rule: Combination Product Report Indicator must have value or nullFlavor
+			if let Ok(nodes) = xpath.findnodes(
+				"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.5.1.2.2.1.3']]/hl7:value",
+			None,
+		) {
+			for node in nodes {
+				let value = node.get_attribute("value");
+				let has_null_flavor = node.get_attribute("nullFlavor").is_some();
+				if value.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
+					errors.push(XmlValidationError {
+						message: "FDA.C.1.12 combination product indicator missing value; nullFlavor is required"
+							.to_string(),
+						line: None,
+						column: None,
+					});
+				}
+			}
+		}
+
+		// FDA Rule: Local Criteria Report Type must have code or nullFlavor
+		if let Ok(nodes) = xpath.findnodes(
+			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='2' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]/hl7:value",
+			None,
+		) {
+			for node in nodes {
+				let code = node.get_attribute("code");
+				let has_null_flavor = node.get_attribute("nullFlavor").is_some();
+				if code.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
+					errors.push(XmlValidationError {
+						message: "FDA.C.1.7.1 local criteria report type missing code; nullFlavor is required"
+							.to_string(),
+						line: None,
+						column: None,
+					});
+				}
+			}
+		}
+
+			// FDA Rule: Patient race must have code or nullFlavor
+			if let Ok(nodes) = xpath.findnodes(
+				"//hl7:primaryRole/hl7:subjectOf2/hl7:observation[hl7:code[@code='C17049' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
+				None,
+			) {
+				for node in nodes {
+					let code = node.get_attribute("code");
+					let has_null_flavor = node.get_attribute("nullFlavor").is_some();
+				if code.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
+					errors.push(XmlValidationError {
+						message: "FDA.D.11 patient race missing code; nullFlavor is required"
+							.to_string(),
+						line: None,
+						column: None,
+					});
+				}
+			}
+		}
+
+		// FDA Rule: Patient ethnicity must have code or nullFlavor
+		if let Ok(nodes) = xpath.findnodes(
+			"//hl7:primaryRole/hl7:subjectOf2/hl7:observation[hl7:code[@code='C16564' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
+			None,
+		) {
+			for node in nodes {
+				let code = node.get_attribute("code");
+				let has_null_flavor = node.get_attribute("nullFlavor").is_some();
+				if code.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
+					errors.push(XmlValidationError {
+						message: "FDA.D.12 patient ethnicity missing code; nullFlavor is required"
+							.to_string(),
+						line: None,
+						column: None,
+					});
+				}
+			}
+		}
+
+		// FDA Rule: Required Intervention must have value or nullFlavor when present
+		if let Ok(nodes) = xpath.findnodes(
+			"//hl7:observation[hl7:code[@code='29' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]//hl7:outboundRelationship2/hl7:observation[hl7:code[@code='726' and @codeSystem='2.16.840.1.113883.3.989.5.1.2.2.1.32']]/hl7:value",
+			None,
+		) {
+			for node in nodes {
+				let value = node.get_attribute("value");
+				let has_null_flavor = node.get_attribute("nullFlavor").is_some();
+				if value.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
+					errors.push(XmlValidationError {
+						message: "FDA.E.i.3.2h required intervention missing value; nullFlavor is required"
+							.to_string(),
+						line: None,
+						column: None,
+					});
+				}
+			}
+		}
+	}
+
+	// FDA Rule: Local Criteria Report Type codes depend on Combination Product indicator and C.1.7
+	let comb_ind = xpath
+		.findvalues(
+			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.5.1.2.2.1.3']]/hl7:value/@value",
+			None,
+		)
+		.ok()
+		.and_then(|vals| vals.get(0).cloned());
+	let local_criteria = xpath
+		.findvalues(
+			"//hl7:component/hl7:observationEvent[hl7:code[@code='23' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]/hl7:value/@value",
+			None,
+		)
+		.ok()
+		.and_then(|vals| vals.get(0).cloned());
+	let local_criteria_code = xpath
+		.findvalues(
+			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='2' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]/hl7:value/@code",
+			None,
+		)
+		.ok()
+		.and_then(|vals| vals.get(0).cloned());
+	if let (Some(comb), Some(criteria), Some(code)) = (
+		comb_ind.as_deref(),
+		local_criteria.as_deref(),
+		local_criteria_code.as_deref(),
+	)
+	{
+		let comb_true = comb.eq_ignore_ascii_case("true");
+		let criteria_true = criteria.eq_ignore_ascii_case("true");
+		let allowed: &[&str] = if comb_true && criteria_true {
+			&["1", "4"]
+		} else if comb_true && !criteria_true {
+			&["2", "5"]
+		} else if !comb_true && criteria_true {
+			&["1"]
+		} else {
+			&["2"]
+		};
+		if !allowed.contains(&code) {
+			errors.push(XmlValidationError {
+				message: format!(
+					"FDA.C.1.7.1 local criteria report type '{code}' invalid for combination_product={comb} expedited={criteria}"
+				),
+				line: None,
+				column: None,
+			});
+		}
+	}
+
+	// FDA Rule: G.k.10a required when FDA.C.5.5b present (codes 1 or 2, or nullFlavor NA)
+	let pre_anda = xpath
+		.findvalues(
+			"//hl7:researchStudy/hl7:authorization/hl7:studyRegistration/hl7:id[@root='2.16.840.1.113883.3.989.5.1.2.2.1.2.2']/@extension",
+			None,
+		)
+		.ok()
+		.and_then(|vals| vals.get(0).cloned());
+	if pre_anda
+		.as_deref()
+		.map(|v| !v.trim().is_empty())
+		.unwrap_or(false)
+	{
+		let values = xpath
+			.findnodes(
+				"//hl7:organizer[hl7:code[@code='4' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.20']]/hl7:component/hl7:substanceAdministration/hl7:outboundRelationship2[@typeCode='REFR']/hl7:observation[hl7:code[@code='9']]/hl7:value",
+				None,
+			)
+			.unwrap_or_default();
+		if values.is_empty() {
+			errors.push(XmlValidationError {
+				message: "FDA.G.k.10a missing: required when FDA.C.5.5b is present"
+					.to_string(),
+				line: None,
+				column: None,
+			});
+		} else {
+			for node in values {
+				let code = node.get_attribute("code");
+				let null_flavor = node.get_attribute("nullFlavor");
+				let code_ok = code
+					.as_deref()
+					.map(|v| v == "1" || v == "2")
+					.unwrap_or(false);
+				let null_ok = null_flavor
+					.as_deref()
+					.map(|v| v == "NA")
+					.unwrap_or(false);
+				if !(code_ok || null_ok) {
+					errors.push(XmlValidationError {
+						message:
+							"FDA.G.k.10a must be code 1/2 or nullFlavor NA when FDA.C.5.5b is present"
+								.to_string(),
+						line: None,
+						column: None,
+					});
+				}
+			}
+		}
+	}
+
+	// FDA Rule: Reporter email required when primary source present
+	let has_primary_source = xpath
+		.findnodes(
+			"//hl7:outboundRelationship[@typeCode='SPRT']/hl7:relatedInvestigation/hl7:subjectOf2/hl7:controlActEvent/hl7:author/hl7:assignedEntity",
+			None,
+		)
+		.map(|nodes| !nodes.is_empty())
+		.unwrap_or(false);
+	if is_fda && has_primary_source {
+		let has_email = xpath
+			.findvalues(
+				"//hl7:outboundRelationship[@typeCode='SPRT']/hl7:relatedInvestigation/hl7:subjectOf2/hl7:controlActEvent/hl7:author/hl7:assignedEntity/hl7:telecom/@value",
+				None,
+			)
+			.ok()
+			.map(|vals| vals.iter().any(|v| v.starts_with("mailto:")))
+			.unwrap_or(false);
+		if !has_email {
+			errors.push(XmlValidationError {
+				message: "FDA requires reporter email when primary source is present"
+					.to_string(),
+				line: None,
+				column: None,
+			});
+		}
+	}
+
+	// FDA Rule: C.1.3 report type must be 2 under specific premarket conditions
+	let study_type = xpath
+		.findvalues(
+			"//hl7:researchStudy/hl7:code/@code",
+			None,
+		)
+		.ok()
+		.and_then(|vals| vals.get(0).cloned());
+	let type_of_report = xpath
+		.findvalues(
+			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.23']]/hl7:value/@code",
+			None,
+		)
+		.ok()
+		.and_then(|vals| vals.get(0).cloned());
+	let type_of_report = type_of_report.or_else(|| {
+		xpath
+			.findvalues(
+				"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.23']]/hl7:value/@code",
+				None,
+			)
+			.ok()
+			.and_then(|vals| vals.get(0).cloned())
+	});
+	let has_pre_anda = pre_anda
+		.as_deref()
+		.map(|v| !v.trim().is_empty())
+		.unwrap_or(false);
+	if is_fda && batch_receiver.as_deref() == Some("ZZFDA_PREMKT") {
+		if let Some(receiver) = msg_receiver.as_deref() {
+			let premkt_rcv = ["CDER_IND", "CBER_IND", "CDER_IND_EXEMPT_BA_BE"];
+			if premkt_rcv.contains(&receiver) {
+				let study_match = study_type
+					.as_deref()
+					.map(|v| v == "1" || v == "2" || v == "3")
+					.unwrap_or(false);
+				if has_pre_anda && study_match {
+					if type_of_report.as_deref() != Some("2") {
+						errors.push(XmlValidationError {
+							message: "C.1.3 must be 2 when premarket receiver and FDA.C.5.5b present with study type 1/2/3"
+								.to_string(),
+							line: None,
+							column: None,
+						});
+					}
+				}
+			}
+		}
+	}
+
+	// FDA Rule: Pre-ANDA number required for IND-exempt BA/BE when report type is 2
+	if is_fda
+		&& type_of_report.as_deref() == Some("2")
+		&& msg_receiver.as_deref() == Some("CDER_IND_EXEMPT_BA_BE")
+		&& !has_pre_anda
+	{
+		errors.push(XmlValidationError {
+			message: "FDA.C.5.5b required when C.1.3=2 and N.2.r.3=CDER_IND_EXEMPT_BA_BE"
+				.to_string(),
+			line: None,
+			column: None,
+		});
+	}
+
+	// FDA Rule: Pre-ANDA number must not appear for postmarket receivers
+	if is_fda
+		&& has_pre_anda
+		&& batch_receiver.as_deref() == Some("ZZFDA")
+		&& matches!(msg_receiver.as_deref(), Some("CDER") | Some("CBER"))
+	{
+		errors.push(XmlValidationError {
+			message: "FDA.C.5.5b must not be provided for postmarket (N.1.4=ZZFDA, N.2.r.3=CDER/CBER)"
+				.to_string(),
+			line: None,
+			column: None,
+		});
+	}
+
 	// Rule: associatedPerson name fields empty require nullFlavor
 	if let Ok(nodes) =
 		xpath.findnodes("//hl7:associatedPerson//hl7:name/*", None)
@@ -761,21 +1114,23 @@ fn validate_e2b_xml_rules(
 		}
 	}
 
-	// Rule: code missing code attribute must include nullFlavor unless originalText is present
+	// Rule: code missing code attribute must include nullFlavor unless originalText or codeSystem is present
 	if let Ok(nodes) = xpath.findnodes("//hl7:code", None) {
 		for node in nodes {
 			let code = node.get_attribute("code");
+			let code_system = node.get_attribute("codeSystem");
 			let has_original_text = node
 				.get_child_elements()
 				.iter()
 				.any(|c| c.get_name() == "originalText" && !c.get_content().trim().is_empty());
 			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
 			if code.as_deref().unwrap_or("").trim().is_empty()
+				&& code_system.as_deref().unwrap_or("").trim().is_empty()
 				&& !has_null_flavor
 				&& !has_original_text
 			{
 				errors.push(XmlValidationError {
-					message: "code missing code attribute; nullFlavor is required when originalText is absent"
+					message: "code missing code/codeSystem; nullFlavor is required when originalText is absent"
 						.to_string(),
 					line: None,
 					column: None,
@@ -1207,7 +1562,8 @@ fn validate_e2b_xml_rules(
 							has_any = true;
 							let value = child.get_attribute("value");
 							let unit = child.get_attribute("unit");
-							if value.is_none() || unit.is_none() {
+							let has_null_flavor = child.get_attribute("nullFlavor").is_some();
+							if (value.is_none() || unit.is_none()) && !has_null_flavor {
 								errors.push(XmlValidationError {
 									message: format!(
 										"IVL_PQ/{name} must include value and unit"
@@ -1289,18 +1645,28 @@ fn validate_e2b_xml_rules(
 		}
 	}
 
-	// Rule: formCode must have originalText or nullFlavor
+	// Rule: formCode must have code/codeSystem, originalText, or nullFlavor
 	if let Ok(nodes) = xpath.findnodes("//hl7:formCode", None) {
 		for node in nodes {
+			let has_code = node
+				.get_attribute("code")
+				.as_deref()
+				.map(|v| !v.trim().is_empty())
+				.unwrap_or(false);
+			let has_code_system = node
+				.get_attribute("codeSystem")
+				.as_deref()
+				.map(|v| !v.trim().is_empty())
+				.unwrap_or(false);
 			let has_original_text = node
 				.get_child_elements()
 				.iter()
 				.any(|c| c.get_name() == "originalText" && !c.get_content().trim().is_empty());
 			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if !has_original_text && !has_null_flavor {
+			if !has_code && !has_code_system && !has_original_text && !has_null_flavor {
 				errors.push(XmlValidationError {
 					message:
-						"formCode missing originalText; nullFlavor is required"
+						"formCode missing code/codeSystem/originalText; nullFlavor is required"
 							.to_string(),
 					line: None,
 					column: None,
@@ -1370,7 +1736,7 @@ fn validate_e2b_xml_rules(
 		}
 	}
 
-	// Rule: ISO country codes must be 2 uppercase letters
+	// Rule: ISO country codes must be 2 letters
 	if let Ok(nodes) = xpath.findnodes(
 		"//hl7:code[@codeSystem='1.0.3166.1.2.2']",
 		None,
@@ -1378,10 +1744,10 @@ fn validate_e2b_xml_rules(
 		for node in nodes {
 			let code = node.get_attribute("code");
 			if let Some(code) = code.as_deref() {
-				if !is_alpha_len(code, 2) || code != code.to_ascii_uppercase() {
+				if !is_alpha_len(code, 2) {
 					errors.push(XmlValidationError {
 						message: format!(
-							"ISO country code must be 2 uppercase letters, got '{code}'"
+							"ISO country code must be 2 letters, got '{code}'"
 						),
 						line: None,
 						column: None,
@@ -1391,7 +1757,138 @@ fn validate_e2b_xml_rules(
 		}
 	}
 
+	collect_placeholder_errors(&root, &mut errors);
+	collect_case_identifier_errors(&mut xpath, &mut errors);
+	collect_medical_history_errors(&mut xpath, &mut errors);
+
 	Ok(errors)
+}
+
+fn collect_placeholder_errors(root: &libxml::tree::Node, errors: &mut Vec<XmlValidationError>) {
+	if root.get_type() == Some(libxml::tree::NodeType::ElementNode) {
+		let content = root.get_content();
+		if looks_placeholder(content.trim()) {
+			errors.push(XmlValidationError {
+				message: format!(
+					"Placeholder value not allowed in <{}>: '{}'",
+					root.get_name(),
+					content.trim()
+				),
+				line: None,
+				column: None,
+			});
+		}
+		for (name, val) in root.get_attributes() {
+			if looks_placeholder(val.trim()) {
+				errors.push(XmlValidationError {
+					message: format!(
+						"Placeholder value not allowed for <{}> attribute {}='{}'",
+						root.get_name(),
+						name,
+						val.trim()
+					),
+					line: None,
+					column: None,
+				});
+			}
+		}
+	}
+
+	for child in root.get_child_nodes() {
+		collect_placeholder_errors(&child, errors);
+	}
+}
+
+fn collect_case_identifier_errors(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+) {
+	let other_case_path =
+		"//hl7:investigationCharacteristic[hl7:code[@code='2' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.23']]/hl7:value";
+	let has_true = xpath
+		.findnodes(other_case_path, None)
+		.ok()
+		.map(|nodes| {
+			nodes.into_iter().any(|n| {
+				n.get_attribute("value")
+					.map(|v| v == "true" || v == "1")
+					.unwrap_or(false)
+			})
+		})
+		.unwrap_or(false);
+	if !has_true {
+		return;
+	}
+	let ids_path =
+		"//hl7:investigationEvent/hl7:subjectOf1/hl7:controlActEvent/hl7:id[@root='2.16.840.1.113883.3.989.2.1.3.3']";
+	let has_ids = xpath
+		.findnodes(ids_path, None)
+		.ok()
+		.map(|nodes| {
+			nodes.into_iter().any(|n| {
+				n.get_attribute("assigningAuthorityName")
+					.map(|v| !v.trim().is_empty())
+					.unwrap_or(false)
+					&& n
+						.get_attribute("extension")
+						.map(|v| !v.trim().is_empty())
+						.unwrap_or(false)
+			})
+		})
+		.unwrap_or(false);
+	if !has_ids {
+		errors.push(XmlValidationError {
+			message: "C.1.9.1 is true but C.1.9.1.r.1/.r.2 are missing".to_string(),
+			line: None,
+			column: None,
+		});
+	}
+}
+
+fn collect_medical_history_errors(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+) {
+	let coded_path = "//hl7:organizer[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.20']]/hl7:component/hl7:observation[hl7:code[@code!='18']]";
+	let has_coded = xpath
+		.findnodes(coded_path, None)
+		.ok()
+		.map(|nodes| !nodes.is_empty())
+		.unwrap_or(false);
+	if has_coded {
+		return;
+	}
+	let text_path = "//hl7:organizer[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.20']]/hl7:component/hl7:observation[hl7:code[@code='18']]/hl7:value";
+	let has_text = xpath
+		.findnodes(text_path, None)
+		.ok()
+		.map(|nodes| {
+			nodes.into_iter().any(|n| {
+				let content = n.get_content();
+				!content.trim().is_empty() && !looks_placeholder(content.trim())
+			})
+		})
+		.unwrap_or(false);
+	if !has_text {
+		errors.push(XmlValidationError {
+			message: "D.7.2 must be provided when D.7.1.r.1b is not provided".to_string(),
+			line: None,
+			column: None,
+		});
+	}
+}
+
+fn looks_placeholder(value: &str) -> bool {
+	let v = value.trim();
+	if v.is_empty() {
+		return false;
+	}
+	if let Some(first) = v.chars().next() {
+		if first.is_ascii_uppercase() && v.contains('.') {
+			return true;
+		}
+	}
+	false
 }
 
 fn is_digits_len(value: &str, len: usize) -> bool {

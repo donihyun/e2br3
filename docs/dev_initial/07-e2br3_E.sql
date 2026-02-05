@@ -31,6 +31,9 @@ CREATE TABLE reactions (
     criteria_congenital_anomaly BOOLEAN,
     criteria_other_medically_important BOOLEAN,
 
+    -- FDA.E.i.3.2h - Required Intervention (FDA)
+    required_intervention VARCHAR(10),
+
     -- E.i.4 - Date of Start of Reaction/Event
     start_date DATE,
 

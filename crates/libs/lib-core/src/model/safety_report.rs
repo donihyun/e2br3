@@ -36,6 +36,12 @@ pub struct SafetyReportIdentification {
 	// C.1.7 - Fulfils Expedited Criteria (MANDATORY)
 	pub fulfil_expedited_criteria: bool,
 
+	// FDA.C.1.7.1 - Local Criteria Report Type (FDA)
+	pub local_criteria_report_type: Option<String>,
+
+	// FDA.C.1.12 - Combination Product Report Indicator (FDA)
+	pub combination_product_report_indicator: Option<String>,
+
 	// C.1.8.1 - Worldwide Unique Case Identification
 	pub worldwide_unique_id: Option<String>,
 
@@ -69,6 +75,8 @@ pub struct SafetyReportIdentificationForCreate {
 pub struct SafetyReportIdentificationForUpdate {
 	pub transmission_date: Option<Date>,
 	pub report_type: Option<String>,
+	pub local_criteria_report_type: Option<String>,
+	pub combination_product_report_indicator: Option<String>,
 	pub worldwide_unique_id: Option<String>,
 	pub nullification_code: Option<String>,
 	pub nullification_reason: Option<String>,
@@ -126,9 +134,15 @@ pub struct SenderInformationForUpdate {
 	pub department: Option<String>,
 	pub street_address: Option<String>,
 	pub city: Option<String>,
+	pub state: Option<String>,
+	pub postcode: Option<String>,
+	pub country_code: Option<String>,
+	pub person_title: Option<String>,
 	pub person_given_name: Option<String>,
+	pub person_middle_name: Option<String>,
 	pub person_family_name: Option<String>,
 	pub telephone: Option<String>,
+	pub fax: Option<String>,
 	pub email: Option<String>,
 }
 
@@ -448,12 +462,14 @@ impl SafetyReportIdentificationBmc {
 			"UPDATE {}
 			 SET transmission_date = COALESCE($2, transmission_date),
 			     report_type = COALESCE($3, report_type),
-			     worldwide_unique_id = COALESCE($4, worldwide_unique_id),
-			     nullification_code = COALESCE($5, nullification_code),
-			     nullification_reason = COALESCE($6, nullification_reason),
-			     receiver_organization = COALESCE($7, receiver_organization),
+			     local_criteria_report_type = COALESCE($4, local_criteria_report_type),
+			     combination_product_report_indicator = COALESCE($5, combination_product_report_indicator),
+			     worldwide_unique_id = COALESCE($6, worldwide_unique_id),
+			     nullification_code = COALESCE($7, nullification_code),
+			     nullification_reason = COALESCE($8, nullification_reason),
+			     receiver_organization = COALESCE($9, receiver_organization),
 			     updated_at = now(),
-			     updated_by = $8
+			     updated_by = $10
 			 WHERE case_id = $1",
 			Self::TABLE
 		);
@@ -464,6 +480,8 @@ impl SafetyReportIdentificationBmc {
 					.bind(case_id)
 					.bind(data.transmission_date)
 					.bind(data.report_type)
+					.bind(data.local_criteria_report_type)
+					.bind(data.combination_product_report_indicator)
 					.bind(data.worldwide_unique_id)
 					.bind(data.nullification_code)
 					.bind(data.nullification_reason)

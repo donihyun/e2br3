@@ -40,13 +40,20 @@ async fn test_drug_information_crud() -> Result<()> {
 		drug_characterization: None,
 		brand_name: None,
 		manufacturer_name: None,
+		manufacturer_country: None,
 		batch_lot_number: None,
+		dosage_text: None,
 		action_taken: Some("1".to_string()),
+		rechallenge: None,
 		investigational_product_blinded: None,
+		mpid: None,
+		mpid_version: None,
+		obtain_drug_country: None,
 		parent_route: None,
 		parent_route_termid: None,
 		parent_route_termid_version: None,
 		parent_dosage_text: None,
+		fda_additional_info_coded: None,
 	};
 	DrugInformationBmc::update_in_case(&ctx, &mm, case_id, drug_id, drug_u).await?;
 	let drug = DrugInformationBmc::get_in_case(&ctx, &mm, case_id, drug_id).await?;
@@ -83,6 +90,10 @@ async fn test_drug_submodels_crud() -> Result<()> {
 		drug_id,
 		sequence_number: 1,
 		substance_name: Some("Substance A".to_string()),
+		substance_termid: None,
+		substance_termid_version: None,
+		strength_value: None,
+		strength_unit: None,
 	};
 	let substance_id =
 		DrugActiveSubstanceBmc::create(&ctx, &mm, substance_c).await?;
@@ -106,6 +117,28 @@ async fn test_drug_submodels_crud() -> Result<()> {
 	let dosage_c = DosageInformationForCreate {
 		drug_id,
 		sequence_number: 1,
+		dose_value: None,
+		dose_unit: None,
+		number_of_units: None,
+		frequency_value: None,
+		frequency_unit: None,
+		first_administration_date: None,
+		first_administration_time: None,
+		last_administration_date: None,
+		last_administration_time: None,
+		duration_value: None,
+		duration_unit: None,
+		batch_lot_number: None,
+		dosage_text: None,
+		dose_form: None,
+		dose_form_termid: None,
+		dose_form_termid_version: None,
+		route_of_administration: None,
+		parent_route: None,
+		parent_route_termid: None,
+		parent_route_termid_version: None,
+		first_administration_date_null_flavor: None,
+		last_administration_date_null_flavor: None,
 	};
 	let dosage_id = DosageInformationBmc::create(&ctx, &mm, dosage_c).await?;
 	let dosage = DosageInformationBmc::get(&ctx, &mm, dosage_id).await?;
@@ -126,8 +159,14 @@ async fn test_drug_submodels_crud() -> Result<()> {
 		batch_lot_number: None,
 		dosage_text: Some("Dose text".to_string()),
 		dose_form: None,
+		dose_form_termid: None,
+		dose_form_termid_version: None,
 		route_of_administration: None,
 		parent_route: None,
+		parent_route_termid: None,
+		parent_route_termid_version: None,
+		first_administration_date_null_flavor: None,
+		last_administration_date_null_flavor: None,
 	};
 	DosageInformationBmc::update(&ctx, &mm, dosage_id, dosage_u).await?;
 	let dosage = DosageInformationBmc::get(&ctx, &mm, dosage_id).await?;
@@ -140,6 +179,8 @@ async fn test_drug_submodels_crud() -> Result<()> {
 		drug_id,
 		sequence_number: 1,
 		indication_text: Some("Headache".to_string()),
+		indication_meddra_version: None,
+		indication_meddra_code: None,
 	};
 	let indication_id = DrugIndicationBmc::create(&ctx, &mm, indication_c).await?;
 	let indication = DrugIndicationBmc::get(&ctx, &mm, indication_id).await?;

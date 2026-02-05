@@ -69,11 +69,16 @@ pub struct TestResultForCreate {
 pub struct TestResultForUpdate {
 	pub test_name: Option<String>,
 	pub test_date: Option<Date>,
+	pub test_meddra_version: Option<String>,
+	pub test_meddra_code: Option<String>,
+	pub test_result_code: Option<String>,
 	pub test_result_value: Option<String>,
 	pub test_result_unit: Option<String>,
+	pub result_unstructured: Option<String>,
 	pub normal_low_value: Option<String>,
 	pub normal_high_value: Option<String>,
 	pub comments: Option<String>,
+	pub more_info_available: Option<bool>,
 }
 
 // -- BMC
@@ -151,13 +156,18 @@ impl TestResultBmc {
 			"UPDATE {}
 			 SET test_name = COALESCE($2, test_name),
 			     test_date = COALESCE($3, test_date),
-			     test_result_value = COALESCE($4, test_result_value),
-			     test_result_unit = COALESCE($5, test_result_unit),
-			     normal_low_value = COALESCE($6, normal_low_value),
-			     normal_high_value = COALESCE($7, normal_high_value),
-			     comments = COALESCE($8, comments),
+			     test_meddra_version = COALESCE($4, test_meddra_version),
+			     test_meddra_code = COALESCE($5, test_meddra_code),
+			     test_result_code = COALESCE($6, test_result_code),
+			     test_result_value = COALESCE($7, test_result_value),
+			     test_result_unit = COALESCE($8, test_result_unit),
+			     result_unstructured = COALESCE($9, result_unstructured),
+			     normal_low_value = COALESCE($10, normal_low_value),
+			     normal_high_value = COALESCE($11, normal_high_value),
+			     comments = COALESCE($12, comments),
+			     more_info_available = COALESCE($13, more_info_available),
 			     updated_at = now(),
-			     updated_by = $9
+			     updated_by = $14
 			 WHERE id = $1",
 			Self::TABLE
 		);
@@ -168,11 +178,16 @@ impl TestResultBmc {
 					.bind(id)
 					.bind(test_u.test_name)
 					.bind(test_u.test_date)
+					.bind(test_u.test_meddra_version)
+					.bind(test_u.test_meddra_code)
+					.bind(test_u.test_result_code)
 					.bind(test_u.test_result_value)
 					.bind(test_u.test_result_unit)
+					.bind(test_u.result_unstructured)
 					.bind(test_u.normal_low_value)
 					.bind(test_u.normal_high_value)
 					.bind(test_u.comments)
+					.bind(test_u.more_info_available)
 					.bind(ctx.user_id()),
 			)
 			.await?;
@@ -246,13 +261,18 @@ impl TestResultBmc {
 			"UPDATE {}
 			 SET test_name = COALESCE($3, test_name),
 			     test_date = COALESCE($4, test_date),
-			     test_result_value = COALESCE($5, test_result_value),
-			     test_result_unit = COALESCE($6, test_result_unit),
-			     normal_low_value = COALESCE($7, normal_low_value),
-			     normal_high_value = COALESCE($8, normal_high_value),
-			     comments = COALESCE($9, comments),
+			     test_meddra_version = COALESCE($5, test_meddra_version),
+			     test_meddra_code = COALESCE($6, test_meddra_code),
+			     test_result_code = COALESCE($7, test_result_code),
+			     test_result_value = COALESCE($8, test_result_value),
+			     test_result_unit = COALESCE($9, test_result_unit),
+			     result_unstructured = COALESCE($10, result_unstructured),
+			     normal_low_value = COALESCE($11, normal_low_value),
+			     normal_high_value = COALESCE($12, normal_high_value),
+			     comments = COALESCE($13, comments),
+			     more_info_available = COALESCE($14, more_info_available),
 			     updated_at = now(),
-			     updated_by = $10
+			     updated_by = $15
 			 WHERE id = $1 AND case_id = $2",
 			Self::TABLE
 		);
@@ -264,11 +284,16 @@ impl TestResultBmc {
 					.bind(case_id)
 					.bind(test_u.test_name)
 					.bind(test_u.test_date)
+					.bind(test_u.test_meddra_version)
+					.bind(test_u.test_meddra_code)
+					.bind(test_u.test_result_code)
 					.bind(test_u.test_result_value)
 					.bind(test_u.test_result_unit)
+					.bind(test_u.result_unstructured)
 					.bind(test_u.normal_low_value)
 					.bind(test_u.normal_high_value)
 					.bind(test_u.comments)
+					.bind(test_u.more_info_available)
 					.bind(ctx.user_id()),
 			)
 			.await?;

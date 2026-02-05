@@ -1105,6 +1105,250 @@ CREATE POLICY e2b_code_lists_delete ON e2b_code_lists
     FOR DELETE TO e2br3_app_role
     USING (is_current_user_admin());
 
+-- ============================================================================
+-- Section C-H dirty flags (for XML merge)
+-- ============================================================================
+CREATE OR REPLACE FUNCTION mark_case_dirty_c() RETURNS trigger AS $$
+BEGIN
+  UPDATE cases SET dirty_c = TRUE WHERE id = COALESCE(NEW.case_id, OLD.case_id);
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION mark_case_dirty_c_from_study_info() RETURNS trigger AS $$
+BEGIN
+  UPDATE cases
+    SET dirty_c = TRUE
+    WHERE id = (
+      SELECT case_id FROM study_information
+      WHERE id = COALESCE(NEW.study_information_id, OLD.study_information_id)
+    );
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION mark_case_dirty_d() RETURNS trigger AS $$
+BEGIN
+  UPDATE cases SET dirty_d = TRUE WHERE id = COALESCE(NEW.case_id, OLD.case_id);
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION mark_case_dirty_d_from_patient() RETURNS trigger AS $$
+BEGIN
+  UPDATE cases
+    SET dirty_d = TRUE
+    WHERE id = (
+      SELECT case_id FROM patient_information
+      WHERE id = COALESCE(NEW.patient_id, OLD.patient_id)
+    );
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION mark_case_dirty_d_from_parent() RETURNS trigger AS $$
+BEGIN
+  UPDATE cases
+    SET dirty_d = TRUE
+    WHERE id = (
+      SELECT p.case_id
+      FROM parent_information pi
+      JOIN patient_information p ON p.id = pi.patient_id
+      WHERE pi.id = COALESCE(NEW.parent_id, OLD.parent_id)
+    );
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION mark_case_dirty_d_from_death_info() RETURNS trigger AS $$
+BEGIN
+  UPDATE cases
+    SET dirty_d = TRUE
+    WHERE id = (
+      SELECT p.case_id
+      FROM patient_death_information di
+      JOIN patient_information p ON p.id = di.patient_id
+      WHERE di.id = COALESCE(NEW.death_info_id, OLD.death_info_id)
+    );
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION mark_case_dirty_e() RETURNS trigger AS $$
+BEGIN
+  UPDATE cases SET dirty_e = TRUE WHERE id = COALESCE(NEW.case_id, OLD.case_id);
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION mark_case_dirty_f() RETURNS trigger AS $$
+BEGIN
+  UPDATE cases SET dirty_f = TRUE WHERE id = COALESCE(NEW.case_id, OLD.case_id);
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION mark_case_dirty_g() RETURNS trigger AS $$
+BEGIN
+  UPDATE cases SET dirty_g = TRUE WHERE id = COALESCE(NEW.case_id, OLD.case_id);
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION mark_case_dirty_g_from_drug() RETURNS trigger AS $$
+DECLARE
+  v_drug_id UUID;
+BEGIN
+  IF TG_TABLE_NAME = 'relatedness_assessments' THEN
+    SELECT dra.drug_id INTO v_drug_id
+    FROM drug_reaction_assessments dra
+    WHERE dra.id = COALESCE(NEW.drug_reaction_assessment_id, OLD.drug_reaction_assessment_id);
+  ELSE
+    v_drug_id := COALESCE(NEW.drug_id, OLD.drug_id);
+  END IF;
+
+  IF v_drug_id IS NOT NULL THEN
+    UPDATE cases
+      SET dirty_g = TRUE
+      WHERE id = (
+        SELECT case_id FROM drug_information
+        WHERE id = v_drug_id
+      );
+  END IF;
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION mark_case_dirty_h() RETURNS trigger AS $$
+BEGIN
+  UPDATE cases SET dirty_h = TRUE WHERE id = COALESCE(NEW.case_id, OLD.case_id);
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION mark_case_dirty_h_from_narrative() RETURNS trigger AS $$
+BEGIN
+  UPDATE cases
+    SET dirty_h = TRUE
+    WHERE id = (
+      SELECT case_id FROM narrative_information
+      WHERE id = COALESCE(NEW.narrative_id, OLD.narrative_id)
+    );
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Section C tables
+CREATE TRIGGER trg_dirty_c_safety_report_identification
+  AFTER INSERT OR UPDATE OR DELETE ON safety_report_identification
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_c();
+CREATE TRIGGER trg_dirty_c_sender_information
+  AFTER INSERT OR UPDATE OR DELETE ON sender_information
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_c();
+CREATE TRIGGER trg_dirty_c_literature_references
+  AFTER INSERT OR UPDATE OR DELETE ON literature_references
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_c();
+CREATE TRIGGER trg_dirty_c_documents_held_by_sender
+  AFTER INSERT OR UPDATE OR DELETE ON documents_held_by_sender
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_c();
+CREATE TRIGGER trg_dirty_c_study_information
+  AFTER INSERT OR UPDATE OR DELETE ON study_information
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_c();
+CREATE TRIGGER trg_dirty_c_study_registration_numbers
+  AFTER INSERT OR UPDATE OR DELETE ON study_registration_numbers
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_c_from_study_info();
+CREATE TRIGGER trg_dirty_c_primary_sources
+  AFTER INSERT OR UPDATE OR DELETE ON primary_sources
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_c();
+CREATE TRIGGER trg_dirty_c_receiver_information
+  AFTER INSERT OR UPDATE OR DELETE ON receiver_information
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_c();
+CREATE TRIGGER trg_dirty_c_other_case_identifiers
+  AFTER INSERT OR UPDATE OR DELETE ON other_case_identifiers
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_c();
+CREATE TRIGGER trg_dirty_c_linked_report_numbers
+  AFTER INSERT OR UPDATE OR DELETE ON linked_report_numbers
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_c();
+
+-- Section D tables
+CREATE TRIGGER trg_dirty_d_patient_information
+  AFTER INSERT OR UPDATE OR DELETE ON patient_information
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_d();
+CREATE TRIGGER trg_dirty_d_patient_identifiers
+  AFTER INSERT OR UPDATE OR DELETE ON patient_identifiers
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_d_from_patient();
+CREATE TRIGGER trg_dirty_d_medical_history_episodes
+  AFTER INSERT OR UPDATE OR DELETE ON medical_history_episodes
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_d_from_patient();
+CREATE TRIGGER trg_dirty_d_past_drug_history
+  AFTER INSERT OR UPDATE OR DELETE ON past_drug_history
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_d_from_patient();
+CREATE TRIGGER trg_dirty_d_patient_death_information
+  AFTER INSERT OR UPDATE OR DELETE ON patient_death_information
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_d_from_patient();
+CREATE TRIGGER trg_dirty_d_reported_causes_of_death
+  AFTER INSERT OR UPDATE OR DELETE ON reported_causes_of_death
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_d_from_death_info();
+CREATE TRIGGER trg_dirty_d_autopsy_causes_of_death
+  AFTER INSERT OR UPDATE OR DELETE ON autopsy_causes_of_death
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_d_from_death_info();
+CREATE TRIGGER trg_dirty_d_parent_information
+  AFTER INSERT OR UPDATE OR DELETE ON parent_information
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_d_from_patient();
+CREATE TRIGGER trg_dirty_d_parent_medical_history
+  AFTER INSERT OR UPDATE OR DELETE ON parent_medical_history
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_d_from_parent();
+CREATE TRIGGER trg_dirty_d_parent_past_drug_history
+  AFTER INSERT OR UPDATE OR DELETE ON parent_past_drug_history
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_d_from_parent();
+
+-- Section E tables
+CREATE TRIGGER trg_dirty_e_reactions
+  AFTER INSERT OR UPDATE OR DELETE ON reactions
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_e();
+
+-- Section F tables
+CREATE TRIGGER trg_dirty_f_test_results
+  AFTER INSERT OR UPDATE OR DELETE ON test_results
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_f();
+
+-- Section G tables
+CREATE TRIGGER trg_dirty_g_drug_information
+  AFTER INSERT OR UPDATE OR DELETE ON drug_information
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_g();
+CREATE TRIGGER trg_dirty_g_drug_active_substances
+  AFTER INSERT OR UPDATE OR DELETE ON drug_active_substances
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_g_from_drug();
+CREATE TRIGGER trg_dirty_g_dosage_information
+  AFTER INSERT OR UPDATE OR DELETE ON dosage_information
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_g_from_drug();
+CREATE TRIGGER trg_dirty_g_drug_indications
+  AFTER INSERT OR UPDATE OR DELETE ON drug_indications
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_g_from_drug();
+CREATE TRIGGER trg_dirty_g_drug_device_characteristics
+  AFTER INSERT OR UPDATE OR DELETE ON drug_device_characteristics
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_g_from_drug();
+CREATE TRIGGER trg_dirty_g_drug_recurrence_information
+  AFTER INSERT OR UPDATE OR DELETE ON drug_recurrence_information
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_g_from_drug();
+CREATE TRIGGER trg_dirty_g_drug_reaction_assessments
+  AFTER INSERT OR UPDATE OR DELETE ON drug_reaction_assessments
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_g_from_drug();
+CREATE TRIGGER trg_dirty_g_relatedness_assessments
+  AFTER INSERT OR UPDATE OR DELETE ON relatedness_assessments
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_g_from_drug();
+
+-- Section H tables
+CREATE TRIGGER trg_dirty_h_narrative_information
+  AFTER INSERT OR UPDATE OR DELETE ON narrative_information
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_h();
+CREATE TRIGGER trg_dirty_h_sender_diagnoses
+  AFTER INSERT OR UPDATE OR DELETE ON sender_diagnoses
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_h_from_narrative();
+CREATE TRIGGER trg_dirty_h_case_summary_information
+  AFTER INSERT OR UPDATE OR DELETE ON case_summary_information
+  FOR EACH ROW EXECUTE FUNCTION mark_case_dirty_h_from_narrative();
+
 -- Ensure application role has access to all tables created after initial grants.
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO e2br3_app_role;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO e2br3_app_role;

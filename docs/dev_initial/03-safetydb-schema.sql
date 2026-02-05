@@ -70,6 +70,17 @@ CREATE TABLE if NOT EXISTS cases (
     submitted_by UUID REFERENCES users(id),
     submitted_at TIMESTAMPTZ,
 
+    -- Raw imported XML (for round-trip fidelity)
+    raw_xml BYTEA,
+
+    -- Dirty flags for XML merge (sections C-H)
+    dirty_c BOOLEAN NOT NULL DEFAULT FALSE,
+    dirty_d BOOLEAN NOT NULL DEFAULT FALSE,
+    dirty_e BOOLEAN NOT NULL DEFAULT FALSE,
+    dirty_f BOOLEAN NOT NULL DEFAULT FALSE,
+    dirty_g BOOLEAN NOT NULL DEFAULT FALSE,
+    dirty_h BOOLEAN NOT NULL DEFAULT FALSE,
+
     -- Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

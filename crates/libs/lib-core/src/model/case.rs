@@ -28,6 +28,15 @@ pub struct Case {
 	pub submitted_by: Option<Uuid>,
 	pub submitted_at: Option<OffsetDateTime>,
 
+	// Raw imported XML (optional)
+	pub raw_xml: Option<Vec<u8>>,
+	pub dirty_c: bool,
+	pub dirty_d: bool,
+	pub dirty_e: bool,
+	pub dirty_f: bool,
+	pub dirty_g: bool,
+	pub dirty_h: bool,
+
 	// Timestamps
 	pub created_at: OffsetDateTime,
 	pub updated_at: OffsetDateTime,
@@ -46,6 +55,13 @@ pub struct CaseForUpdate {
 	pub status: Option<String>,
 	pub submitted_by: Option<Uuid>,
 	pub submitted_at: Option<OffsetDateTime>,
+	pub raw_xml: Option<Vec<u8>>,
+	pub dirty_c: Option<bool>,
+	pub dirty_d: Option<bool>,
+	pub dirty_e: Option<bool>,
+	pub dirty_f: Option<bool>,
+	pub dirty_g: Option<bool>,
+	pub dirty_h: Option<bool>,
 }
 
 #[derive(FilterNodes, Deserialize, Default)]
