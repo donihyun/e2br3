@@ -131,6 +131,16 @@ pub fn validate_e2b_xml(
 	})
 }
 
+pub fn should_skip_xml_validation() -> bool {
+	match std::env::var("E2BR3_SKIP_XML_VALIDATE") {
+		Ok(value) => {
+			let value = value.trim().to_ascii_lowercase();
+			value == "1" || value == "true" || value == "yes"
+		}
+		Err(_) => false,
+	}
+}
+
 pub fn validate_e2b_xml_xsd(
 	xml: &[u8],
 	xsd_path: &Path,

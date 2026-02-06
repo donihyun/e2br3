@@ -10,11 +10,51 @@ use crate::model::drug::{
 use crate::model::message_header::{
 	MessageHeaderBmc, MessageHeaderForCreate, MessageHeaderForUpdate,
 };
+use crate::model::narrative::{
+	NarrativeInformationBmc, NarrativeInformationForCreate,
+	NarrativeInformationForUpdate,
+};
+use crate::model::patient::{
+	AutopsyCauseOfDeathBmc, AutopsyCauseOfDeathForCreate, AutopsyCauseOfDeathForUpdate,
+	MedicalHistoryEpisodeBmc, MedicalHistoryEpisodeForCreate, MedicalHistoryEpisodeForUpdate,
+	PastDrugHistoryBmc, PastDrugHistoryForCreate, PastDrugHistoryForUpdate,
+	PatientDeathInformationBmc, PatientDeathInformationForCreate,
+	PatientDeathInformationForUpdate, PatientIdentifierBmc, PatientIdentifierForCreate,
+	PatientIdentifierForUpdate, PatientInformationBmc, PatientInformationForCreate,
+	PatientInformationForUpdate, ParentInformationBmc, ParentInformationForCreate,
+	ParentInformationForUpdate, ReportedCauseOfDeathBmc, ReportedCauseOfDeathForCreate,
+	ReportedCauseOfDeathForUpdate,
+};
 use crate::model::reaction::{ReactionBmc, ReactionForCreate, ReactionForUpdate};
-use crate::model::ModelManager;
+use crate::model::parent_history::{
+	ParentMedicalHistoryBmc, ParentMedicalHistoryForCreate, ParentMedicalHistoryForUpdate,
+	ParentPastDrugHistoryBmc, ParentPastDrugHistoryForCreate, ParentPastDrugHistoryForUpdate,
+};
+use crate::model::safety_report::{
+	PrimarySourceBmc, PrimarySourceForCreate, PrimarySourceForUpdate,
+	DocumentsHeldBySenderBmc, DocumentsHeldBySenderForCreate, DocumentsHeldBySenderForUpdate,
+	LiteratureReferenceBmc, LiteratureReferenceForCreate, LiteratureReferenceForUpdate,
+	SafetyReportIdentificationBmc, SafetyReportIdentificationForCreate,
+	SafetyReportIdentificationForUpdate, SenderInformationBmc, SenderInformationForCreate,
+	SenderInformationForUpdate, StudyInformationBmc, StudyInformationForCreate,
+	StudyInformationForUpdate, StudyRegistrationNumberBmc, StudyRegistrationNumberForCreate,
+	StudyRegistrationNumberForUpdate,
+};
+use crate::model::receiver::{
+	ReceiverInformationBmc, ReceiverInformationForCreate, ReceiverInformationForUpdate,
+};
+use crate::model::case_identifiers::{
+	LinkedReportNumberBmc, LinkedReportNumberForCreate, LinkedReportNumberForUpdate,
+	OtherCaseIdentifierBmc, OtherCaseIdentifierForCreate, OtherCaseIdentifierForUpdate,
+};
+use crate::model::store::set_full_context_dbx;
+use crate::model::test_result::{
+	TestResultBmc, TestResultForCreate, TestResultForUpdate,
+};
+use crate::model::{self, ModelManager};
 use crate::xml::error::Error;
 use crate::xml::types::XmlImportResult;
-use crate::xml::validator::validate_e2b_xml;
+use crate::xml::validator::{should_skip_xml_validation, validate_e2b_xml};
 use crate::xml::{parse_e2b_xml, Result};
 use libxml::tree::Node;
 use libxml::parser::Parser;
@@ -23,6 +63,7 @@ use serde_json::json;
 use rust_decimal::Decimal;
 use sqlx::types::time::Date;
 use time::Month;
+use time::OffsetDateTime;
 use sqlx::types::Uuid;
 
 #[derive(Debug)]
@@ -113,11 +154,13 @@ pub async fn import_e2b_xml(
 	req: XmlImportRequest,
 ) -> Result<XmlImportResult> {
 	let mm = mm.new_with_txn()?;
-	let report = validate_e2b_xml(&req.xml, None)?;
-	if !report.ok {
-		return Err(Error::XsdValidationFailed {
-			errors: report.errors,
-		});
+	if !should_skip_xml_validation() {
+		let report = validate_e2b_xml(&req.xml, None)?;
+		if !report.ok {
+			return Err(Error::XsdValidationFailed {
+				errors: report.errors,
+			});
+		}
 	}
 
 	let parsed = parse_e2b_xml(&req.xml)?;
@@ -130,6 +173,25 @@ pub async fn import_e2b_xml(
 	.unwrap_or_else(|| "UNKNOWN".to_string());
 	let header_extract = extract_message_header(&req.xml).ok();
 
+	let next_version = {
+		let dbx = mm.dbx();
+		dbx.begin_txn().await.map_err(model::Error::from)?;
+		if let Err(err) =
+			set_full_context_dbx(dbx, ctx.user_id(), ctx.organization_id(), ctx.role())
+				.await
+		{
+			let _ = dbx.rollback_txn().await;
+			return Err(Error::Model(err));
+		}
+		let sql = "select max(version) from cases where safety_report_id = $1";
+		let max_version: (Option<i32>,) = dbx
+			.fetch_one(sqlx::query_as(sql).bind(&safety_report_id))
+			.await
+			.map_err(model::Error::from)?;
+		dbx.commit_txn().await.map_err(model::Error::from)?;
+		max_version.0.unwrap_or(0) + 1
+	};
+
 	let case_id = CaseBmc::create(
 		ctx,
 		&mm,
@@ -137,13 +199,15 @@ pub async fn import_e2b_xml(
 			organization_id: ctx.organization_id(),
 			safety_report_id: safety_report_id.clone(),
 			status: Some("draft".to_string()),
+			version: Some(next_version),
 		},
 	)
 	.await?;
 
-	if let Some(header) = header_extract {
+	if let Some(ref header) = header_extract {
 		let message_number = header
 			.message_number
+			.clone()
 			.unwrap_or_else(|| safety_report_id.clone());
 		let message_sender = header
 			.message_sender
@@ -185,7 +249,7 @@ pub async fn import_e2b_xml(
 				&mm,
 				case_id,
 				MessageHeaderForUpdate {
-					batch_number: header.batch_number,
+					batch_number: header.batch_number.clone(),
 					batch_sender_identifier: header.batch_sender.clone(),
 					batch_receiver_identifier: header.batch_receiver.clone(),
 					batch_transmission_date: None,
@@ -225,12 +289,32 @@ pub async fn import_e2b_xml(
 	)
 	.await?;
 
+	import_safety_report(ctx, &mm, &req.xml, case_id, header_extract.as_ref())
+		.await?;
+	import_sender_information(ctx, &mm, &req.xml, case_id, header_extract.as_ref())
+		.await?;
+	import_primary_sources(ctx, &mm, &req.xml, case_id).await?;
+	import_case_identifiers(ctx, &mm, &req.xml, case_id).await?;
+	import_documents_held_by_sender(ctx, &mm, &req.xml, case_id).await?;
+	import_literature_references(ctx, &mm, &req.xml, case_id).await?;
+	import_study_information(ctx, &mm, &req.xml, case_id).await?;
+	import_receiver_information(ctx, &mm, &req.xml, case_id).await?;
+	let patient_id = import_patient_information(ctx, &mm, &req.xml, case_id).await?;
+	if let Some(patient_id) = patient_id {
+		import_patient_identifiers(ctx, &mm, &req.xml, patient_id).await?;
+		import_medical_history(ctx, &mm, &req.xml, patient_id).await?;
+		import_past_drug_history(ctx, &mm, &req.xml, patient_id).await?;
+		import_patient_death(ctx, &mm, &req.xml, patient_id).await?;
+		import_parent_information(ctx, &mm, &req.xml, patient_id).await?;
+	}
+	import_narrative(ctx, &mm, &req.xml, case_id).await?;
 	let snapshot = json!({
 		"parsed": parsed.json,
 		"raw_xml": String::from_utf8_lossy(&req.xml),
 	});
 
 	import_reactions(ctx, &mm, &req.xml, case_id).await?;
+	import_test_results(ctx, &mm, &req.xml, case_id).await?;
 	import_drugs(ctx, &mm, &req.xml, case_id).await?;
 
 	let version_id = match CaseVersionBmc::create(
@@ -238,7 +322,7 @@ pub async fn import_e2b_xml(
 		&mm,
 		CaseVersionForCreate {
 			case_id,
-			version: 1,
+			version: next_version,
 			snapshot,
 			change_reason: Some("XML import".to_string()),
 		},
@@ -251,11 +335,12 @@ pub async fn import_e2b_xml(
 
 	Ok(XmlImportResult {
 		case_id: Some(case_id.to_string()),
-		case_version: Some(1),
+		case_version: Some(i64::from(next_version)),
 		xml_key: None,
 		parsed_json_id: Some(version_id.to_string()),
 	})
 }
+
 
 async fn import_reactions(
 	ctx: &Ctx,
@@ -271,6 +356,2868 @@ async fn import_reactions(
 	}
 
 	Ok(())
+}
+
+async fn import_safety_report(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	case_id: Uuid,
+	header: Option<&MessageHeaderExtract>,
+) -> Result<()> {
+	let Some(report) = parse_safety_report_identification(xml, header)?
+	else {
+		return Ok(());
+	};
+
+	let report_c = SafetyReportIdentificationForCreate {
+		case_id,
+		transmission_date: report.transmission_date,
+		report_type: report.report_type.clone(),
+		date_first_received_from_source: report.date_first_received_from_source,
+		date_of_most_recent_information: report.date_of_most_recent_information,
+		fulfil_expedited_criteria: report.fulfil_expedited_criteria,
+	};
+	let report_u = SafetyReportIdentificationForUpdate {
+		transmission_date: None,
+		report_type: Some(report.report_type),
+		local_criteria_report_type: report.local_criteria_report_type,
+		combination_product_report_indicator: report.combination_product_report_indicator,
+		worldwide_unique_id: report.worldwide_unique_id,
+		nullification_code: report.nullification_code,
+		nullification_reason: report.nullification_reason,
+		receiver_organization: report.receiver_organization,
+	};
+
+	if SafetyReportIdentificationBmc::get_by_case(ctx, mm, case_id).await.is_ok()
+	{
+		let _ = SafetyReportIdentificationBmc::update_by_case(ctx, mm, case_id, report_u).await;
+	} else {
+		let _ = SafetyReportIdentificationBmc::create(ctx, mm, report_c).await?;
+		let _ = SafetyReportIdentificationBmc::update_by_case(ctx, mm, case_id, report_u).await;
+	}
+
+	Ok(())
+}
+
+async fn import_sender_information(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	case_id: Uuid,
+	header: Option<&MessageHeaderExtract>,
+) -> Result<()> {
+	let Some(sender) = parse_sender_information(xml, header)? else {
+		return Ok(());
+	};
+
+	let sender_id = if let Some((id,)) = mm
+		.dbx()
+		.fetch_optional(
+			sqlx::query_as::<_, (Uuid,)>(
+				"SELECT id FROM sender_information WHERE case_id = $1 LIMIT 1",
+			)
+			.bind(case_id),
+		)
+		.await
+		.map_err(model::Error::from)?
+	{
+		id
+	} else {
+		SenderInformationBmc::create(
+			ctx,
+			mm,
+			SenderInformationForCreate {
+				case_id,
+				sender_type: sender.sender_type.clone(),
+				organization_name: sender.organization_name.clone(),
+			},
+		)
+		.await?
+	};
+
+	let _ = SenderInformationBmc::update(
+		ctx,
+		mm,
+		sender_id,
+		SenderInformationForUpdate {
+			sender_type: Some(sender.sender_type),
+			organization_name: Some(sender.organization_name),
+			department: sender.department,
+			street_address: sender.street_address,
+			city: sender.city,
+			state: sender.state,
+			postcode: sender.postcode,
+			country_code: sender.country_code,
+			person_title: sender.person_title,
+			person_given_name: sender.person_given_name,
+			person_middle_name: sender.person_middle_name,
+			person_family_name: sender.person_family_name,
+			telephone: sender.telephone,
+			fax: sender.fax,
+			email: sender.email,
+		},
+	)
+	.await;
+
+	Ok(())
+}
+
+async fn import_primary_sources(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	case_id: Uuid,
+) -> Result<()> {
+	let Some(primary) = parse_primary_source(xml)? else {
+		return Ok(());
+	};
+
+	let primary_id = if let Some((id,)) = mm
+		.dbx()
+		.fetch_optional(
+			sqlx::query_as::<_, (Uuid,)>(
+				"SELECT id FROM primary_sources WHERE case_id = $1 AND sequence_number = 1 LIMIT 1",
+			)
+			.bind(case_id),
+		)
+		.await
+		.map_err(model::Error::from)?
+	{
+		id
+	} else {
+		PrimarySourceBmc::create(
+			ctx,
+			mm,
+			PrimarySourceForCreate {
+				case_id,
+				sequence_number: 1,
+				qualification: primary.qualification.clone(),
+			},
+		)
+		.await?
+	};
+
+	let _ = PrimarySourceBmc::update(
+		ctx,
+		mm,
+		primary_id,
+		PrimarySourceForUpdate {
+			reporter_title: primary.reporter_title,
+			reporter_given_name: primary.reporter_given_name,
+			reporter_middle_name: primary.reporter_middle_name,
+			reporter_family_name: primary.reporter_family_name,
+			organization: primary.organization,
+			department: primary.department,
+			street: primary.street,
+			city: primary.city,
+			state: primary.state,
+			postcode: primary.postcode,
+			telephone: primary.telephone,
+			country_code: primary.country_code,
+			email: primary.email,
+			qualification: primary.qualification,
+			primary_source_regulatory: primary.primary_source_regulatory,
+		},
+	)
+	.await;
+
+	Ok(())
+}
+
+async fn import_case_identifiers(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	case_id: Uuid,
+) -> Result<()> {
+	let other_ids = parse_other_case_identifiers(xml)?;
+	for (idx, entry) in other_ids.into_iter().enumerate() {
+		let seq = (idx + 1) as i32;
+		let existing: Option<Uuid> = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, (Uuid,)>(
+					"SELECT id FROM other_case_identifiers WHERE case_id = $1 AND sequence_number = $2 LIMIT 1",
+				)
+				.bind(case_id)
+				.bind(seq),
+			)
+			.await
+			.map_err(model::Error::from)?
+			.map(|v| v.0);
+		if let Some(id) = existing {
+			let _ = OtherCaseIdentifierBmc::update(
+				ctx,
+				mm,
+				id,
+				OtherCaseIdentifierForUpdate {
+					source_of_identifier: Some(entry.source_of_identifier),
+					case_identifier: Some(entry.case_identifier),
+				},
+			)
+			.await;
+		} else {
+			let _ = OtherCaseIdentifierBmc::create(
+				ctx,
+				mm,
+				OtherCaseIdentifierForCreate {
+					case_id,
+					sequence_number: seq,
+					source_of_identifier: entry.source_of_identifier,
+					case_identifier: entry.case_identifier,
+				},
+			)
+			.await?;
+		}
+	}
+
+	let linked = parse_linked_reports(xml)?;
+	for (idx, entry) in linked.into_iter().enumerate() {
+		let seq = (idx + 1) as i32;
+		let existing: Option<Uuid> = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, (Uuid,)>(
+					"SELECT id FROM linked_report_numbers WHERE case_id = $1 AND sequence_number = $2 LIMIT 1",
+				)
+				.bind(case_id)
+				.bind(seq),
+			)
+			.await
+			.map_err(model::Error::from)?
+			.map(|v| v.0);
+		if let Some(id) = existing {
+			let _ = LinkedReportNumberBmc::update(
+				ctx,
+				mm,
+				id,
+				LinkedReportNumberForUpdate {
+					linked_report_number: Some(entry.linked_report_number),
+				},
+			)
+			.await;
+		} else {
+			let _ = LinkedReportNumberBmc::create(
+				ctx,
+				mm,
+				LinkedReportNumberForCreate {
+					case_id,
+					sequence_number: seq,
+					linked_report_number: entry.linked_report_number,
+				},
+			)
+			.await?;
+		}
+	}
+
+	Ok(())
+}
+
+async fn import_documents_held_by_sender(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	case_id: Uuid,
+) -> Result<()> {
+	let documents = parse_documents_held_by_sender(xml)?;
+	for (idx, doc) in documents.into_iter().enumerate() {
+		let seq = (idx + 1) as i32;
+		let existing: Option<Uuid> = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, (Uuid,)>(
+					"SELECT id FROM documents_held_by_sender WHERE case_id = $1 AND sequence_number = $2 LIMIT 1",
+				)
+				.bind(case_id)
+				.bind(seq),
+			)
+			.await
+			.map_err(model::Error::from)?
+			.map(|v| v.0);
+		if let Some(id) = existing {
+			let _ = DocumentsHeldBySenderBmc::update(
+				ctx,
+				mm,
+				id,
+				DocumentsHeldBySenderForUpdate {
+					title: doc.title,
+					document_base64: doc.document_base64,
+					media_type: doc.media_type,
+					representation: doc.representation,
+					compression: doc.compression,
+					sequence_number: Some(seq),
+				},
+			)
+			.await;
+		} else {
+			let _ = DocumentsHeldBySenderBmc::create(
+				ctx,
+				mm,
+				DocumentsHeldBySenderForCreate {
+					case_id,
+					title: doc.title,
+					document_base64: doc.document_base64,
+					media_type: doc.media_type,
+					representation: doc.representation,
+					compression: doc.compression,
+					sequence_number: seq,
+				},
+			)
+			.await?;
+		}
+	}
+	Ok(())
+}
+
+async fn import_literature_references(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	case_id: Uuid,
+) -> Result<()> {
+	let references = parse_literature_references(xml)?;
+	for (idx, entry) in references.into_iter().enumerate() {
+		let seq = (idx + 1) as i32;
+		let existing: Option<Uuid> = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, (Uuid,)>(
+					"SELECT id FROM literature_references WHERE case_id = $1 AND sequence_number = $2 LIMIT 1",
+				)
+				.bind(case_id)
+				.bind(seq),
+			)
+			.await
+			.map_err(model::Error::from)?
+			.map(|v| v.0);
+		if let Some(id) = existing {
+			let _ = LiteratureReferenceBmc::update(
+				ctx,
+				mm,
+				id,
+				LiteratureReferenceForUpdate {
+					reference_text: Some(entry.reference_text),
+					sequence_number: Some(seq),
+					document_base64: entry.document_base64,
+					media_type: entry.media_type,
+					representation: entry.representation,
+					compression: entry.compression,
+				},
+			)
+			.await;
+		} else {
+			let _ = LiteratureReferenceBmc::create(
+				ctx,
+				mm,
+				LiteratureReferenceForCreate {
+					case_id,
+					reference_text: entry.reference_text,
+					sequence_number: seq,
+					document_base64: entry.document_base64,
+					media_type: entry.media_type,
+					representation: entry.representation,
+					compression: entry.compression,
+				},
+			)
+			.await?;
+		}
+	}
+	Ok(())
+}
+
+async fn import_study_information(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	case_id: Uuid,
+) -> Result<()> {
+	let Some(study) = parse_study_information(xml)? else {
+		return Ok(());
+	};
+
+	let study_id = if let Some((id,)) = mm
+		.dbx()
+		.fetch_optional(
+			sqlx::query_as::<_, (Uuid,)>(
+				"SELECT id FROM study_information WHERE case_id = $1 LIMIT 1",
+			)
+			.bind(case_id),
+		)
+		.await
+		.map_err(model::Error::from)?
+	{
+		id
+	} else {
+		StudyInformationBmc::create(
+			ctx,
+			mm,
+			StudyInformationForCreate {
+				case_id,
+				study_name: study.study_name.clone(),
+				sponsor_study_number: study.sponsor_study_number.clone(),
+			},
+		)
+		.await?
+	};
+
+	let _ = StudyInformationBmc::update(
+		ctx,
+		mm,
+		study_id,
+		StudyInformationForUpdate {
+			study_name: study.study_name,
+			sponsor_study_number: study.sponsor_study_number,
+			study_type_reaction: study.study_type_reaction,
+		},
+	)
+	.await;
+
+	for (idx, reg) in study.registrations.into_iter().enumerate() {
+		let seq = (idx + 1) as i32;
+		let existing: Option<Uuid> = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, (Uuid,)>(
+					"SELECT id FROM study_registration_numbers WHERE study_information_id = $1 AND sequence_number = $2 LIMIT 1",
+				)
+				.bind(study_id)
+				.bind(seq),
+			)
+			.await
+			.map_err(model::Error::from)?
+			.map(|v| v.0);
+		if let Some(id) = existing {
+			let _ = StudyRegistrationNumberBmc::update(
+				ctx,
+				mm,
+				id,
+				StudyRegistrationNumberForUpdate {
+					registration_number: Some(reg.registration_number),
+					country_code: reg.country_code,
+					sequence_number: Some(seq),
+				},
+			)
+			.await;
+		} else {
+			let _ = StudyRegistrationNumberBmc::create(
+				ctx,
+				mm,
+				StudyRegistrationNumberForCreate {
+					study_information_id: study_id,
+					registration_number: reg.registration_number,
+					country_code: reg.country_code,
+					sequence_number: seq,
+				},
+			)
+			.await?;
+		}
+	}
+
+	Ok(())
+}
+
+async fn import_receiver_information(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	case_id: Uuid,
+) -> Result<()> {
+	let Some(receiver) = parse_receiver_information(xml)? else {
+		return Ok(());
+	};
+
+	if ReceiverInformationBmc::get_by_case_optional(ctx, mm, case_id)
+		.await?
+		.is_some()
+	{
+		let _ = ReceiverInformationBmc::update_by_case(
+			ctx,
+			mm,
+			case_id,
+			ReceiverInformationForUpdate {
+				receiver_type: receiver.receiver_type,
+				organization_name: receiver.organization_name,
+				department: receiver.department,
+				street_address: receiver.street_address,
+				city: receiver.city,
+				state_province: receiver.state_province,
+				postcode: receiver.postcode,
+				country_code: receiver.country_code,
+				telephone: receiver.telephone,
+				fax: receiver.fax,
+				email: receiver.email,
+			},
+		)
+		.await;
+	} else {
+		let _ = ReceiverInformationBmc::create(
+			ctx,
+			mm,
+			ReceiverInformationForCreate {
+				case_id,
+				receiver_type: receiver.receiver_type,
+				organization_name: receiver.organization_name,
+			},
+		)
+		.await?;
+		let _ = ReceiverInformationBmc::update_by_case(
+			ctx,
+			mm,
+			case_id,
+			ReceiverInformationForUpdate {
+				receiver_type: None,
+				organization_name: None,
+				department: receiver.department,
+				street_address: receiver.street_address,
+				city: receiver.city,
+				state_province: receiver.state_province,
+				postcode: receiver.postcode,
+				country_code: receiver.country_code,
+				telephone: receiver.telephone,
+				fax: receiver.fax,
+				email: receiver.email,
+			},
+		)
+		.await;
+	}
+
+	Ok(())
+}
+
+async fn import_patient_identifiers(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	patient_id: Uuid,
+) -> Result<()> {
+	let ids = parse_patient_identifiers(xml)?;
+	for (idx, entry) in ids.into_iter().enumerate() {
+		let seq = (idx + 1) as i32;
+		let existing: Option<Uuid> = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, (Uuid,)>(
+					"SELECT id FROM patient_identifiers WHERE patient_id = $1 AND sequence_number = $2 LIMIT 1",
+				)
+				.bind(patient_id)
+				.bind(seq),
+			)
+			.await
+			.map_err(model::Error::from)?
+			.map(|v| v.0);
+		if let Some(id) = existing {
+			let _ = PatientIdentifierBmc::update(
+				ctx,
+				mm,
+				id,
+				PatientIdentifierForUpdate {
+					identifier_type_code: Some(entry.identifier_type_code),
+					identifier_value: Some(entry.identifier_value),
+				},
+			)
+			.await;
+		} else {
+			let _ = PatientIdentifierBmc::create(
+				ctx,
+				mm,
+				PatientIdentifierForCreate {
+					patient_id,
+					sequence_number: seq,
+					identifier_type_code: entry.identifier_type_code,
+					identifier_value: entry.identifier_value,
+				},
+			)
+			.await?;
+		}
+	}
+	Ok(())
+}
+
+async fn import_medical_history(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	patient_id: Uuid,
+) -> Result<()> {
+	let episodes = parse_medical_history(xml)?;
+	for (idx, entry) in episodes.into_iter().enumerate() {
+		let seq = (idx + 1) as i32;
+		let existing: Option<Uuid> = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, (Uuid,)>(
+					"SELECT id FROM medical_history_episodes WHERE patient_id = $1 AND sequence_number = $2 LIMIT 1",
+				)
+				.bind(patient_id)
+				.bind(seq),
+			)
+			.await
+			.map_err(model::Error::from)?
+			.map(|v| v.0);
+		if let Some(id) = existing {
+			let _ = MedicalHistoryEpisodeBmc::update(
+				ctx,
+				mm,
+				id,
+				MedicalHistoryEpisodeForUpdate {
+					meddra_version: entry.meddra_version,
+					meddra_code: entry.meddra_code.clone(),
+					start_date: entry.start_date,
+					continuing: entry.continuing,
+					end_date: entry.end_date,
+					comments: entry.comments,
+					family_history: entry.family_history,
+				},
+			)
+			.await;
+		} else {
+			let id = MedicalHistoryEpisodeBmc::create(
+				ctx,
+				mm,
+				MedicalHistoryEpisodeForCreate {
+					patient_id,
+					sequence_number: seq,
+					meddra_code: entry.meddra_code.clone(),
+				},
+			)
+			.await?;
+			let _ = MedicalHistoryEpisodeBmc::update(
+				ctx,
+				mm,
+				id,
+				MedicalHistoryEpisodeForUpdate {
+					meddra_version: entry.meddra_version,
+					meddra_code: entry.meddra_code.clone(),
+					start_date: entry.start_date,
+					continuing: entry.continuing,
+					end_date: entry.end_date,
+					comments: entry.comments,
+					family_history: entry.family_history,
+				},
+			)
+			.await;
+		}
+	}
+	Ok(())
+}
+
+async fn import_past_drug_history(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	patient_id: Uuid,
+) -> Result<()> {
+	let items = parse_past_drug_history(xml)?;
+	for (idx, entry) in items.into_iter().enumerate() {
+		let seq = (idx + 1) as i32;
+		let existing: Option<Uuid> = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, (Uuid,)>(
+					"SELECT id FROM past_drug_history WHERE patient_id = $1 AND sequence_number = $2 LIMIT 1",
+				)
+				.bind(patient_id)
+				.bind(seq),
+			)
+			.await
+			.map_err(model::Error::from)?
+			.map(|v| v.0);
+		if let Some(id) = existing {
+			let _ = PastDrugHistoryBmc::update(
+				ctx,
+				mm,
+				id,
+				PastDrugHistoryForUpdate {
+					drug_name: entry.drug_name,
+					mpid: entry.mpid,
+					mpid_version: entry.mpid_version,
+					phpid: entry.phpid,
+					phpid_version: entry.phpid_version,
+					start_date: entry.start_date,
+					end_date: entry.end_date,
+					indication_meddra_version: entry.indication_meddra_version,
+					indication_meddra_code: entry.indication_meddra_code,
+					reaction_meddra_version: entry.reaction_meddra_version,
+					reaction_meddra_code: entry.reaction_meddra_code,
+				},
+			)
+			.await;
+		} else {
+			let _ = PastDrugHistoryBmc::create(
+				ctx,
+				mm,
+				PastDrugHistoryForCreate {
+					patient_id,
+					sequence_number: seq,
+					drug_name: entry.drug_name,
+					mpid: entry.mpid,
+					mpid_version: entry.mpid_version,
+					phpid: entry.phpid,
+					phpid_version: entry.phpid_version,
+					start_date: entry.start_date,
+					end_date: entry.end_date,
+					indication_meddra_version: entry.indication_meddra_version,
+					indication_meddra_code: entry.indication_meddra_code,
+					reaction_meddra_version: entry.reaction_meddra_version,
+					reaction_meddra_code: entry.reaction_meddra_code,
+				},
+			)
+			.await?;
+		}
+	}
+	Ok(())
+}
+
+async fn import_patient_death(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	patient_id: Uuid,
+) -> Result<()> {
+	let Some(death) = parse_patient_death(xml)? else {
+		return Ok(());
+	};
+
+	let death_id = if let Some((id,)) = mm
+		.dbx()
+		.fetch_optional(
+			sqlx::query_as::<_, (Uuid,)>(
+				"SELECT id FROM patient_death_information WHERE patient_id = $1 LIMIT 1",
+			)
+			.bind(patient_id),
+		)
+		.await
+		.map_err(model::Error::from)?
+	{
+		id
+	} else {
+		PatientDeathInformationBmc::create(
+			ctx,
+			mm,
+			PatientDeathInformationForCreate {
+				patient_id,
+				date_of_death: death.date_of_death,
+				autopsy_performed: death.autopsy_performed,
+			},
+		)
+		.await?
+	};
+
+	let _ = PatientDeathInformationBmc::update(
+		ctx,
+		mm,
+		death_id,
+		PatientDeathInformationForUpdate {
+			date_of_death: death.date_of_death,
+			autopsy_performed: death.autopsy_performed,
+		},
+	)
+	.await;
+
+	for (idx, cause) in death.reported_causes.into_iter().enumerate() {
+		let seq = (idx + 1) as i32;
+		let existing: Option<Uuid> = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, (Uuid,)>(
+					"SELECT id FROM reported_causes_of_death WHERE death_info_id = $1 AND sequence_number = $2 LIMIT 1",
+				)
+				.bind(death_id)
+				.bind(seq),
+			)
+			.await
+			.map_err(model::Error::from)?
+			.map(|v| v.0);
+		if let Some(id) = existing {
+			let _ = ReportedCauseOfDeathBmc::update(
+				ctx,
+				mm,
+				id,
+				ReportedCauseOfDeathForUpdate {
+					meddra_version: cause.meddra_version,
+					meddra_code: cause.meddra_code.clone(),
+				},
+			)
+			.await;
+		} else {
+			let id = ReportedCauseOfDeathBmc::create(
+				ctx,
+				mm,
+				ReportedCauseOfDeathForCreate {
+					death_info_id: death_id,
+					sequence_number: seq,
+					meddra_code: cause.meddra_code.clone(),
+				},
+			)
+			.await?;
+			let _ = ReportedCauseOfDeathBmc::update(
+				ctx,
+				mm,
+				id,
+				ReportedCauseOfDeathForUpdate {
+					meddra_version: cause.meddra_version,
+					meddra_code: cause.meddra_code.clone(),
+				},
+			)
+			.await;
+		}
+	}
+
+	for (idx, cause) in death.autopsy_causes.into_iter().enumerate() {
+		let seq = (idx + 1) as i32;
+		let existing: Option<Uuid> = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, (Uuid,)>(
+					"SELECT id FROM autopsy_causes_of_death WHERE death_info_id = $1 AND sequence_number = $2 LIMIT 1",
+				)
+				.bind(death_id)
+				.bind(seq),
+			)
+			.await
+			.map_err(model::Error::from)?
+			.map(|v| v.0);
+		if let Some(id) = existing {
+			let _ = AutopsyCauseOfDeathBmc::update(
+				ctx,
+				mm,
+				id,
+				AutopsyCauseOfDeathForUpdate {
+					meddra_version: cause.meddra_version,
+					meddra_code: cause.meddra_code.clone(),
+				},
+			)
+			.await;
+		} else {
+			let id = AutopsyCauseOfDeathBmc::create(
+				ctx,
+				mm,
+				AutopsyCauseOfDeathForCreate {
+					death_info_id: death_id,
+					sequence_number: seq,
+					meddra_code: cause.meddra_code.clone(),
+				},
+			)
+			.await?;
+			let _ = AutopsyCauseOfDeathBmc::update(
+				ctx,
+				mm,
+				id,
+				AutopsyCauseOfDeathForUpdate {
+					meddra_version: cause.meddra_version,
+					meddra_code: cause.meddra_code.clone(),
+				},
+			)
+			.await;
+		}
+	}
+
+	Ok(())
+}
+
+async fn import_parent_information(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	patient_id: Uuid,
+) -> Result<()> {
+	let Some(parent) = parse_parent_information(xml)? else {
+		return Ok(());
+	};
+
+	let parent_id = if let Some((id,)) = mm
+		.dbx()
+		.fetch_optional(
+			sqlx::query_as::<_, (Uuid,)>(
+				"SELECT id FROM parent_information WHERE patient_id = $1 LIMIT 1",
+			)
+			.bind(patient_id),
+		)
+		.await
+		.map_err(model::Error::from)?
+	{
+		id
+	} else {
+		ParentInformationBmc::create(
+			ctx,
+			mm,
+			ParentInformationForCreate {
+				patient_id,
+				sex: parent.sex.clone(),
+				medical_history_text: parent.medical_history_text.clone(),
+			},
+		)
+		.await?
+	};
+
+	let _ = ParentInformationBmc::update(
+		ctx,
+		mm,
+		parent_id,
+		ParentInformationForUpdate {
+			parent_identification: parent.parent_identification,
+			parent_birth_date: parent.parent_birth_date,
+			parent_age: parent.parent_age,
+			parent_age_unit: parent.parent_age_unit,
+			last_menstrual_period_date: parent.last_menstrual_period_date,
+			weight_kg: parent.weight_kg,
+			height_cm: parent.height_cm,
+			sex: parent.sex,
+			medical_history_text: parent.medical_history_text,
+		},
+	)
+	.await;
+
+	for (idx, entry) in parent.medical_history.into_iter().enumerate() {
+		let seq = (idx + 1) as i32;
+		let existing: Option<Uuid> = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, (Uuid,)>(
+					"SELECT id FROM parent_medical_history WHERE parent_id = $1 AND sequence_number = $2 LIMIT 1",
+				)
+				.bind(parent_id)
+				.bind(seq),
+			)
+			.await
+			.map_err(model::Error::from)?
+			.map(|v| v.0);
+		if let Some(id) = existing {
+			let _ = ParentMedicalHistoryBmc::update(
+				ctx,
+				mm,
+				id,
+				ParentMedicalHistoryForUpdate {
+					meddra_version: entry.meddra_version,
+					meddra_code: entry.meddra_code,
+					start_date: entry.start_date,
+					continuing: entry.continuing,
+					end_date: entry.end_date,
+					comments: entry.comments,
+				},
+			)
+			.await;
+		} else {
+			let id = ParentMedicalHistoryBmc::create(
+				ctx,
+				mm,
+				ParentMedicalHistoryForCreate {
+					parent_id,
+					sequence_number: seq,
+					meddra_code: entry.meddra_code,
+				},
+			)
+			.await?;
+			let _ = ParentMedicalHistoryBmc::update(
+				ctx,
+				mm,
+				id,
+				ParentMedicalHistoryForUpdate {
+					meddra_version: entry.meddra_version,
+					meddra_code: entry.meddra_code,
+					start_date: entry.start_date,
+					continuing: entry.continuing,
+					end_date: entry.end_date,
+					comments: entry.comments,
+				},
+			)
+			.await;
+		}
+	}
+
+	for (idx, entry) in parent.past_drugs.into_iter().enumerate() {
+		let seq = (idx + 1) as i32;
+		let existing: Option<Uuid> = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, (Uuid,)>(
+					"SELECT id FROM parent_past_drug_history WHERE parent_id = $1 AND sequence_number = $2 LIMIT 1",
+				)
+				.bind(parent_id)
+				.bind(seq),
+			)
+			.await
+			.map_err(model::Error::from)?
+			.map(|v| v.0);
+		if let Some(id) = existing {
+			let _ = ParentPastDrugHistoryBmc::update(
+				ctx,
+				mm,
+				id,
+				ParentPastDrugHistoryForUpdate {
+					drug_name: entry.drug_name,
+					mpid: entry.mpid,
+					mpid_version: entry.mpid_version,
+					phpid: entry.phpid,
+					phpid_version: entry.phpid_version,
+					start_date: entry.start_date,
+					end_date: entry.end_date,
+					indication_meddra_version: entry.indication_meddra_version,
+					indication_meddra_code: entry.indication_meddra_code,
+					reaction_meddra_version: entry.reaction_meddra_version,
+					reaction_meddra_code: entry.reaction_meddra_code,
+				},
+			)
+			.await;
+		} else {
+			let id = ParentPastDrugHistoryBmc::create(
+				ctx,
+				mm,
+				ParentPastDrugHistoryForCreate {
+					parent_id,
+					sequence_number: seq,
+					drug_name: entry.drug_name,
+				},
+			)
+			.await?;
+			let _ = ParentPastDrugHistoryBmc::update(
+				ctx,
+				mm,
+				id,
+				ParentPastDrugHistoryForUpdate {
+					drug_name: entry.drug_name,
+					mpid: entry.mpid,
+					mpid_version: entry.mpid_version,
+					phpid: entry.phpid,
+					phpid_version: entry.phpid_version,
+					start_date: entry.start_date,
+					end_date: entry.end_date,
+					indication_meddra_version: entry.indication_meddra_version,
+					indication_meddra_code: entry.indication_meddra_code,
+					reaction_meddra_version: entry.reaction_meddra_version,
+					reaction_meddra_code: entry.reaction_meddra_code,
+				},
+			)
+			.await;
+		}
+	}
+
+	Ok(())
+}
+
+async fn import_test_results(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	case_id: Uuid,
+) -> Result<()> {
+	let tests = parse_test_results(xml)?;
+	for (idx, entry) in tests.into_iter().enumerate() {
+		let seq = (idx + 1) as i32;
+		let existing: Option<Uuid> = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, (Uuid,)>(
+					"SELECT id FROM test_results WHERE case_id = $1 AND sequence_number = $2 LIMIT 1",
+				)
+				.bind(case_id)
+				.bind(seq),
+			)
+			.await
+			.map_err(model::Error::from)?
+			.map(|v| v.0);
+		if let Some(id) = existing {
+			let _ = TestResultBmc::update(
+				ctx,
+				mm,
+				id,
+				TestResultForUpdate {
+					test_name: Some(entry.test_name),
+					test_date: entry.test_date,
+					test_meddra_version: entry.test_meddra_version,
+					test_meddra_code: entry.test_meddra_code,
+					test_result_code: entry.test_result_code,
+					test_result_value: entry.test_result_value,
+					test_result_unit: entry.test_result_unit,
+					result_unstructured: entry.result_unstructured,
+					normal_low_value: entry.normal_low_value,
+					normal_high_value: entry.normal_high_value,
+					comments: entry.comments,
+					more_info_available: entry.more_info_available,
+				},
+			)
+			.await;
+		} else {
+			let id = TestResultBmc::create(
+				ctx,
+				mm,
+				TestResultForCreate {
+					case_id,
+					sequence_number: seq,
+					test_name: entry.test_name.clone(),
+				},
+			)
+			.await?;
+			let _ = TestResultBmc::update(
+				ctx,
+				mm,
+				id,
+				TestResultForUpdate {
+					test_name: Some(entry.test_name),
+					test_date: entry.test_date,
+					test_meddra_version: entry.test_meddra_version,
+					test_meddra_code: entry.test_meddra_code,
+					test_result_code: entry.test_result_code,
+					test_result_value: entry.test_result_value,
+					test_result_unit: entry.test_result_unit,
+					result_unstructured: entry.result_unstructured,
+					normal_low_value: entry.normal_low_value,
+					normal_high_value: entry.normal_high_value,
+					comments: entry.comments,
+					more_info_available: entry.more_info_available,
+				},
+			)
+			.await;
+		}
+	}
+	Ok(())
+}
+
+async fn import_patient_information(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	case_id: Uuid,
+) -> Result<Option<Uuid>> {
+	let Some(patient) = parse_patient_information(xml)? else {
+		return Ok(None);
+	};
+
+	let existing_id: Option<Uuid> = mm
+		.dbx()
+		.fetch_optional(
+			sqlx::query_as::<_, (Uuid,)>(
+				"SELECT id FROM patient_information WHERE case_id = $1 LIMIT 1",
+			)
+			.bind(case_id),
+		)
+		.await
+		.map_err(model::Error::from)?
+		.map(|v| v.0);
+
+	let patient_id = if let Some(id) = existing_id {
+		id
+	} else {
+		PatientInformationBmc::create(
+			ctx,
+			mm,
+			PatientInformationForCreate {
+				case_id,
+				patient_initials: patient.patient_initials.clone(),
+				sex: patient.sex.clone(),
+				concomitant_therapy: patient.concomitant_therapy,
+			},
+		)
+		.await?
+	};
+
+	let _ = PatientInformationBmc::update(
+		ctx,
+		mm,
+		patient_id,
+		PatientInformationForUpdate {
+			patient_initials: patient.patient_initials,
+			patient_given_name: patient.patient_given_name,
+			patient_family_name: patient.patient_family_name,
+			birth_date: patient.birth_date,
+			age_at_time_of_onset: patient.age_at_time_of_onset,
+			age_unit: patient.age_unit,
+			gestation_period: patient.gestation_period,
+			gestation_period_unit: patient.gestation_period_unit,
+			age_group: patient.age_group,
+			weight_kg: patient.weight_kg,
+			height_cm: patient.height_cm,
+			sex: patient.sex,
+			race_code: patient.race_code,
+			ethnicity_code: patient.ethnicity_code,
+			last_menstrual_period_date: patient.last_menstrual_period_date,
+			medical_history_text: patient.medical_history_text,
+			concomitant_therapy: patient.concomitant_therapy,
+		},
+	)
+	.await;
+
+	Ok(Some(patient_id))
+}
+
+async fn import_narrative(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	case_id: Uuid,
+) -> Result<()> {
+	let Some(narrative) = parse_narrative_information(xml)? else {
+		return Ok(());
+	};
+
+	if NarrativeInformationBmc::get_by_case(ctx, mm, case_id)
+		.await
+		.is_ok()
+	{
+		let _ = NarrativeInformationBmc::update_by_case(
+			ctx,
+			mm,
+			case_id,
+			NarrativeInformationForUpdate {
+				case_narrative: Some(narrative.case_narrative.clone()),
+				reporter_comments: narrative.reporter_comments.clone(),
+				sender_comments: narrative.sender_comments.clone(),
+			},
+		)
+		.await;
+	} else {
+		let _ = NarrativeInformationBmc::create(
+			ctx,
+			mm,
+			NarrativeInformationForCreate {
+				case_id,
+				case_narrative: narrative.case_narrative.clone(),
+			},
+		)
+		.await?;
+		let _ = NarrativeInformationBmc::update_by_case(
+			ctx,
+			mm,
+			case_id,
+			NarrativeInformationForUpdate {
+				case_narrative: None,
+				reporter_comments: narrative.reporter_comments.clone(),
+				sender_comments: narrative.sender_comments.clone(),
+			},
+		)
+		.await;
+	}
+
+	Ok(())
+}
+
+struct SafetyReportImport {
+	transmission_date: Date,
+	report_type: String,
+	date_first_received_from_source: Date,
+	date_of_most_recent_information: Date,
+	fulfil_expedited_criteria: bool,
+	local_criteria_report_type: Option<String>,
+	combination_product_report_indicator: Option<String>,
+	worldwide_unique_id: Option<String>,
+	nullification_code: Option<String>,
+	nullification_reason: Option<String>,
+	receiver_organization: Option<String>,
+}
+
+struct SenderImport {
+	sender_type: String,
+	organization_name: String,
+	department: Option<String>,
+	street_address: Option<String>,
+	city: Option<String>,
+	state: Option<String>,
+	postcode: Option<String>,
+	country_code: Option<String>,
+	person_title: Option<String>,
+	person_given_name: Option<String>,
+	person_middle_name: Option<String>,
+	person_family_name: Option<String>,
+	telephone: Option<String>,
+	fax: Option<String>,
+	email: Option<String>,
+}
+
+struct PrimarySourceImport {
+	reporter_title: Option<String>,
+	reporter_given_name: Option<String>,
+	reporter_middle_name: Option<String>,
+	reporter_family_name: Option<String>,
+	organization: Option<String>,
+	department: Option<String>,
+	street: Option<String>,
+	city: Option<String>,
+	state: Option<String>,
+	postcode: Option<String>,
+	telephone: Option<String>,
+	country_code: Option<String>,
+	email: Option<String>,
+	qualification: Option<String>,
+	primary_source_regulatory: Option<String>,
+}
+
+struct PatientImport {
+	patient_initials: Option<String>,
+	patient_given_name: Option<String>,
+	patient_family_name: Option<String>,
+	birth_date: Option<Date>,
+	sex: Option<String>,
+	age_at_time_of_onset: Option<Decimal>,
+	age_unit: Option<String>,
+	gestation_period: Option<Decimal>,
+	gestation_period_unit: Option<String>,
+	age_group: Option<String>,
+	weight_kg: Option<Decimal>,
+	height_cm: Option<Decimal>,
+	race_code: Option<String>,
+	ethnicity_code: Option<String>,
+	last_menstrual_period_date: Option<Date>,
+	medical_history_text: Option<String>,
+	concomitant_therapy: Option<bool>,
+}
+
+struct NarrativeImport {
+	case_narrative: String,
+	reporter_comments: Option<String>,
+	sender_comments: Option<String>,
+}
+
+#[derive(Debug)]
+struct OtherCaseIdentifierImport {
+	source_of_identifier: String,
+	case_identifier: String,
+}
+
+#[derive(Debug)]
+struct LinkedReportImport {
+	linked_report_number: String,
+}
+
+#[derive(Debug)]
+struct LiteratureImport {
+	reference_text: String,
+	document_base64: Option<String>,
+	media_type: Option<String>,
+	representation: Option<String>,
+	compression: Option<String>,
+}
+
+#[derive(Debug)]
+struct DocumentHeldImport {
+	title: Option<String>,
+	document_base64: Option<String>,
+	media_type: Option<String>,
+	representation: Option<String>,
+	compression: Option<String>,
+}
+
+#[derive(Debug)]
+struct StudyImport {
+	study_name: Option<String>,
+	sponsor_study_number: Option<String>,
+	study_type_reaction: Option<String>,
+	registrations: Vec<StudyRegistrationImport>,
+}
+
+#[derive(Debug)]
+struct StudyRegistrationImport {
+	registration_number: String,
+	country_code: Option<String>,
+}
+
+#[derive(Debug)]
+struct PatientIdentifierImport {
+	identifier_type_code: String,
+	identifier_value: String,
+}
+
+#[derive(Debug)]
+struct MedicalHistoryImport {
+	meddra_version: Option<String>,
+	meddra_code: Option<String>,
+	start_date: Option<Date>,
+	continuing: Option<bool>,
+	end_date: Option<Date>,
+	comments: Option<String>,
+	family_history: Option<bool>,
+}
+
+#[derive(Debug)]
+struct PastDrugHistoryImport {
+	drug_name: Option<String>,
+	mpid: Option<String>,
+	mpid_version: Option<String>,
+	phpid: Option<String>,
+	phpid_version: Option<String>,
+	start_date: Option<Date>,
+	end_date: Option<Date>,
+	indication_meddra_version: Option<String>,
+	indication_meddra_code: Option<String>,
+	reaction_meddra_version: Option<String>,
+	reaction_meddra_code: Option<String>,
+}
+
+#[derive(Debug)]
+struct DeathImport {
+	date_of_death: Option<Date>,
+	autopsy_performed: Option<bool>,
+	reported_causes: Vec<DeathCauseImport>,
+	autopsy_causes: Vec<DeathCauseImport>,
+}
+
+#[derive(Debug)]
+struct DeathCauseImport {
+	meddra_version: Option<String>,
+	meddra_code: Option<String>,
+}
+
+#[derive(Debug)]
+struct ParentImport {
+	parent_identification: Option<String>,
+	parent_birth_date: Option<Date>,
+	parent_age: Option<Decimal>,
+	parent_age_unit: Option<String>,
+	last_menstrual_period_date: Option<Date>,
+	weight_kg: Option<Decimal>,
+	height_cm: Option<Decimal>,
+	sex: Option<String>,
+	medical_history_text: Option<String>,
+	medical_history: Vec<MedicalHistoryImport>,
+	past_drugs: Vec<PastDrugHistoryImport>,
+}
+
+#[derive(Debug)]
+struct TestResultImport {
+	test_name: String,
+	test_date: Option<Date>,
+	test_meddra_version: Option<String>,
+	test_meddra_code: Option<String>,
+	test_result_code: Option<String>,
+	test_result_value: Option<String>,
+	test_result_unit: Option<String>,
+	result_unstructured: Option<String>,
+	normal_low_value: Option<String>,
+	normal_high_value: Option<String>,
+	comments: Option<String>,
+	more_info_available: Option<bool>,
+}
+
+fn parse_safety_report_identification(
+	xml: &[u8],
+	header: Option<&MessageHeaderExtract>,
+) -> Result<Option<SafetyReportImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let transmission_raw = first_value_root(
+		&mut xpath,
+		"//hl7:controlActProcess/hl7:effectiveTime/@value",
+	)
+	.or_else(|| first_value_root(&mut xpath, "//hl7:PORR_IN049016UV/hl7:creationTime/@value"))
+	.or_else(|| header.and_then(|h| h.message_date.clone()))
+	.or_else(|| header.and_then(|h| h.batch_transmission.clone()));
+
+	let transmission_date = transmission_raw
+		.and_then(parse_date)
+		.unwrap_or_else(|| OffsetDateTime::now_utc().date());
+
+	let report_type = normalize_code(
+		first_value_root(
+			&mut xpath,
+			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.23']]/hl7:value/@code",
+		),
+		&["1", "2", "3", "4"],
+		"safety_report_identification.report_type",
+	)
+	.unwrap_or_else(|| "1".to_string());
+
+	let date_first_received_from_source = first_value_root(
+		&mut xpath,
+		"//hl7:investigationEvent/hl7:effectiveTime/hl7:low/@value",
+	)
+	.and_then(parse_date)
+	.unwrap_or(transmission_date);
+
+	let date_of_most_recent_information = first_value_root(
+		&mut xpath,
+		"//hl7:investigationEvent/hl7:availabilityTime/@value",
+	)
+	.and_then(parse_date)
+	.unwrap_or(transmission_date);
+
+	let fulfil_expedited_criteria = parse_bool_value(first_value_root(
+		&mut xpath,
+		"//hl7:component/hl7:observationEvent[hl7:code[@code='23' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]/hl7:value/@value",
+	))
+	.unwrap_or(false);
+
+	let combination_product_report_indicator = clamp_str(
+		first_value_root(
+			&mut xpath,
+			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.5.1.2.2.1.3']]/hl7:value/@value",
+		),
+		10,
+		"safety_report_identification.combination_product_report_indicator",
+	);
+
+	let local_criteria_report_type = normalize_code(
+		first_value_root(
+			&mut xpath,
+			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='2' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]/hl7:value/@code",
+		),
+		&["1", "2", "3", "4", "5"],
+		"safety_report_identification.local_criteria_report_type",
+	);
+
+	let worldwide_unique_id = clamp_str(
+		first_value_root(
+			&mut xpath,
+			"//hl7:investigationEvent/hl7:id[@root='2.16.840.1.113883.3.989.2.1.3.2']/@extension",
+		),
+		100,
+		"safety_report_identification.worldwide_unique_id",
+	);
+
+	let nullification_code = normalize_code(
+		first_value_root(
+			&mut xpath,
+			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='3' or @displayName='nullificationAmendmentCode']]/hl7:value/@code",
+		),
+		&["1", "2", "3", "4"],
+		"safety_report_identification.nullification_code",
+	);
+
+	let nullification_reason = clamp_str(
+		first_text_root(
+			&mut xpath,
+			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='4' or @displayName='nullificationReason']]/hl7:value",
+		),
+		200,
+		"safety_report_identification.nullification_reason",
+	);
+
+	let receiver_organization = header.and_then(|h| h.message_receiver.clone());
+
+	Ok(Some(SafetyReportImport {
+		transmission_date,
+		report_type,
+		date_first_received_from_source,
+		date_of_most_recent_information,
+		fulfil_expedited_criteria,
+		local_criteria_report_type,
+		combination_product_report_indicator,
+		worldwide_unique_id,
+		nullification_code,
+		nullification_reason,
+		receiver_organization,
+	}))
+}
+
+fn parse_sender_information(
+	xml: &[u8],
+	header: Option<&MessageHeaderExtract>,
+) -> Result<Option<SenderImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let sender_type = normalize_code(
+		first_value_root(
+			&mut xpath,
+			"//hl7:sender/hl7:device/hl7:asAgent/hl7:representedOrganization/hl7:code/@code",
+		)
+		.or_else(|| first_value_root(&mut xpath, "//hl7:assignedEntity/hl7:code/@code")),
+		&["1", "2", "3", "4", "5", "6"],
+		"sender_information.sender_type",
+	)
+	.unwrap_or_else(|| "1".to_string());
+
+	let organization_name = first_text_root(
+		&mut xpath,
+		"//hl7:sender/hl7:device/hl7:asAgent/hl7:representedOrganization/hl7:name",
+	)
+	.or_else(|| {
+		first_text_root(
+			&mut xpath,
+			"//hl7:assignedEntity/hl7:representedOrganization/hl7:name",
+		)
+	})
+	.or_else(|| header.and_then(|h| h.message_sender.clone()))
+	.unwrap_or_else(|| "Unknown Sender".to_string());
+
+	Ok(Some(SenderImport {
+		sender_type,
+		organization_name,
+		department: first_text_root(
+			&mut xpath,
+			"//hl7:assignedEntity/hl7:representedOrganization/hl7:desc",
+		),
+		street_address: first_text_root(
+			&mut xpath,
+			"//hl7:assignedEntity/hl7:addr/hl7:streetAddressLine",
+		),
+		city: first_text_root(&mut xpath, "//hl7:assignedEntity/hl7:addr/hl7:city"),
+		state: first_text_root(&mut xpath, "//hl7:assignedEntity/hl7:addr/hl7:state"),
+		postcode: first_text_root(&mut xpath, "//hl7:assignedEntity/hl7:addr/hl7:postalCode"),
+		country_code: normalize_iso2(
+			first_value_root(&mut xpath, "//hl7:assignedEntity/hl7:addr/hl7:country/@code"),
+			"sender_information.country_code",
+		),
+		person_title: first_text_root(&mut xpath, "//hl7:assignedEntity/hl7:assignedPerson/hl7:name/hl7:prefix"),
+		person_given_name: first_text_root(&mut xpath, "//hl7:assignedEntity/hl7:assignedPerson/hl7:name/hl7:given"),
+		person_middle_name: first_text_root(&mut xpath, "//hl7:assignedEntity/hl7:assignedPerson/hl7:name/hl7:given[2]"),
+		person_family_name: first_text_root(&mut xpath, "//hl7:assignedEntity/hl7:assignedPerson/hl7:name/hl7:family"),
+		telephone: telecom_first(&mut xpath, "tel:"),
+		fax: telecom_first(&mut xpath, "fax:"),
+		email: telecom_first(&mut xpath, "mailto:"),
+	}))
+}
+
+fn parse_primary_source(xml: &[u8]) -> Result<Option<PrimarySourceImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let reporter_title = first_text_root(
+		&mut xpath,
+		"//hl7:assignedPerson/hl7:name/hl7:prefix",
+	)
+	.or_else(|| first_text_root(&mut xpath, "//hl7:associatedPerson/hl7:name/hl7:prefix"));
+	let reporter_given_name = first_text_root(
+		&mut xpath,
+		"//hl7:assignedPerson/hl7:name/hl7:given",
+	)
+	.or_else(|| first_text_root(&mut xpath, "//hl7:associatedPerson/hl7:name/hl7:given"));
+	let reporter_middle_name = first_text_root(
+		&mut xpath,
+		"//hl7:assignedPerson/hl7:name/hl7:given[2]",
+	)
+	.or_else(|| first_text_root(&mut xpath, "//hl7:associatedPerson/hl7:name/hl7:given[2]"));
+	let reporter_family_name = first_text_root(
+		&mut xpath,
+		"//hl7:assignedPerson/hl7:name/hl7:family",
+	)
+	.or_else(|| first_text_root(&mut xpath, "//hl7:associatedPerson/hl7:name/hl7:family"));
+
+	let organization = first_text_root(
+		&mut xpath,
+		"//hl7:assignedEntity/hl7:representedOrganization/hl7:name",
+	);
+	let department = first_text_root(
+		&mut xpath,
+		"//hl7:assignedEntity/hl7:representedOrganization/hl7:desc",
+	);
+	let street = first_text_root(&mut xpath, "//hl7:assignedEntity/hl7:addr/hl7:streetAddressLine");
+	let city = first_text_root(&mut xpath, "//hl7:assignedEntity/hl7:addr/hl7:city");
+	let state = first_text_root(&mut xpath, "//hl7:assignedEntity/hl7:addr/hl7:state");
+	let postcode = first_text_root(&mut xpath, "//hl7:assignedEntity/hl7:addr/hl7:postalCode");
+	let telephone = telecom_first(&mut xpath, "tel:");
+	let email = telecom_first(&mut xpath, "mailto:");
+	let country_code = normalize_iso2(
+		first_value_root(
+			&mut xpath,
+			"//hl7:assignedEntity/hl7:addr/hl7:country/@code",
+		)
+		.or_else(|| first_value_root(&mut xpath, "//hl7:asLocatedEntity/hl7:location/hl7:code/@code")),
+		"primary_sources.country_code",
+	);
+
+	let qualification = normalize_code(
+		first_value_root(&mut xpath, "//hl7:assignedEntity/hl7:code/@code"),
+		&["1", "2", "3", "4", "5"],
+		"primary_sources.qualification",
+	)
+	.or(Some("1".to_string()));
+
+	let primary_source_regulatory = normalize_code(
+		first_value_root(
+			&mut xpath,
+			"//hl7:primaryRole//hl7:subjectOf2/hl7:observation[hl7:code[@code='1']]/hl7:value/@code",
+		),
+		&["1", "2", "3"],
+		"primary_sources.primary_source_regulatory",
+	)
+	.or(Some("1".to_string()));
+
+	if reporter_given_name.is_none()
+		&& reporter_family_name.is_none()
+		&& organization.is_none()
+	{
+		return Ok(None);
+	}
+
+	Ok(Some(PrimarySourceImport {
+		reporter_title,
+		reporter_given_name,
+		reporter_middle_name,
+		reporter_family_name,
+		organization,
+		department,
+		street,
+		city,
+		state,
+		postcode,
+		telephone,
+		country_code,
+		email,
+		qualification,
+		primary_source_regulatory,
+	}))
+}
+
+fn parse_other_case_identifiers(xml: &[u8]) -> Result<Vec<OtherCaseIdentifierImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let nodes = xpath
+		.findnodes(
+			"//hl7:investigationEvent/hl7:subjectOf1/hl7:controlActEvent/hl7:id",
+			None,
+		)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query other case identifiers".to_string(),
+			line: None,
+			column: None,
+		})?;
+
+	let mut items = Vec::new();
+	for node in nodes {
+		let source = node.get_attribute("assigningAuthorityName");
+		let extension = node.get_attribute("extension");
+		let Some(source) = source else { continue; };
+		let Some(case_identifier) = extension else { continue; };
+		if source.trim().is_empty() || case_identifier.trim().is_empty() {
+			continue;
+		}
+		items.push(OtherCaseIdentifierImport {
+			source_of_identifier: source,
+			case_identifier,
+		});
+	}
+	Ok(items)
+}
+
+fn parse_linked_reports(xml: &[u8]) -> Result<Vec<LinkedReportImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let nodes = xpath
+		.findnodes(
+			"//hl7:investigationEvent/hl7:outboundRelationship[@typeCode='SPRT']/hl7:relatedInvestigation/hl7:subjectOf2/hl7:controlActEvent/hl7:id",
+			None,
+		)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query linked reports".to_string(),
+			line: None,
+			column: None,
+		})?;
+
+	let mut items = Vec::new();
+	for node in nodes {
+		let extension = node.get_attribute("extension");
+		let Some(linked_report_number) = extension else { continue; };
+		if linked_report_number.trim().is_empty() {
+			continue;
+		}
+		items.push(LinkedReportImport { linked_report_number });
+	}
+	Ok(items)
+}
+
+fn parse_documents_held_by_sender(xml: &[u8]) -> Result<Vec<DocumentHeldImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let nodes = xpath
+		.findnodes(
+			"//hl7:reference/hl7:document[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.27']]",
+			None,
+		)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query documents held by sender".to_string(),
+			line: None,
+			column: None,
+		})?;
+
+	let mut items = Vec::new();
+	for node in nodes {
+		let title = first_text(&mut xpath, &node, "hl7:title");
+		let document_base64 = first_text(&mut xpath, &node, "hl7:text");
+		let media_type = first_attr(&mut xpath, &node, "hl7:text", "mediaType");
+		let representation = first_attr(&mut xpath, &node, "hl7:text", "representation");
+		let compression = first_attr(&mut xpath, &node, "hl7:text", "compression");
+		items.push(DocumentHeldImport {
+			title,
+			document_base64,
+			media_type,
+			representation,
+			compression,
+		});
+	}
+	Ok(items)
+}
+
+fn parse_literature_references(xml: &[u8]) -> Result<Vec<LiteratureImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let nodes = xpath
+		.findnodes(
+			"//hl7:reference/hl7:document[hl7:code[@code='2' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.27']]",
+			None,
+		)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query literature references".to_string(),
+			line: None,
+			column: None,
+		})?;
+
+	let mut items = Vec::new();
+	for node in nodes {
+		let reference_text = first_text(&mut xpath, &node, "hl7:bibliographicDesignationText")
+			.or_else(|| first_text(&mut xpath, &node, "hl7:title"))
+			.unwrap_or_else(|| "Literature reference".to_string());
+		let document_base64 = first_text(&mut xpath, &node, "hl7:text");
+		let media_type = first_attr(&mut xpath, &node, "hl7:text", "mediaType");
+		let representation = first_attr(&mut xpath, &node, "hl7:text", "representation");
+		let compression = first_attr(&mut xpath, &node, "hl7:text", "compression");
+		items.push(LiteratureImport {
+			reference_text,
+			document_base64,
+			media_type,
+			representation,
+			compression,
+		});
+	}
+	Ok(items)
+}
+
+fn parse_study_information(xml: &[u8]) -> Result<Option<StudyImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let nodes = xpath
+		.findnodes("//hl7:researchStudy", None)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query study information".to_string(),
+			line: None,
+			column: None,
+		})?;
+	let Some(node) = nodes.get(0) else {
+		return Ok(None);
+	};
+
+	let study_name = first_text(&mut xpath, node, "hl7:title");
+	let sponsor_study_number = first_attr(&mut xpath, node, "hl7:id", "extension");
+	let study_type_reaction = first_attr(&mut xpath, node, "hl7:code", "code");
+
+	let reg_nodes = xpath
+		.findnodes("hl7:authorization/hl7:studyRegistration", Some(node))
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query study registrations".to_string(),
+			line: None,
+			column: None,
+		})?;
+	let mut registrations = Vec::new();
+	for reg in reg_nodes {
+		let registration_number = first_attr(&mut xpath, &reg, "hl7:id", "extension");
+		let Some(registration_number) = registration_number else { continue; };
+		let country_code = first_attr(
+			&mut xpath,
+			&reg,
+			"hl7:author/hl7:territorialAuthority/hl7:governingPlace/hl7:code",
+			"code",
+		);
+		registrations.push(StudyRegistrationImport {
+			registration_number,
+			country_code: normalize_iso2(country_code, "study_registration.country_code"),
+		});
+	}
+
+	Ok(Some(StudyImport {
+		study_name,
+		sponsor_study_number,
+		study_type_reaction,
+		registrations,
+	}))
+}
+
+fn parse_receiver_information(xml: &[u8]) -> Result<Option<ReceiverInformationForUpdate>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let organization_name = first_value_root(&mut xpath, "//hl7:receiver/hl7:device/hl7:id/@extension")
+		.or_else(|| first_text_root(&mut xpath, "//hl7:receiver/hl7:device/hl7:asAgent/hl7:representedOrganization/hl7:name"));
+
+	if organization_name.is_none() {
+		return Ok(None);
+	}
+
+	Ok(Some(ReceiverInformationForUpdate {
+		receiver_type: first_value_root(&mut xpath, "//hl7:receiver/hl7:device/hl7:asAgent/hl7:representedOrganization/hl7:code/@code"),
+		organization_name,
+		department: first_text_root(&mut xpath, "//hl7:receiver/hl7:device/hl7:asAgent/hl7:representedOrganization/hl7:desc"),
+		street_address: first_text_root(&mut xpath, "//hl7:receiver/hl7:device/hl7:asAgent/hl7:addr/hl7:streetAddressLine"),
+		city: first_text_root(&mut xpath, "//hl7:receiver/hl7:device/hl7:asAgent/hl7:addr/hl7:city"),
+		state_province: first_text_root(&mut xpath, "//hl7:receiver/hl7:device/hl7:asAgent/hl7:addr/hl7:state"),
+		postcode: first_text_root(&mut xpath, "//hl7:receiver/hl7:device/hl7:asAgent/hl7:addr/hl7:postalCode"),
+		country_code: normalize_iso2(
+			first_value_root(&mut xpath, "//hl7:receiver/hl7:device/hl7:asAgent/hl7:addr/hl7:country/@code"),
+			"receiver_information.country_code",
+		),
+		telephone: telecom_first(&mut xpath, "tel:"),
+		fax: telecom_first(&mut xpath, "fax:"),
+		email: telecom_first(&mut xpath, "mailto:"),
+	}))
+}
+
+fn parse_patient_identifiers(xml: &[u8]) -> Result<Vec<PatientIdentifierImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let nodes = xpath
+		.findnodes("//hl7:primaryRole/hl7:player1/hl7:asIdentifiedEntity", None)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query patient identifiers".to_string(),
+			line: None,
+			column: None,
+		})?;
+
+	let mut items = Vec::new();
+	for node in nodes {
+		let identifier_type_code = first_attr(&mut xpath, &node, "hl7:code", "code");
+		let identifier_value = first_attr(&mut xpath, &node, "hl7:id", "extension");
+		if let (Some(identifier_type_code), Some(identifier_value)) =
+			(identifier_type_code, identifier_value)
+		{
+			items.push(PatientIdentifierImport {
+				identifier_type_code,
+				identifier_value,
+			});
+		}
+	}
+	Ok(items)
+}
+
+fn parse_medical_history(xml: &[u8]) -> Result<Vec<MedicalHistoryImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let nodes = xpath
+		.findnodes(
+			"//hl7:organizer[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.20']]/hl7:component/hl7:observation",
+			None,
+		)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query medical history".to_string(),
+			line: None,
+			column: None,
+		})?;
+
+	let mut items = Vec::new();
+	for node in nodes {
+		let code_system = first_attr(&mut xpath, &node, "hl7:code", "codeSystem");
+		if code_system.as_deref() != Some("2.16.840.1.113883.6.163") {
+			continue;
+		}
+		let meddra_code = first_attr(&mut xpath, &node, "hl7:code", "code");
+		let meddra_version = clamp_str(
+			first_attr(&mut xpath, &node, "hl7:code", "codeSystemVersion"),
+			10,
+			"medical_history.meddra_version",
+		);
+		let start_date = first_attr(&mut xpath, &node, "hl7:effectiveTime/hl7:low", "value")
+			.and_then(parse_date);
+		let end_date = first_attr(&mut xpath, &node, "hl7:effectiveTime/hl7:high", "value")
+			.and_then(parse_date);
+		let continuing = parse_bool_attr(
+			&mut xpath,
+			&node,
+			"hl7:inboundRelationship/hl7:observation[hl7:code[@code='13']]/hl7:value",
+			"value",
+		);
+		let comments = first_text(
+			&mut xpath,
+			&node,
+			"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='10']]/hl7:value",
+		);
+		let family_history = parse_bool_attr(
+			&mut xpath,
+			&node,
+			"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='38']]/hl7:value",
+			"value",
+		);
+		items.push(MedicalHistoryImport {
+			meddra_version,
+			meddra_code,
+			start_date,
+			continuing,
+			end_date,
+			comments,
+			family_history,
+		});
+	}
+	Ok(items)
+}
+
+fn parse_past_drug_history(xml: &[u8]) -> Result<Vec<PastDrugHistoryImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let nodes = xpath
+		.findnodes(
+			"//hl7:organizer[hl7:code[@code='2' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.20']]/hl7:component/hl7:substanceAdministration",
+			None,
+		)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query past drug history".to_string(),
+			line: None,
+			column: None,
+		})?;
+
+	let mut items = Vec::new();
+	for node in nodes {
+		let drug_name = first_text(
+			&mut xpath,
+			&node,
+			"hl7:consumable/hl7:instanceOfKind/hl7:kindOfProduct/hl7:name",
+		);
+		let mpid = first_attr(
+			&mut xpath,
+			&node,
+			"hl7:consumable/hl7:instanceOfKind/hl7:kindOfProduct/hl7:code",
+			"code",
+		);
+		let mpid_version = clamp_str(
+			first_attr(
+				&mut xpath,
+				&node,
+				"hl7:consumable/hl7:instanceOfKind/hl7:kindOfProduct/hl7:code",
+				"codeSystemVersion",
+			),
+			10,
+			"past_drug_history.mpid_version",
+		);
+		let start_date = first_attr(&mut xpath, &node, "hl7:effectiveTime/hl7:low", "value")
+			.and_then(parse_date);
+		let end_date = first_attr(&mut xpath, &node, "hl7:effectiveTime/hl7:high", "value")
+			.and_then(parse_date);
+		let indication_meddra_code = first_attr(
+			&mut xpath,
+			&node,
+			"hl7:outboundRelationship2[@typeCode='RSON']/hl7:observation/hl7:value",
+			"code",
+		);
+		let indication_meddra_version = clamp_str(
+			first_attr(
+				&mut xpath,
+				&node,
+				"hl7:outboundRelationship2[@typeCode='RSON']/hl7:observation/hl7:value",
+				"codeSystemVersion",
+			),
+			10,
+			"past_drug_history.indication_meddra_version",
+		);
+		let reaction_meddra_code = first_attr(
+			&mut xpath,
+			&node,
+			"hl7:outboundRelationship2[@typeCode='CAUS']/hl7:observation/hl7:value",
+			"code",
+		);
+		let reaction_meddra_version = clamp_str(
+			first_attr(
+				&mut xpath,
+				&node,
+				"hl7:outboundRelationship2[@typeCode='CAUS']/hl7:observation/hl7:value",
+				"codeSystemVersion",
+			),
+			10,
+			"past_drug_history.reaction_meddra_version",
+		);
+		items.push(PastDrugHistoryImport {
+			drug_name,
+			mpid,
+			mpid_version,
+			phpid: None,
+			phpid_version: None,
+			start_date,
+			end_date,
+			indication_meddra_version,
+			indication_meddra_code,
+			reaction_meddra_version,
+			reaction_meddra_code,
+		});
+	}
+	Ok(items)
+}
+
+fn parse_patient_death(xml: &[u8]) -> Result<Option<DeathImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let date_of_death = first_value_root(&mut xpath, "//hl7:deceasedTime/@value")
+		.and_then(parse_date);
+	let autopsy_performed = parse_bool_value(first_value_root(
+		&mut xpath,
+		"//hl7:observation[hl7:code[@code='5']]/hl7:value/@value",
+	));
+
+	let mut reported_causes = Vec::new();
+	let reported_nodes = xpath
+		.findnodes(
+			"//hl7:observation[hl7:code[@code='32']]/hl7:value",
+			None,
+		)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query reported causes of death".to_string(),
+			line: None,
+			column: None,
+		})?;
+	for node in reported_nodes {
+		let meddra_code = node.get_attribute("code");
+		let meddra_version = clamp_str(node.get_attribute("codeSystemVersion"), 10, "death.meddra_version");
+		reported_causes.push(DeathCauseImport {
+			meddra_version,
+			meddra_code,
+		});
+	}
+
+	let mut autopsy_causes = Vec::new();
+	let autopsy_nodes = xpath
+		.findnodes(
+			"//hl7:observation[hl7:code[@code='5']]/hl7:outboundRelationship2/hl7:observation[hl7:code[@code='8']]/hl7:value",
+			None,
+		)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query autopsy causes of death".to_string(),
+			line: None,
+			column: None,
+		})?;
+	for node in autopsy_nodes {
+		let meddra_code = node.get_attribute("code");
+		let meddra_version = clamp_str(node.get_attribute("codeSystemVersion"), 10, "death.autopsy_meddra_version");
+		autopsy_causes.push(DeathCauseImport {
+			meddra_version,
+			meddra_code,
+		});
+	}
+
+	if date_of_death.is_none()
+		&& autopsy_performed.is_none()
+		&& reported_causes.is_empty()
+		&& autopsy_causes.is_empty()
+	{
+		return Ok(None);
+	}
+
+	Ok(Some(DeathImport {
+		date_of_death,
+		autopsy_performed,
+		reported_causes,
+		autopsy_causes,
+	}))
+}
+
+fn parse_parent_information(xml: &[u8]) -> Result<Option<ParentImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let nodes = xpath
+		.findnodes("//hl7:primaryRole/hl7:role[hl7:code[@code='PRN']]", None)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query parent information".to_string(),
+			line: None,
+			column: None,
+		})?;
+	let Some(node) = nodes.get(0) else {
+		return Ok(None);
+	};
+
+	let parent_identification = first_text(&mut xpath, node, "hl7:associatedPerson/hl7:name");
+	let parent_birth_date = first_attr(&mut xpath, node, "hl7:associatedPerson/hl7:birthTime", "value")
+		.and_then(parse_date);
+	let sex = normalize_sex_code(first_attr(
+		&mut xpath,
+		node,
+		"hl7:associatedPerson/hl7:administrativeGenderCode",
+		"code",
+	));
+	let parent_age = first_attr(
+		&mut xpath,
+		node,
+		"hl7:subjectOf2/hl7:observation[hl7:code[@code='3']]/hl7:value",
+		"value",
+	)
+	.and_then(|v| v.parse::<Decimal>().ok());
+	let parent_age_unit = normalize_code3(
+		first_attr(
+			&mut xpath,
+			node,
+			"hl7:subjectOf2/hl7:observation[hl7:code[@code='3']]/hl7:value",
+			"unit",
+		),
+		"parent_information.parent_age_unit",
+	);
+	let last_menstrual_period_date = first_attr(
+		&mut xpath,
+		node,
+		"hl7:subjectOf2/hl7:observation[hl7:code[@code='22']]/hl7:value",
+		"value",
+	)
+	.and_then(parse_date);
+	let weight_kg = first_attr(
+		&mut xpath,
+		node,
+		"hl7:subjectOf2/hl7:observation[hl7:code[@code='7']]/hl7:value",
+		"value",
+	)
+	.and_then(|v| v.parse::<Decimal>().ok());
+	let height_cm = first_attr(
+		&mut xpath,
+		node,
+		"hl7:subjectOf2/hl7:observation[hl7:code[@code='17']]/hl7:value",
+		"value",
+	)
+	.and_then(|v| v.parse::<Decimal>().ok());
+	let medical_history_text = first_text(
+		&mut xpath,
+		node,
+		"hl7:subjectOf2/hl7:organizer[hl7:code[@code='1']]/hl7:component/hl7:observation[hl7:code[@code='18']]/hl7:value",
+	);
+
+	let mut medical_history = Vec::new();
+	let history_nodes = xpath
+		.findnodes(
+			"hl7:subjectOf2/hl7:organizer[hl7:code[@code='1']]/hl7:component/hl7:observation",
+			Some(node),
+		)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query parent medical history".to_string(),
+			line: None,
+			column: None,
+		})?;
+	for obs in history_nodes {
+		let code_system = first_attr(&mut xpath, &obs, "hl7:code", "codeSystem");
+		if code_system.as_deref() != Some("2.16.840.1.113883.6.163") {
+			continue;
+		}
+		let meddra_code = first_attr(&mut xpath, &obs, "hl7:code", "code");
+		let meddra_version = clamp_str(
+			first_attr(&mut xpath, &obs, "hl7:code", "codeSystemVersion"),
+			10,
+			"parent_history.meddra_version",
+		);
+		let start_date = first_attr(&mut xpath, &obs, "hl7:effectiveTime/hl7:low", "value")
+			.and_then(parse_date);
+		let end_date = first_attr(&mut xpath, &obs, "hl7:effectiveTime/hl7:high", "value")
+			.and_then(parse_date);
+		let continuing = parse_bool_attr(
+			&mut xpath,
+			&obs,
+			"hl7:inboundRelationship/hl7:observation[hl7:code[@code='13']]/hl7:value",
+			"value",
+		);
+		let comments = first_text(
+			&mut xpath,
+			&obs,
+			"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='10']]/hl7:value",
+		);
+		let family_history = parse_bool_attr(
+			&mut xpath,
+			&obs,
+			"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='38']]/hl7:value",
+			"value",
+		);
+		medical_history.push(MedicalHistoryImport {
+			meddra_version,
+			meddra_code,
+			start_date,
+			continuing,
+			end_date,
+			comments,
+			family_history,
+		});
+	}
+
+	let mut past_drugs = Vec::new();
+	let drug_nodes = xpath
+		.findnodes(
+			"hl7:subjectOf2/hl7:organizer[hl7:code[@code='2']]/hl7:component/hl7:substanceAdministration",
+			Some(node),
+		)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query parent past drugs".to_string(),
+			line: None,
+			column: None,
+		})?;
+	for obs in drug_nodes {
+		let drug_name = first_text(
+			&mut xpath,
+			&obs,
+			"hl7:consumable/hl7:instanceOfKind/hl7:kindOfProduct/hl7:name",
+		);
+		let mpid = first_attr(
+			&mut xpath,
+			&obs,
+			"hl7:consumable/hl7:instanceOfKind/hl7:kindOfProduct/hl7:code",
+			"code",
+		);
+		let mpid_version = clamp_str(
+			first_attr(
+				&mut xpath,
+				&obs,
+				"hl7:consumable/hl7:instanceOfKind/hl7:kindOfProduct/hl7:code",
+				"codeSystemVersion",
+			),
+			10,
+			"parent_past_drug.mpid_version",
+		);
+		let start_date = first_attr(&mut xpath, &obs, "hl7:effectiveTime/hl7:low", "value")
+			.and_then(parse_date);
+		let end_date = first_attr(&mut xpath, &obs, "hl7:effectiveTime/hl7:high", "value")
+			.and_then(parse_date);
+		let indication_meddra_code = first_attr(
+			&mut xpath,
+			&obs,
+			"hl7:outboundRelationship2[@typeCode='RSON']/hl7:observation/hl7:value",
+			"code",
+		);
+		let indication_meddra_version = clamp_str(
+			first_attr(
+				&mut xpath,
+				&obs,
+				"hl7:outboundRelationship2[@typeCode='RSON']/hl7:observation/hl7:value",
+				"codeSystemVersion",
+			),
+			10,
+			"parent_past_drug.indication_meddra_version",
+		);
+		let reaction_meddra_code = first_attr(
+			&mut xpath,
+			&obs,
+			"hl7:outboundRelationship2[@typeCode='CAUS']/hl7:observation/hl7:value",
+			"code",
+		);
+		let reaction_meddra_version = clamp_str(
+			first_attr(
+				&mut xpath,
+				&obs,
+				"hl7:outboundRelationship2[@typeCode='CAUS']/hl7:observation/hl7:value",
+				"codeSystemVersion",
+			),
+			10,
+			"parent_past_drug.reaction_meddra_version",
+		);
+		past_drugs.push(PastDrugHistoryImport {
+			drug_name,
+			mpid,
+			mpid_version,
+			phpid: None,
+			phpid_version: None,
+			start_date,
+			end_date,
+			indication_meddra_version,
+			indication_meddra_code,
+			reaction_meddra_version,
+			reaction_meddra_code,
+		});
+	}
+
+	Ok(Some(ParentImport {
+		parent_identification,
+		parent_birth_date,
+		parent_age,
+		parent_age_unit,
+		last_menstrual_period_date,
+		weight_kg,
+		height_cm,
+		sex,
+		medical_history_text,
+		medical_history,
+		past_drugs,
+	}))
+}
+
+fn parse_test_results(xml: &[u8]) -> Result<Vec<TestResultImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let nodes = xpath
+		.findnodes(
+			"//hl7:organizer[hl7:code[@code='3' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.20']]/hl7:component/hl7:observation",
+			None,
+		)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query test results".to_string(),
+			line: None,
+			column: None,
+		})?;
+
+	let mut items = Vec::new();
+	for node in nodes {
+		let test_name = first_text(&mut xpath, &node, "hl7:code/hl7:originalText")
+			.or_else(|| first_attr(&mut xpath, &node, "hl7:code", "displayName"))
+			.unwrap_or_else(|| "Test".to_string());
+		let test_meddra_code = first_attr(&mut xpath, &node, "hl7:code", "code");
+		let test_meddra_version = clamp_str(
+			first_attr(&mut xpath, &node, "hl7:code", "codeSystemVersion"),
+			10,
+			"test_results.test_meddra_version",
+		);
+		let test_date = first_attr(&mut xpath, &node, "hl7:effectiveTime", "value")
+			.and_then(parse_date);
+		let test_result_code = first_attr(&mut xpath, &node, "hl7:interpretationCode", "code");
+		let test_result_value = first_attr(&mut xpath, &node, "hl7:value/hl7:center", "value")
+			.or_else(|| first_attr(&mut xpath, &node, "hl7:value", "value"));
+		let test_result_unit = first_attr(&mut xpath, &node, "hl7:value/hl7:center", "unit")
+			.or_else(|| first_attr(&mut xpath, &node, "hl7:value", "unit"));
+		let result_unstructured = first_text(&mut xpath, &node, "hl7:value");
+		let normal_low_value = first_attr(
+			&mut xpath,
+			&node,
+			"hl7:referenceRange/hl7:observationRange[hl7:interpretationCode[@code='L']]/hl7:value",
+			"value",
+		);
+		let normal_high_value = first_attr(
+			&mut xpath,
+			&node,
+			"hl7:referenceRange/hl7:observationRange[hl7:interpretationCode[@code='H']]/hl7:value",
+			"value",
+		);
+		let comments = first_text(
+			&mut xpath,
+			&node,
+			"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='10']]/hl7:value",
+		);
+		let more_info_available = parse_bool_attr(
+			&mut xpath,
+			&node,
+			"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='11']]/hl7:value",
+			"value",
+		);
+
+		items.push(TestResultImport {
+			test_name,
+			test_date,
+			test_meddra_version,
+			test_meddra_code,
+			test_result_code,
+			test_result_value,
+			test_result_unit,
+			result_unstructured,
+			normal_low_value,
+			normal_high_value,
+			comments,
+			more_info_available,
+		});
+	}
+	Ok(items)
+}
+
+fn parse_patient_information(xml: &[u8]) -> Result<Option<PatientImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+	let root = doc.get_root_element().ok_or_else(|| Error::InvalidXml {
+		message: "Missing root element".to_string(),
+		line: None,
+		column: None,
+	})?;
+
+	let patient_given_name =
+		first_text_root(&mut xpath, "//hl7:patient/hl7:name/hl7:given");
+	let patient_family_name =
+		first_text_root(&mut xpath, "//hl7:patient/hl7:name/hl7:family");
+
+	let initials = build_initials(patient_given_name.as_deref(), patient_family_name.as_deref());
+	let sex = normalize_sex_code(first_value_root(
+		&mut xpath,
+		"//hl7:administrativeGenderCode/@code",
+	));
+	let birth_date = first_value_root(&mut xpath, "//hl7:birthTime/@value").and_then(parse_date);
+	let age_at_time_of_onset = first_attr(
+		&mut xpath,
+		&root,
+		"//hl7:subjectOf2/hl7:observation[hl7:code[@code='3']]/hl7:value",
+		"value",
+	)
+	.and_then(|v| v.parse::<Decimal>().ok());
+	let age_unit = normalize_code3(
+		first_attr(
+			&mut xpath,
+			&root,
+			"//hl7:subjectOf2/hl7:observation[hl7:code[@code='3']]/hl7:value",
+			"unit",
+		),
+		"patient_information.age_unit",
+	);
+	let gestation_period = first_attr(
+		&mut xpath,
+		&root,
+		"//hl7:subjectOf2/hl7:observation[hl7:code[@code='16']]/hl7:value",
+		"value",
+	)
+	.and_then(|v| v.parse::<Decimal>().ok());
+	let gestation_period_unit = normalize_code3(
+		first_attr(
+			&mut xpath,
+			&root,
+			"//hl7:subjectOf2/hl7:observation[hl7:code[@code='16']]/hl7:value",
+			"unit",
+		),
+		"patient_information.gestation_period_unit",
+	);
+	let age_group = normalize_code(
+		first_attr(
+			&mut xpath,
+			&root,
+			"//hl7:subjectOf2/hl7:observation[hl7:code[@code='4']]/hl7:value",
+			"code",
+		),
+		&["1", "2", "3", "4", "5", "6"],
+		"patient_information.age_group",
+	);
+	let weight_kg = first_attr(
+		&mut xpath,
+		&root,
+		"//hl7:subjectOf2/hl7:observation[hl7:code[@code='7']]/hl7:value",
+		"value",
+	)
+	.and_then(|v| v.parse::<Decimal>().ok());
+	let height_cm = first_attr(
+		&mut xpath,
+		&root,
+		"//hl7:subjectOf2/hl7:observation[hl7:code[@code='17']]/hl7:value",
+		"value",
+	)
+	.and_then(|v| v.parse::<Decimal>().ok());
+	let last_menstrual_period_date = first_attr(
+		&mut xpath,
+		&root,
+		"//hl7:subjectOf2/hl7:observation[hl7:code[@code='22']]/hl7:value",
+		"value",
+	)
+	.and_then(parse_date);
+	let race_code = first_attr(
+		&mut xpath,
+		&root,
+		"//hl7:subjectOf2/hl7:observation[hl7:code[@code='C17049']]/hl7:value",
+		"code",
+	);
+	let ethnicity_code = first_attr(
+		&mut xpath,
+		&root,
+		"//hl7:subjectOf2/hl7:observation[hl7:code[@code='C16564']]/hl7:value",
+		"code",
+	);
+	let medical_history_text = first_text_root(
+		&mut xpath,
+		"//hl7:subjectOf2/hl7:organizer[hl7:code[@code='1']]/hl7:component/hl7:observation[hl7:code[@code='18']]/hl7:value",
+	);
+	let concomitant_therapy = parse_bool_attr(
+		&mut xpath,
+		&root,
+		"//hl7:subjectOf2/hl7:observation[hl7:code[@code='28']]/hl7:value",
+		"value",
+	);
+
+	if initials.is_none()
+		&& sex.is_none()
+		&& patient_given_name.is_none()
+		&& patient_family_name.is_none()
+		&& age_at_time_of_onset.is_none()
+		&& gestation_period.is_none()
+		&& weight_kg.is_none()
+		&& height_cm.is_none()
+	{
+		return Ok(None);
+	}
+
+	Ok(Some(PatientImport {
+		patient_initials: initials,
+		patient_given_name,
+		patient_family_name,
+		birth_date,
+		sex,
+		age_at_time_of_onset,
+		age_unit,
+		gestation_period,
+		gestation_period_unit,
+		age_group,
+		weight_kg,
+		height_cm,
+		race_code,
+		ethnicity_code,
+		last_menstrual_period_date,
+		medical_history_text,
+		concomitant_therapy,
+	}))
+}
+
+fn parse_narrative_information(xml: &[u8]) -> Result<Option<NarrativeImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let case_narrative = first_text_root(
+		&mut xpath,
+		"//hl7:component1//hl7:observationEvent//hl7:value",
+	)
+	.or_else(|| first_text_root(&mut xpath, "//hl7:component1//hl7:text"))
+	.or_else(|| first_text_root(&mut xpath, "//hl7:text"))
+	.unwrap_or_else(|| "Imported narrative not provided.".to_string());
+
+	let reporter_comments = first_text_root(
+		&mut xpath,
+		"//hl7:component1//hl7:observationEvent[hl7:author/hl7:assignedEntity/hl7:code[@code='3']]/hl7:value",
+	);
+	let sender_comments = first_text_root(
+		&mut xpath,
+		"//hl7:component1//hl7:observationEvent[hl7:author/hl7:assignedEntity/hl7:code[@code='2']]/hl7:value",
+	);
+
+	Ok(Some(NarrativeImport {
+		case_narrative,
+		reporter_comments,
+		sender_comments,
+	}))
 }
 
 fn parse_reactions(
@@ -334,6 +3281,71 @@ fn parse_reactions(
 			10,
 			"reactions.reaction_meddra_version",
 		);
+		let term_code = first_attr(
+			&mut xpath,
+			&node,
+			"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='37']]/hl7:value",
+			"code",
+		);
+		let term_highlighted = term_code.as_deref().and_then(|v| match v {
+			"1" | "3" => Some(true),
+			"2" | "4" => Some(false),
+			_ => None,
+		});
+		let serious_from_term = term_code.as_deref().and_then(|v| match v {
+			"3" | "4" => Some(true),
+			"1" | "2" => Some(false),
+			_ => None,
+		});
+		let criteria_death = parse_bool_attr(
+			&mut xpath,
+			&node,
+			"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='34']]/hl7:value",
+			"value",
+		);
+		let criteria_life_threatening = parse_bool_attr(
+			&mut xpath,
+			&node,
+			"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='21']]/hl7:value",
+			"value",
+		);
+		let criteria_hospitalization = parse_bool_attr(
+			&mut xpath,
+			&node,
+			"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='33']]/hl7:value",
+			"value",
+		);
+		let criteria_disabling = parse_bool_attr(
+			&mut xpath,
+			&node,
+			"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='35']]/hl7:value",
+			"value",
+		);
+		let criteria_congenital_anomaly = parse_bool_attr(
+			&mut xpath,
+			&node,
+			"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='12']]/hl7:value",
+			"value",
+		);
+		let criteria_other_medically_important = parse_bool_attr(
+			&mut xpath,
+			&node,
+			"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='26']]/hl7:value",
+			"value",
+		);
+		let criteria_any_true = [
+			criteria_death,
+			criteria_life_threatening,
+			criteria_hospitalization,
+			criteria_disabling,
+			criteria_congenital_anomaly,
+			criteria_other_medically_important,
+		]
+		.into_iter()
+		.flatten()
+		.any(|v| v);
+		let serious = if criteria_any_true { Some(true) } else { serious_from_term };
+
 		let reaction_u = ReactionForUpdate {
 			primary_source_reaction: Some(primary),
 			reaction_language: normalize_lang2(
@@ -352,59 +3364,19 @@ fn parse_reactions(
 				"code",
 			),
 			reaction_meddra_version,
-			term_highlighted: first_attr(
-				&mut xpath,
-				&node,
-				"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='37']]/hl7:value",
-				"code",
-			)
-			.and_then(|v| match v.as_str() {
-				"1" => Some(true),
-				"2" => Some(false),
-				_ => None,
-			}),
-			serious: None,
-			criteria_death: parse_bool_attr(
-				&mut xpath,
-				&node,
-				"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='34']]/hl7:value",
-				"value",
-			),
-			criteria_life_threatening: parse_bool_attr(
-				&mut xpath,
-				&node,
-				"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='21']]/hl7:value",
-				"value",
-			),
-			criteria_hospitalization: parse_bool_attr(
-				&mut xpath,
-				&node,
-				"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='33']]/hl7:value",
-				"value",
-			),
-			criteria_disabling: parse_bool_attr(
-				&mut xpath,
-				&node,
-				"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='35']]/hl7:value",
-				"value",
-			),
-			criteria_congenital_anomaly: parse_bool_attr(
-				&mut xpath,
-				&node,
-				"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='12']]/hl7:value",
-				"value",
-			),
-			criteria_other_medically_important: parse_bool_attr(
-				&mut xpath,
-				&node,
-				"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='26']]/hl7:value",
-				"value",
-			),
+			term_highlighted,
+			serious,
+			criteria_death,
+			criteria_life_threatening,
+			criteria_hospitalization,
+			criteria_disabling,
+			criteria_congenital_anomaly,
+			criteria_other_medically_important,
 			required_intervention: clamp_str(
 				first_attr(
 					&mut xpath,
 					&node,
-					"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='726']]/hl7:value",
+					"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='7']]/hl7:value",
 					"value",
 				),
 				10,
@@ -416,6 +3388,14 @@ fn parse_reactions(
 				"hl7:effectiveTime/hl7:comp[@xsi:type='IVL_TS']/hl7:low",
 				"value",
 			)
+			.or_else(|| {
+				first_attr(
+					&mut xpath,
+					&node,
+					"hl7:effectiveTime/hl7:low",
+					"value",
+				)
+			})
 			.and_then(parse_date),
 			end_date: first_attr(
 				&mut xpath,
@@ -423,6 +3403,14 @@ fn parse_reactions(
 				"hl7:effectiveTime/hl7:comp[@xsi:type='IVL_TS']/hl7:high",
 				"value",
 			)
+			.or_else(|| {
+				first_attr(
+					&mut xpath,
+					&node,
+					"hl7:effectiveTime/hl7:high",
+					"value",
+				)
+			})
 			.and_then(parse_date),
 			duration_value: first_attr(
 				&mut xpath,
@@ -446,7 +3434,12 @@ fn parse_reactions(
 				"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='27']]/hl7:value",
 				"code",
 			),
-			medical_confirmation: None,
+			medical_confirmation: parse_bool_attr(
+				&mut xpath,
+				&node,
+				"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='24']]/hl7:value",
+				"value",
+			),
 			country_code: normalize_iso2(
 				first_attr(
 					&mut xpath,
@@ -485,6 +3478,25 @@ fn first_text(xpath: &mut Context, node: &Node, expr: &str) -> Option<String> {
 	None
 }
 
+fn first_value_root(xpath: &mut Context, expr: &str) -> Option<String> {
+	xpath
+		.findvalues(expr, None)
+		.ok()?
+		.into_iter()
+		.find(|v| !v.trim().is_empty())
+}
+
+fn first_text_root(xpath: &mut Context, expr: &str) -> Option<String> {
+	let nodes = xpath.findnodes(expr, None).ok()?;
+	for n in nodes {
+		let content = n.get_content();
+		if !content.trim().is_empty() {
+			return Some(content);
+		}
+	}
+	None
+}
+
 fn parse_bool_attr(
 	xpath: &mut Context,
 	node: &Node,
@@ -495,6 +3507,15 @@ fn parse_bool_attr(
 	match val.to_ascii_lowercase().as_str() {
 		"true" | "1" => Some(true),
 		"false" | "0" => Some(false),
+		_ => None,
+	}
+}
+
+fn parse_bool_value(value: Option<String>) -> Option<bool> {
+	let val = value?;
+	match val.to_ascii_lowercase().as_str() {
+		"true" | "1" | "yes" => Some(true),
+		"false" | "0" | "no" => Some(false),
 		_ => None,
 	}
 }
@@ -573,6 +3594,42 @@ fn normalize_code3(value: Option<String>, field: &str) -> Option<String> {
 		tracing::warn!(field, value = %v, len, "dropping invalid 3-char code");
 		None
 	}
+}
+
+fn normalize_sex_code(value: Option<String>) -> Option<String> {
+	let v = value?.trim().to_ascii_uppercase();
+	match v.as_str() {
+		"1" | "M" | "MALE" => Some("1".to_string()),
+		"2" | "F" | "FEMALE" => Some("2".to_string()),
+		"0" | "U" | "UNK" | "UNKNOWN" => Some("0".to_string()),
+		_ => None,
+	}
+}
+
+fn build_initials(given: Option<&str>, family: Option<&str>) -> Option<String> {
+	let mut out = String::new();
+	if let Some(g) = given.and_then(|v| v.chars().find(|c| c.is_ascii_alphabetic())) {
+		out.push(g.to_ascii_uppercase());
+	}
+	if let Some(f) = family.and_then(|v| v.chars().find(|c| c.is_ascii_alphabetic())) {
+		out.push(f.to_ascii_uppercase());
+	}
+	if out.is_empty() {
+		None
+	} else {
+		Some(out)
+	}
+}
+
+fn telecom_first(xpath: &mut Context, prefix: &str) -> Option<String> {
+	let values = xpath.findvalues("//hl7:telecom/@value", None).ok()?;
+	for value in values {
+		let value = value.trim();
+		if value.starts_with(prefix) {
+			return Some(value.trim_start_matches(prefix).to_string());
+		}
+	}
+	None
 }
 
 fn parse_date(value: String) -> Option<Date> {

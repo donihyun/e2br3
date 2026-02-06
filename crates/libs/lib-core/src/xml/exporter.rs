@@ -39,7 +39,18 @@ pub async fn export_case_xml(
 	case_id: sqlx::types::Uuid,
 ) -> Result<String> {
 	let case = CaseBmc::get(ctx, mm, case_id).await.map_err(Error::from)?;
+	let has_dirty = case.dirty_c
+		|| case.dirty_d
+		|| case.dirty_e
+		|| case.dirty_f
+		|| case.dirty_g
+		|| case.dirty_h;
 	if case.status != "validated" {
+		if let Some(raw_xml) = case.raw_xml.as_deref() {
+			if !has_dirty {
+				return Ok(String::from_utf8_lossy(raw_xml).to_string());
+			}
+		}
 		return Err(Error::InvalidXml {
 			message: "Only validated cases can be exported".to_string(),
 			line: None,

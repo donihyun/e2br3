@@ -47,6 +47,7 @@ pub struct CaseForCreate {
 	pub organization_id: Uuid,
 	pub safety_report_id: String,
 	pub status: Option<String>,
+	pub version: Option<i32>,
 }
 
 #[derive(Fields, Deserialize)]

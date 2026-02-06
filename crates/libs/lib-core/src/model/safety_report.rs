@@ -201,9 +201,19 @@ pub struct PrimarySourceForCreate {
 
 #[derive(Fields, Deserialize)]
 pub struct PrimarySourceForUpdate {
+	pub reporter_title: Option<String>,
 	pub reporter_given_name: Option<String>,
+	pub reporter_middle_name: Option<String>,
 	pub reporter_family_name: Option<String>,
 	pub organization: Option<String>,
+	pub department: Option<String>,
+	pub street: Option<String>,
+	pub city: Option<String>,
+	pub state: Option<String>,
+	pub postcode: Option<String>,
+	pub telephone: Option<String>,
+	pub country_code: Option<String>,
+	pub email: Option<String>,
 	pub qualification: Option<String>,
 	pub primary_source_regulatory: Option<String>,
 }
