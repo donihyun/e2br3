@@ -256,7 +256,7 @@ async fn seed_minimum_case_data(hc: &Client, case_id: &str) -> Result<()> {
 				json!({
 					"data": {
 						"summary_type": "2",
-						"language_code": "eng",
+						"language_code": "en",
 						"summary_text": "Case summary for FDA validation"
 					}
 				}),

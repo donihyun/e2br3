@@ -141,6 +141,8 @@ impl DrugReactionAssessmentBmc {
 		let sql = format!(
 			"INSERT INTO {} (drug_id, reaction_id, created_at, updated_at, created_by)
 			 VALUES ($1, $2, now(), now(), $3)
+			 ON CONFLICT (drug_id, reaction_id)
+			 DO UPDATE SET updated_at = now(), updated_by = EXCLUDED.created_by
 			 RETURNING id",
 			Self::TABLE
 		);
@@ -217,11 +219,20 @@ impl DrugReactionAssessmentBmc {
 	}
 
 	pub async fn get_by_drug_and_reaction(
-		_ctx: &Ctx,
+		ctx: &Ctx,
 		mm: &ModelManager,
 		drug_id: Uuid,
 		reaction_id: Uuid,
 	) -> Result<Option<DrugReactionAssessment>> {
+		mm.dbx().begin_txn().await?;
+		set_full_context_dbx_or_rollback(
+			mm.dbx(),
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await?;
+
 		let sql = format!(
 			"SELECT * FROM {} WHERE drug_id = $1 AND reaction_id = $2",
 			Self::TABLE
@@ -234,6 +245,8 @@ impl DrugReactionAssessmentBmc {
 					.bind(reaction_id),
 			)
 			.await?;
+
+		mm.dbx().commit_txn().await?;
 		Ok(entity)
 	}
 

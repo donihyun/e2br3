@@ -2,9 +2,11 @@
 
 mod dev_db;
 
+use crate::ctx::Ctx;
+use crate::model::user::UserBmc;
 use crate::model::ModelManager;
 use tokio::sync::OnceCell;
-use tracing::info;
+use tracing::{info, warn};
 
 // endregion: --- Modules
 
@@ -18,6 +20,7 @@ pub async fn init_dev() {
 			"{:<12} - init_dev() SKIPPED (SKIP_DEV_INIT=1)",
 			"FOR-DEV-ONLY"
 		);
+		maybe_set_demo_pwd().await;
 		return;
 	}
 
@@ -27,8 +30,51 @@ pub async fn init_dev() {
 		info!("{:<12} - init_dev_all()", "FOR-DEV-ONLY");
 
 		dev_db::init_dev_db().await.unwrap();
+		maybe_set_demo_pwd().await;
 	})
 	.await;
+}
+
+async fn maybe_set_demo_pwd() {
+	let pwd = match std::env::var("DEMO_USER_PWD") {
+		Ok(value) if !value.trim().is_empty() => value,
+		_ => return,
+	};
+	let email = std::env::var("DEMO_USER_EMAIL").unwrap_or_else(|_| "demo.user@example.com".to_string());
+
+	let mm = match ModelManager::new().await {
+		Ok(mm) => mm,
+		Err(err) => {
+			warn!("FOR-DEV-ONLY - demo pwd skipped; db init failed: {err}");
+			return;
+		}
+	};
+
+	let ctx = Ctx::root_ctx();
+	// Use auth_email-based lookup to bypass RLS when no org context is set.
+	let user = match UserBmc::auth_login_by_email(&mm, &email).await {
+		Ok(user) => user,
+		Err(err) => {
+			warn!("FOR-DEV-ONLY - demo pwd lookup failed: {err}");
+			return;
+		}
+	};
+
+	let Some(user) = user else {
+		warn!("FOR-DEV-ONLY - demo pwd skipped; user not found: {email}");
+		return;
+	};
+
+	if user.pwd.is_some() {
+		return;
+	}
+
+	if let Err(err) = UserBmc::update_pwd(&ctx, &mm, user.id, &pwd).await {
+		warn!("FOR-DEV-ONLY - demo pwd update failed: {err}");
+		return;
+	}
+
+	info!("FOR-DEV-ONLY - demo pwd set for {email}");
 }
 
 /// Initialize test environment.

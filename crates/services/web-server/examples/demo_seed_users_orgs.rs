@@ -6,7 +6,7 @@
 
 use lib_core::ctx::{Ctx, ROLE_ADMIN, SYSTEM_ORG_ID, SYSTEM_USER_ID};
 use lib_core::model::store::set_full_context_dbx;
-use lib_core::model::user::{User, UserBmc};
+use lib_core::model::user::UserBmc;
 use lib_core::model::ModelManager;
 use sqlx::query;
 use uuid::Uuid;
@@ -234,7 +234,8 @@ async fn insert_user(
 }
 
 async fn set_pwd(ctx: &Ctx, mm: &ModelManager, email: &str, pwd: &str) -> Result<()> {
-	let user = UserBmc::first_by_email::<User>(ctx, mm, email).await?;
+	// Use auth_email-based lookup to bypass RLS when no org context is set.
+	let user = UserBmc::auth_login_by_email(mm, email).await?;
 	if let Some(user) = user {
 		UserBmc::update_pwd(ctx, mm, user.id, pwd).await?;
 		println!("Set password for {email}");

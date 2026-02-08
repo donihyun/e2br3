@@ -108,11 +108,18 @@ async fn exercise_case_endpoints(hc: &Client, case_id: &str) -> Result<()> {
 		get_singleton_id(hc, &format!("/api/cases/{case_id}/safety-report"))
 			.await?
 			.is_some();
-	if !safety_exists {
+	if safety_exists {
+		let _ = put_json(
+			hc,
+			&format!("/api/cases/{case_id}/safety-report"),
+			safety_body.clone(),
+		)
+		.await?;
+	} else {
 		let _ = post_json(
 			hc,
 			&format!("/api/cases/{case_id}/safety-report"),
-			safety_body,
+			safety_body.clone(),
 		)
 		.await?;
 	}
@@ -124,12 +131,25 @@ async fn exercise_case_endpoints(hc: &Client, case_id: &str) -> Result<()> {
 	.await?;
 
 	// Receiver (Section A)
-	let _ = post_json(
-		hc,
-		&format!("/api/cases/{case_id}/receiver"),
-		json!({ "data": { "case_id": case_id, "receiver_type": "1", "organization_name": "FDA" } }),
-	)
-	.await?;
+	let receiver_exists =
+		get_singleton_id(hc, &format!("/api/cases/{case_id}/receiver"))
+			.await?
+			.is_some();
+	if receiver_exists {
+		let _ = put_json(
+			hc,
+			&format!("/api/cases/{case_id}/receiver"),
+			json!({ "data": { "organization_name": "FDA", "country_code": "US" } }),
+		)
+		.await?;
+	} else {
+		let _ = post_json(
+			hc,
+			&format!("/api/cases/{case_id}/receiver"),
+			json!({ "data": { "case_id": case_id, "receiver_type": "1", "organization_name": "FDA" } }),
+		)
+		.await?;
+	}
 	let _ = put_json(
 		hc,
 		&format!("/api/cases/{case_id}/receiver"),
@@ -263,12 +283,25 @@ async fn exercise_case_endpoints(hc: &Client, case_id: &str) -> Result<()> {
 	}
 
 	// Patient (singleton)
-	let _ = post_json(
-		hc,
-		&format!("/api/cases/{case_id}/patient"),
-		json!({ "data": { "case_id": case_id, "patient_initials": "PT", "sex": "2" } }),
-	)
-	.await?;
+	let patient_exists =
+		get_singleton_id(hc, &format!("/api/cases/{case_id}/patient"))
+			.await?
+			.is_some();
+	if patient_exists {
+		let _ = put_json(
+			hc,
+			&format!("/api/cases/{case_id}/patient"),
+			json!({ "data": { "patient_initials": "PT", "sex": "2" } }),
+		)
+		.await?;
+	} else {
+		let _ = post_json(
+			hc,
+			&format!("/api/cases/{case_id}/patient"),
+			json!({ "data": { "case_id": case_id, "patient_initials": "PT", "sex": "2" } }),
+		)
+		.await?;
+	}
 	let _ = put_json(
 		hc,
 		&format!("/api/cases/{case_id}/patient"),
@@ -590,12 +623,25 @@ async fn exercise_case_endpoints(hc: &Client, case_id: &str) -> Result<()> {
 	}
 
 	// Narrative (singleton)
-	let _ = post_json(
-		hc,
-		&format!("/api/cases/{case_id}/narrative"),
-		json!({ "data": { "case_id": case_id, "case_narrative": "Case narrative" } }),
-	)
-	.await?;
+	let narrative_exists =
+		get_singleton_id(hc, &format!("/api/cases/{case_id}/narrative"))
+			.await?
+			.is_some();
+	if narrative_exists {
+		let _ = put_json(
+			hc,
+			&format!("/api/cases/{case_id}/narrative"),
+			json!({ "data": { "case_narrative": "Case narrative" } }),
+		)
+		.await?;
+	} else {
+		let _ = post_json(
+			hc,
+			&format!("/api/cases/{case_id}/narrative"),
+			json!({ "data": { "case_id": case_id, "case_narrative": "Case narrative" } }),
+		)
+		.await?;
+	}
 	let _ = put_json(
 		hc,
 		&format!("/api/cases/{case_id}/narrative"),
@@ -710,7 +756,25 @@ async fn validate_case(hc: &Client, case_id: &str) -> Result<()> {
 			"fulfil_expedited_criteria": true
 		}
 	});
-	let _ = post_json(hc, &format!("/api/cases/{case_id}/safety-report"), safety_body).await?;
+	let safety_exists =
+		get_singleton_id(hc, &format!("/api/cases/{case_id}/safety-report"))
+			.await?
+			.is_some();
+	if safety_exists {
+		let _ = put_json(
+			hc,
+			&format!("/api/cases/{case_id}/safety-report"),
+			safety_body,
+		)
+		.await?;
+	} else {
+		let _ = post_json(
+			hc,
+			&format!("/api/cases/{case_id}/safety-report"),
+			safety_body,
+		)
+		.await?;
+	}
 	let _ = put_json(
 		hc,
 		&format!("/api/cases/{case_id}"),

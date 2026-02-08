@@ -2063,6 +2063,34 @@ async fn apply_section_g(
 		);
 
 		let assessments = fetch_drug_reaction_assessments(mm, drug.id).await?;
+		remove_nodes(
+			xpath,
+			&format!("{base}/hl7:outboundRelationship1[@typeCode='SAS' or @typeCode='SAE']"),
+		);
+		for assessment in assessments.iter() {
+			let Some(reaction_id) = pick_reaction_id(assessment.reaction_id) else {
+				continue;
+			};
+			if assessment.time_interval_value.is_none() && assessment.time_interval_unit.is_none() {
+				continue;
+			}
+			let mut pause_attrs = String::new();
+			if let Some(value) = assessment.time_interval_value {
+				pause_attrs.push_str(&format!(" value=\"{value}\""));
+			}
+			if let Some(unit) = assessment.time_interval_unit.as_deref() {
+				pause_attrs.push_str(&format!(" unit=\"{unit}\""));
+			}
+			let fragment = format!(
+				"<outboundRelationship1 typeCode=\"SAS\">\
+					<actReference classCode=\"OBS\" moodCode=\"EVN\">\
+						<id root=\"{reaction_id}\"/>\
+					</actReference>\
+					<pauseQuantity{pause_attrs}/>\
+				</outboundRelationship1>"
+			);
+			append_fragment_child(doc, parser, xpath, &base, &fragment)?;
+		}
 		if !assessments.is_empty() {
 			let recur_base = format!(
 				"{base}/hl7:outboundRelationship2[@typeCode='PERT']/hl7:observation[hl7:code[@code='31']]"

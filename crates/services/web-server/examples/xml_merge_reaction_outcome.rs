@@ -192,9 +192,22 @@ async fn validate_case(hc: &httpc_test::Client, case_id: &str) -> Result<()> {
 			"fulfil_expedited_criteria": true
 		}
 	});
-	let safety_res = hc
-		.do_post(&format!("/api/cases/{case_id}/safety-report"), safety_body)
-		.await?;
+	let cookie = auth_cookie_header(hc)?;
+	let exists = hc
+		.reqwest_client()
+		.get(format!("{BASE_URL}/api/cases/{case_id}/safety-report"))
+		.header("cookie", cookie)
+		.send()
+		.await?
+		.status()
+		.is_success();
+	let safety_res = if exists {
+		hc.do_put(&format!("/api/cases/{case_id}/safety-report"), safety_body)
+			.await?
+	} else {
+		hc.do_post(&format!("/api/cases/{case_id}/safety-report"), safety_body)
+			.await?
+	};
 	if !safety_res.status().is_success() {
 		safety_res.print().await?;
 	}

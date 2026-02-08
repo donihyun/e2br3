@@ -7,6 +7,15 @@ use crate::model::drug::{
 	DrugInformationBmc, DrugInformationForCreate, DrugInformationForUpdate, DosageInformationBmc,
 	DosageInformationForCreate,
 };
+use crate::model::drug_reaction_assessment::{
+	DrugReactionAssessmentBmc, DrugReactionAssessmentForCreate,
+	DrugReactionAssessmentForUpdate, RelatednessAssessmentBmc,
+	RelatednessAssessmentForCreate, RelatednessAssessmentForUpdate,
+};
+use crate::model::drug_recurrence::{
+	DrugRecurrenceInformationBmc, DrugRecurrenceInformationForCreate,
+	DrugRecurrenceInformationForUpdate,
+};
 use crate::model::message_header::{
 	MessageHeaderBmc, MessageHeaderForCreate, MessageHeaderForUpdate,
 };
@@ -62,6 +71,7 @@ use libxml::xpath::Context;
 use serde_json::json;
 use rust_decimal::Decimal;
 use sqlx::types::time::Date;
+use std::collections::HashMap;
 use time::Month;
 use time::OffsetDateTime;
 use sqlx::types::Uuid;
@@ -117,6 +127,7 @@ struct DrugDeviceCharacteristicImport {
 
 #[derive(Debug)]
 struct DrugImport {
+	xml_id: Option<Uuid>,
 	sequence_number: i32,
 	medicinal_product: String,
 	brand_name: Option<String>,
@@ -140,6 +151,62 @@ struct DrugImport {
 	dosages: Vec<DrugDosageImport>,
 	indications: Vec<DrugIndicationImport>,
 	characteristics: Vec<DrugDeviceCharacteristicImport>,
+}
+
+struct ReactionImport {
+	xml_id: Option<Uuid>,
+	create: ReactionForCreate,
+	update: ReactionForUpdate,
+}
+
+#[derive(Debug)]
+struct DrugObservationImport {
+	drug_xml_id: Option<Uuid>,
+	drug_sequence: i32,
+	sequence_number: i32,
+	reaction_xml_id: Option<Uuid>,
+	time_interval_value: Option<Decimal>,
+	time_interval_unit: Option<String>,
+	reaction_recurred: Option<String>,
+	rechallenge_action: Option<String>,
+	recurrence_meddra_version: Option<String>,
+	recurrence_meddra_code: Option<String>,
+}
+
+#[derive(Debug)]
+struct RelatednessImport {
+	drug_xml_id: Option<Uuid>,
+	reaction_xml_id: Option<Uuid>,
+	source_of_assessment: Option<String>,
+	method_of_assessment: Option<String>,
+	result_of_assessment: Option<String>,
+}
+
+#[derive(Debug, Default)]
+struct ImportIdMap {
+	by_xml_id: HashMap<Uuid, Uuid>,
+	by_sequence: Vec<Uuid>,
+}
+
+impl ImportIdMap {
+	fn first(&self) -> Option<Uuid> {
+		self.by_sequence.first().copied()
+	}
+
+	fn resolve(&self, xml_id: Option<Uuid>, sequence: Option<i32>) -> Option<Uuid> {
+		if let Some(id) = xml_id.and_then(|id| self.by_xml_id.get(&id).copied()) {
+			return Some(id);
+		}
+		if let Some(seq) = sequence {
+			if seq > 0 {
+				let idx = (seq - 1) as usize;
+				if idx < self.by_sequence.len() {
+					return Some(self.by_sequence[idx]);
+				}
+			}
+		}
+		self.first()
+	}
 }
 
 #[derive(Debug, Clone)]
@@ -313,9 +380,12 @@ pub async fn import_e2b_xml(
 		"raw_xml": String::from_utf8_lossy(&req.xml),
 	});
 
-	import_reactions(ctx, &mm, &req.xml, case_id).await?;
+	let reaction_map = import_reactions(ctx, &mm, &req.xml, case_id).await?;
 	import_test_results(ctx, &mm, &req.xml, case_id).await?;
-	import_drugs(ctx, &mm, &req.xml, case_id).await?;
+	let drug_map = import_drugs(ctx, &mm, &req.xml, case_id).await?;
+	import_drug_recurrences(ctx, &mm, &req.xml, &drug_map).await?;
+	import_drug_reaction_assessments(ctx, &mm, &req.xml, &drug_map, &reaction_map)
+		.await?;
 
 	let version_id = match CaseVersionBmc::create(
 		ctx,
@@ -347,15 +417,20 @@ async fn import_reactions(
 	mm: &ModelManager,
 	xml: &[u8],
 	case_id: Uuid,
-) -> Result<()> {
+) -> Result<ImportIdMap> {
 	let imports = parse_reactions(xml, case_id)?;
+	let mut map = ImportIdMap::default();
 
-	for (reaction_c, reaction_u) in imports {
-		let rec_id = ReactionBmc::create(ctx, mm, reaction_c).await?;
-		ReactionBmc::update(ctx, mm, rec_id, reaction_u).await?;
+	for import in imports {
+		let rec_id = ReactionBmc::create(ctx, mm, import.create).await?;
+		ReactionBmc::update(ctx, mm, rec_id, import.update).await?;
+		if let Some(xml_id) = import.xml_id {
+			map.by_xml_id.insert(xml_id, rec_id);
+		}
+		map.by_sequence.push(rec_id);
 	}
 
-	Ok(())
+	Ok(map)
 }
 
 async fn import_safety_report(
@@ -1299,13 +1374,14 @@ async fn import_parent_information(
 			)
 			.await;
 		} else {
+			let meddra_code = entry.meddra_code.clone();
 			let id = ParentMedicalHistoryBmc::create(
 				ctx,
 				mm,
 				ParentMedicalHistoryForCreate {
 					parent_id,
 					sequence_number: seq,
-					meddra_code: entry.meddra_code,
+					meddra_code,
 				},
 			)
 			.await?;
@@ -1361,13 +1437,14 @@ async fn import_parent_information(
 			)
 			.await;
 		} else {
+			let drug_name = entry.drug_name.clone();
 			let id = ParentPastDrugHistoryBmc::create(
 				ctx,
 				mm,
 				ParentPastDrugHistoryForCreate {
 					parent_id,
 					sequence_number: seq,
-					drug_name: entry.drug_name,
+					drug_name,
 				},
 			)
 			.await?;
@@ -3220,10 +3297,7 @@ fn parse_narrative_information(xml: &[u8]) -> Result<Option<NarrativeImport>> {
 	}))
 }
 
-fn parse_reactions(
-	xml: &[u8],
-	case_id: Uuid,
-) -> Result<Vec<(ReactionForCreate, ReactionForUpdate)>> {
+fn parse_reactions(xml: &[u8], case_id: Uuid) -> Result<Vec<ReactionImport>> {
 	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
 		message: format!("XML not valid UTF-8: {err}"),
 		line: None,
@@ -3254,8 +3328,9 @@ fn parse_reactions(
 			column: None,
 		})?;
 
-	let mut imports: Vec<(ReactionForCreate, ReactionForUpdate)> = Vec::new();
+	let mut imports: Vec<ReactionImport> = Vec::new();
 	for (idx, node) in nodes.into_iter().enumerate() {
+		let xml_id = parse_uuid_opt(first_attr(&mut xpath, &node, "hl7:id", "root"));
 		let primary = first_text(
 			&mut xpath,
 			&node,
@@ -3451,7 +3526,11 @@ fn parse_reactions(
 			),
 		};
 
-		imports.push((reaction_c, reaction_u));
+		imports.push(ReactionImport {
+			xml_id,
+			create: reaction_c,
+			update: reaction_u,
+		});
 	}
 
 	Ok(imports)
@@ -3531,6 +3610,14 @@ fn clamp_str(value: Option<String>, max: usize, field: &str) -> Option<String> {
 		}
 		other => other,
 	}
+}
+
+fn parse_uuid_opt(value: Option<String>) -> Option<Uuid> {
+	let value = value?.trim().to_string();
+	if value.is_empty() {
+		return None;
+	}
+	Uuid::parse_str(&value).ok()
 }
 
 fn normalize_code(
@@ -3746,8 +3833,9 @@ async fn import_drugs(
 	mm: &ModelManager,
 	xml: &[u8],
 	case_id: Uuid,
-) -> Result<()> {
+) -> Result<ImportIdMap> {
 	let imports = parse_drugs(xml)?;
+	let mut map = ImportIdMap::default();
 
 	for drug in imports {
 		let drug_id = DrugInformationBmc::create(
@@ -3874,6 +3962,221 @@ async fn import_drugs(
 			)
 			.await?;
 		}
+
+		if let Some(xml_id) = drug.xml_id {
+			map.by_xml_id.insert(xml_id, drug_id);
+		}
+		map.by_sequence.push(drug_id);
+	}
+
+	Ok(map)
+}
+
+async fn import_drug_recurrences(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	drug_map: &ImportIdMap,
+) -> Result<()> {
+	let observations = parse_drug_observations(xml)?;
+	for obs in observations {
+		let Some(drug_id) = drug_map.resolve(obs.drug_xml_id, Some(obs.drug_sequence))
+		else {
+			continue;
+		};
+		let existing: Option<Uuid> = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, (Uuid,)>(
+					"SELECT id FROM drug_recurrence_information WHERE drug_id = $1 AND sequence_number = $2 LIMIT 1",
+				)
+				.bind(drug_id)
+				.bind(obs.sequence_number),
+			)
+			.await
+			.map_err(model::Error::from)?
+			.map(|v| v.0);
+
+		if let Some(id) = existing {
+			let _ = DrugRecurrenceInformationBmc::update(
+				ctx,
+				mm,
+				id,
+				DrugRecurrenceInformationForUpdate {
+					rechallenge_action: obs.rechallenge_action,
+					reaction_meddra_version: obs.recurrence_meddra_version,
+					reaction_meddra_code: obs.recurrence_meddra_code,
+					reaction_recurred: obs.reaction_recurred,
+				},
+			)
+			.await;
+		} else {
+			let id = DrugRecurrenceInformationBmc::create(
+				ctx,
+				mm,
+				DrugRecurrenceInformationForCreate {
+					drug_id,
+					sequence_number: obs.sequence_number,
+				},
+			)
+			.await?;
+			let _ = DrugRecurrenceInformationBmc::update(
+				ctx,
+				mm,
+				id,
+				DrugRecurrenceInformationForUpdate {
+					rechallenge_action: obs.rechallenge_action,
+					reaction_meddra_version: obs.recurrence_meddra_version,
+					reaction_meddra_code: obs.recurrence_meddra_code,
+					reaction_recurred: obs.reaction_recurred,
+				},
+			)
+			.await;
+		}
+	}
+
+	Ok(())
+}
+
+async fn import_drug_reaction_assessments(
+	ctx: &Ctx,
+	mm: &ModelManager,
+	xml: &[u8],
+	drug_map: &ImportIdMap,
+	reaction_map: &ImportIdMap,
+) -> Result<()> {
+	let observations = parse_drug_observations(xml)?;
+	let mut assessment_map: HashMap<(Uuid, Uuid), Uuid> = HashMap::new();
+	for obs in &observations {
+		let drug_id = drug_map.resolve(obs.drug_xml_id, Some(obs.drug_sequence));
+		let reaction_id = reaction_map.resolve(obs.reaction_xml_id, None);
+		let (Some(drug_id), Some(reaction_id)) = (drug_id, reaction_id) else {
+			continue;
+		};
+
+		let key = (drug_id, reaction_id);
+		let assessment_id = if let Some(id) = assessment_map.get(&key) {
+			*id
+		} else if let Some(existing) =
+			DrugReactionAssessmentBmc::get_by_drug_and_reaction(ctx, mm, drug_id, reaction_id)
+				.await?
+		{
+			assessment_map.insert(key, existing.id);
+			existing.id
+		} else {
+			let id = DrugReactionAssessmentBmc::create(
+				ctx,
+				mm,
+				DrugReactionAssessmentForCreate {
+					drug_id,
+					reaction_id,
+				},
+			)
+			.await?;
+			assessment_map.insert(key, id);
+			id
+		};
+
+		let _ = DrugReactionAssessmentBmc::update(
+			ctx,
+			mm,
+			assessment_id,
+			DrugReactionAssessmentForUpdate {
+				time_interval_value: obs.time_interval_value,
+				time_interval_unit: obs.time_interval_unit.clone(),
+				recurrence_action: obs.rechallenge_action.clone(),
+				recurrence_meddra_version: obs.recurrence_meddra_version.clone(),
+				recurrence_meddra_code: obs.recurrence_meddra_code.clone(),
+				reaction_recurred: obs.reaction_recurred.clone(),
+			},
+		)
+		.await;
+	}
+
+	let relatedness = parse_relatedness_assessments(xml)?;
+	let mut seq_map: HashMap<(Uuid, Uuid), i32> = HashMap::new();
+	for rel in relatedness {
+		let drug_id = drug_map.resolve(rel.drug_xml_id, None);
+		let reaction_id = reaction_map.resolve(rel.reaction_xml_id, None);
+		let (Some(drug_id), Some(reaction_id)) = (drug_id, reaction_id) else {
+			continue;
+		};
+
+		let key = (drug_id, reaction_id);
+		let assessment_id = if let Some(id) = assessment_map.get(&key) {
+			*id
+		} else if let Some(existing) =
+			DrugReactionAssessmentBmc::get_by_drug_and_reaction(ctx, mm, drug_id, reaction_id)
+				.await?
+		{
+			assessment_map.insert(key, existing.id);
+			existing.id
+		} else {
+			let id = DrugReactionAssessmentBmc::create(
+				ctx,
+				mm,
+				DrugReactionAssessmentForCreate {
+					drug_id,
+					reaction_id,
+				},
+			)
+			.await?;
+			assessment_map.insert(key, id);
+			id
+		};
+
+		let seq = seq_map
+			.entry((drug_id, reaction_id))
+			.and_modify(|v| *v += 1)
+			.or_insert(1);
+
+		let existing: Option<Uuid> = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, (Uuid,)>(
+					"SELECT id FROM relatedness_assessments WHERE drug_reaction_assessment_id = $1 AND sequence_number = $2 LIMIT 1",
+				)
+				.bind(assessment_id)
+				.bind(*seq),
+			)
+			.await
+			.map_err(model::Error::from)?
+			.map(|v| v.0);
+
+		if let Some(id) = existing {
+			let _ = RelatednessAssessmentBmc::update(
+				ctx,
+				mm,
+				id,
+				RelatednessAssessmentForUpdate {
+					source_of_assessment: rel.source_of_assessment,
+					method_of_assessment: rel.method_of_assessment,
+					result_of_assessment: rel.result_of_assessment,
+				},
+			)
+			.await;
+		} else {
+			let id = RelatednessAssessmentBmc::create(
+				ctx,
+				mm,
+				RelatednessAssessmentForCreate {
+					drug_reaction_assessment_id: assessment_id,
+					sequence_number: *seq,
+				},
+			)
+			.await?;
+			let _ = RelatednessAssessmentBmc::update(
+				ctx,
+				mm,
+				id,
+				RelatednessAssessmentForUpdate {
+					source_of_assessment: rel.source_of_assessment,
+					method_of_assessment: rel.method_of_assessment,
+					result_of_assessment: rel.result_of_assessment,
+				},
+			)
+			.await;
+		}
 	}
 
 	Ok(())
@@ -3912,6 +4215,7 @@ fn parse_drugs(xml: &[u8]) -> Result<Vec<DrugImport>> {
 
 	let mut imports: Vec<DrugImport> = Vec::new();
 	for (idx, node) in drug_nodes.into_iter().enumerate() {
+		let xml_id = parse_uuid_opt(first_attr(&mut xpath, &node, "hl7:id", "root"));
 		let name1 = first_text(
 			&mut xpath,
 			&node,
@@ -4258,6 +4562,7 @@ fn parse_drugs(xml: &[u8]) -> Result<Vec<DrugImport>> {
 		}
 
 		imports.push(DrugImport {
+			xml_id,
 			sequence_number: (idx + 1) as i32,
 			medicinal_product: name1,
 			brand_name: name2,
@@ -4285,4 +4590,208 @@ fn parse_drugs(xml: &[u8]) -> Result<Vec<DrugImport>> {
 	}
 
 	Ok(imports)
+}
+
+fn parse_drug_observations(xml: &[u8]) -> Result<Vec<DrugObservationImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+	let _ = xpath.register_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
+
+	let drug_nodes = xpath
+		.findnodes(
+			"//hl7:subjectOf2/hl7:organizer[hl7:code[@code='4' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.20']]/hl7:component/hl7:substanceAdministration",
+			None,
+		)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query drug information".to_string(),
+			line: None,
+			column: None,
+		})?;
+
+	let mut observations: Vec<DrugObservationImport> = Vec::new();
+	for (didx, drug_node) in drug_nodes.into_iter().enumerate() {
+		let drug_sequence = (didx + 1) as i32;
+		let drug_xml_id = parse_uuid_opt(first_attr(&mut xpath, &drug_node, "hl7:id", "root"));
+		let obs_nodes = xpath
+			.findnodes(
+				"hl7:outboundRelationship2[@typeCode='PERT']/hl7:observation[hl7:code[@code='31']]",
+				Some(&drug_node),
+			)
+			.map_err(|_| Error::InvalidXml {
+				message: "Failed to query drug recurrence observations".to_string(),
+				line: None,
+				column: None,
+			})?;
+		let time_rels = xpath
+			.findnodes(
+				"hl7:outboundRelationship1[@typeCode='SAS' or @typeCode='SAE']",
+				Some(&drug_node),
+			)
+			.map_err(|_| Error::InvalidXml {
+				message: "Failed to query drug time intervals".to_string(),
+				line: None,
+				column: None,
+			})?;
+		let mut time_map: HashMap<Uuid, (Option<Decimal>, Option<String>)> = HashMap::new();
+		for rel in time_rels {
+			let rel_type = rel.get_attribute("typeCode");
+			let reaction_id = parse_uuid_opt(first_attr(
+				&mut xpath,
+				&rel,
+				"hl7:actReference/hl7:id",
+				"root",
+			));
+			let value = first_attr(&mut xpath, &rel, "hl7:pauseQuantity", "value")
+				.and_then(|v| v.parse::<Decimal>().ok());
+			let unit = first_attr(&mut xpath, &rel, "hl7:pauseQuantity", "unit");
+			if let Some(reaction_id) = reaction_id {
+				if matches!(rel_type.as_deref(), Some("SAS")) {
+					time_map.insert(reaction_id, (value, unit));
+				} else {
+					time_map.entry(reaction_id).or_insert((value, unit));
+				}
+			}
+		}
+
+		for (oidx, obs) in obs_nodes.into_iter().enumerate() {
+			let sequence_number = (oidx + 1) as i32;
+			let reaction_recurred = first_attr(&mut xpath, &obs, "hl7:value", "code");
+			let reaction_xml_id = parse_uuid_opt(first_attr(
+				&mut xpath,
+				&obs,
+				"hl7:outboundRelationship1[@typeCode='REFR']/hl7:actReference/hl7:id",
+				"root",
+			));
+			let (time_interval_value, time_interval_unit) = if let Some(id) = reaction_xml_id {
+				time_map.get(&id).cloned().unwrap_or((None, None))
+			} else if time_map.len() == 1 {
+				time_map.values().next().cloned().unwrap_or((None, None))
+			} else {
+				(None, None)
+			};
+			let rechallenge_action = first_attr(
+				&mut xpath,
+				&obs,
+				"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='G.k.8.r.1']]/hl7:value",
+				"code",
+			);
+			let recurrence_meddra_version = clamp_str(
+				first_attr(
+					&mut xpath,
+					&obs,
+					"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='G.k.8.r.2']]/hl7:value",
+					"codeSystemVersion",
+				),
+				10,
+				"drug_recurrence_information.reaction_meddra_version",
+			);
+			let recurrence_meddra_code = first_attr(
+				&mut xpath,
+				&obs,
+				"hl7:outboundRelationship2/hl7:observation[hl7:code[@code='G.k.8.r.2']]/hl7:value",
+				"code",
+			);
+			observations.push(DrugObservationImport {
+				drug_xml_id,
+				drug_sequence,
+				sequence_number,
+				reaction_xml_id,
+				time_interval_value,
+				time_interval_unit,
+				reaction_recurred,
+				rechallenge_action,
+				recurrence_meddra_version,
+				recurrence_meddra_code,
+			});
+		}
+	}
+
+	Ok(observations)
+}
+
+fn parse_relatedness_assessments(xml: &[u8]) -> Result<Vec<RelatednessImport>> {
+	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
+		message: format!("XML not valid UTF-8: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let parser = Parser::default();
+	let doc = parser.parse_string(xml_str).map_err(|err| Error::InvalidXml {
+		message: format!("XML parse error: {err}"),
+		line: None,
+		column: None,
+	})?;
+	let mut xpath = Context::new(&doc).map_err(|_| Error::InvalidXml {
+		message: "Failed to initialize XPath context".to_string(),
+		line: None,
+		column: None,
+	})?;
+	let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+
+	let nodes = xpath
+		.findnodes(
+			"//hl7:component[hl7:causalityAssessment/hl7:code[@code='39']]",
+			None,
+		)
+		.map_err(|_| Error::InvalidXml {
+			message: "Failed to query relatedness assessments".to_string(),
+			line: None,
+			column: None,
+		})?;
+
+	let mut items = Vec::new();
+	for node in nodes {
+		let source_of_assessment = first_text(
+			&mut xpath,
+			&node,
+			"hl7:causalityAssessment/hl7:author/hl7:assignedEntity/hl7:code/hl7:originalText",
+		);
+		let method_of_assessment = first_text(
+			&mut xpath,
+			&node,
+			"hl7:causalityAssessment/hl7:methodCode/hl7:originalText",
+		);
+		let result_of_assessment = first_text(
+			&mut xpath,
+			&node,
+			"hl7:causalityAssessment/hl7:value",
+		);
+		let reaction_xml_id = parse_uuid_opt(first_attr(
+			&mut xpath,
+			&node,
+			"hl7:causalityAssessment/hl7:subject1/hl7:adverseEffectReference/hl7:id",
+			"root",
+		));
+		let drug_xml_id = parse_uuid_opt(first_attr(
+			&mut xpath,
+			&node,
+			"hl7:causalityAssessment/hl7:subject2/hl7:productUseReference/hl7:id",
+			"root",
+		));
+
+		items.push(RelatednessImport {
+			drug_xml_id,
+			reaction_xml_id,
+			source_of_assessment,
+			method_of_assessment,
+			result_of_assessment,
+		});
+	}
+
+	Ok(items)
 }
