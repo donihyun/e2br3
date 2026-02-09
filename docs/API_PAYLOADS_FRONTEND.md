@@ -108,6 +108,40 @@ Response
 { "data": { "id": "case-uuid", "status": "validated" } }
 ```
 
+### GET `/api/cases/{case_id}/validation?profile=mfds`
+Query:
+- `profile` optional: `fda` or `mfds`
+- If omitted, backend infers profile from message header batch receiver (contains `MFDS` -> `mfds`, otherwise `fda`).
+
+Response
+```json
+{
+  "data": {
+    "profile": "mfds",
+    "case_id": "case-uuid",
+    "ok": false,
+    "blocking_count": 1,
+    "non_blocking_count": 2,
+    "issues": [
+      {
+        "code": "MFDS.C.3.1.KR.1.REQUIRED",
+        "message": "MFDS requires [C.3.1.KR.1] when sender type is health professional.",
+        "path": "senderInformation.senderTypeKr1",
+        "section": "sender",
+        "blocking": true
+      },
+      {
+        "code": "ICH.G.k.2.2.REQUIRED",
+        "message": "[G.k.2.2] is required.",
+        "path": "drugs.0.medicinalProduct",
+        "section": "drugs",
+        "blocking": false
+      }
+    ]
+  }
+}
+```
+
 ---
 
 ## Case Singletons
@@ -407,4 +441,3 @@ Query params example:
 
 ### GET `/api/audit-logs/by-record/{table_name}/{record_id}`
 (no body)
-

@@ -81,9 +81,13 @@ impl CaseVersionBmc {
 	) -> Result<Uuid> {
 		let dbx = mm.dbx();
 		dbx.begin_txn().await?;
-		if let Err(err) =
-			set_full_context_dbx(dbx, ctx.user_id(), ctx.organization_id(), ctx.role())
-				.await
+		if let Err(err) = set_full_context_dbx(
+			dbx,
+			ctx.user_id(),
+			ctx.organization_id(),
+			ctx.role(),
+		)
+		.await
 		{
 			dbx.rollback_txn().await?;
 			return Err(err.into());

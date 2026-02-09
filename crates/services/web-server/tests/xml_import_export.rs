@@ -4,8 +4,8 @@ use axum::body::{to_bytes, Body};
 use axum::http::{Request, StatusCode};
 use common::{cookie_header, init_test_mm, seed_org_with_users, Result};
 use lib_auth::token::generate_web_token;
-use serial_test::serial;
 use serde_json::Value;
+use serial_test::serial;
 use tower::ServiceExt;
 
 #[serial]
@@ -29,11 +29,11 @@ async fn test_import_then_export_xml() -> Result<()> {
 	let xml_path = std::path::Path::new(&examples_dir)
 		.join("1-1_ExampleCase_literature_initial_v1_0.xml");
 	let mut xml = std::fs::read_to_string(xml_path)?;
-	let unique_safety_report_id =
-		format!("DSJP-TEST-{}", uuid::Uuid::new_v4());
+	let unique_safety_report_id = format!("DSJP-TEST-{}", uuid::Uuid::new_v4());
 	let marker = "extension=\"DSJP-B0123456-Lit1\"";
 	if xml.contains(marker) {
-		xml = xml.replace(marker, &format!("extension=\"{unique_safety_report_id}\""));
+		xml =
+			xml.replace(marker, &format!("extension=\"{unique_safety_report_id}\""));
 	} else {
 		return Err("failed to locate safety_report_id marker in example XML".into());
 	}
@@ -46,7 +46,10 @@ async fn test_import_then_export_xml() -> Result<()> {
 	let req = Request::builder()
 		.method("POST")
 		.uri("/api/import/xml")
-		.header("content-type", format!("multipart/form-data; boundary={boundary}"))
+		.header(
+			"content-type",
+			format!("multipart/form-data; boundary={boundary}"),
+		)
 		.header("cookie", cookie.clone())
 		.body(Body::from(body))?;
 

@@ -92,7 +92,8 @@ async fn test_terminology_queries() -> Result<()> {
 	// Keep transaction open so session context applies to reads below.
 
 	let meddra_terms =
-		MeddraTermBmc::search(&ctx, &mm, "TestTerm", Some(&meddra_version), 5).await?;
+		MeddraTermBmc::search(&ctx, &mm, "TestTerm", Some(&meddra_version), 5)
+			.await?;
 	assert!(meddra_terms.iter().any(|t| t.code == meddra_code));
 
 	let whodrug = WhodrugProductBmc::search(&ctx, &mm, &whodrug_name, 50).await?;

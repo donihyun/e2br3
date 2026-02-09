@@ -1,8 +1,8 @@
+use crate::model;
 use crate::xml::types::XmlValidationError;
 use derive_more::From;
 use serde::Serialize;
 use serde_with::{serde_as, DisplayFromStr};
-use crate::model;
 
 #[serde_as]
 #[derive(Debug, Serialize, From)]
@@ -16,7 +16,9 @@ pub enum Error {
 		errors: Vec<XmlValidationError>,
 	},
 	MissingRootElement,
-	UnsupportedRoot { found: String },
+	UnsupportedRoot {
+		found: String,
+	},
 	NotImplemented {
 		feature: &'static str,
 	},

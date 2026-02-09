@@ -45,6 +45,7 @@ pub enum Resource {
 	ParentPastDrug,
 	SenderDiagnosis,
 	CaseSummary,
+	PresaveTemplate,
 
 	// Administrative
 	User,
@@ -455,6 +456,18 @@ pub const RECEIVER_DELETE: Permission =
 pub const RECEIVER_LIST: Permission =
 	Permission::new(Resource::Receiver, Action::List);
 
+// Presave template permissions
+pub const PRESAVE_TEMPLATE_CREATE: Permission =
+	Permission::new(Resource::PresaveTemplate, Action::Create);
+pub const PRESAVE_TEMPLATE_READ: Permission =
+	Permission::new(Resource::PresaveTemplate, Action::Read);
+pub const PRESAVE_TEMPLATE_UPDATE: Permission =
+	Permission::new(Resource::PresaveTemplate, Action::Update);
+pub const PRESAVE_TEMPLATE_DELETE: Permission =
+	Permission::new(Resource::PresaveTemplate, Action::Delete);
+pub const PRESAVE_TEMPLATE_LIST: Permission =
+	Permission::new(Resource::PresaveTemplate, Action::List);
+
 // User permissions
 pub const USER_CREATE: Permission = Permission::new(Resource::User, Action::Create);
 pub const USER_READ: Permission = Permission::new(Resource::User, Action::Read);
@@ -664,6 +677,12 @@ fn admin_permissions() -> &'static [Permission] {
 		RECEIVER_UPDATE,
 		RECEIVER_DELETE,
 		RECEIVER_LIST,
+		// Presave templates
+		PRESAVE_TEMPLATE_CREATE,
+		PRESAVE_TEMPLATE_READ,
+		PRESAVE_TEMPLATE_UPDATE,
+		PRESAVE_TEMPLATE_DELETE,
+		PRESAVE_TEMPLATE_LIST,
 		// User - full access
 		USER_CREATE,
 		USER_READ,
@@ -859,6 +878,12 @@ fn manager_permissions() -> &'static [Permission] {
 		RECEIVER_UPDATE,
 		RECEIVER_DELETE,
 		RECEIVER_LIST,
+		// Presave templates
+		PRESAVE_TEMPLATE_CREATE,
+		PRESAVE_TEMPLATE_READ,
+		PRESAVE_TEMPLATE_UPDATE,
+		PRESAVE_TEMPLATE_DELETE,
+		PRESAVE_TEMPLATE_LIST,
 		// User - read only
 		USER_READ,
 		USER_LIST,
@@ -1015,6 +1040,12 @@ fn user_permissions() -> &'static [Permission] {
 		RECEIVER_READ,
 		RECEIVER_UPDATE,
 		RECEIVER_LIST,
+		// Presave templates
+		PRESAVE_TEMPLATE_CREATE,
+		PRESAVE_TEMPLATE_READ,
+		PRESAVE_TEMPLATE_UPDATE,
+		PRESAVE_TEMPLATE_DELETE,
+		PRESAVE_TEMPLATE_LIST,
 		// User - read self only (handled at endpoint level)
 		USER_READ,
 		// Organization - read own
@@ -1104,6 +1135,9 @@ fn viewer_permissions() -> &'static [Permission] {
 		CASE_IDENTIFIER_LIST,
 		RECEIVER_READ,
 		RECEIVER_LIST,
+		// Presave templates
+		PRESAVE_TEMPLATE_READ,
+		PRESAVE_TEMPLATE_LIST,
 		// User - read only
 		USER_READ,
 		USER_LIST,

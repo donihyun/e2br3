@@ -72,6 +72,9 @@ pub mod terminology; // MedDRA, WHODrug, ISO countries, E2B code lists
 // Audit and Versioning
 pub mod audit; // Audit logs and case versions
 
+// Presave Templates
+pub mod presave_template; // Reusable pre-case templates and template audit history
+
 // Utilities
 pub mod modql_utils;
 

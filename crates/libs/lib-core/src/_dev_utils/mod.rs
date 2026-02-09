@@ -40,7 +40,8 @@ async fn maybe_set_demo_pwd() {
 		Ok(value) if !value.trim().is_empty() => value,
 		_ => return,
 	};
-	let email = std::env::var("DEMO_USER_EMAIL").unwrap_or_else(|_| "demo.user@example.com".to_string());
+	let email = std::env::var("DEMO_USER_EMAIL")
+		.unwrap_or_else(|_| "demo.user@example.com".to_string());
 
 	let mm = match ModelManager::new().await {
 		Ok(mm) => mm,

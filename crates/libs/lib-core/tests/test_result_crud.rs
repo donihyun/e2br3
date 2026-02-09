@@ -32,11 +32,16 @@ async fn test_test_result_crud() -> Result<()> {
 	let test_u = TestResultForUpdate {
 		test_name: Some("Updated Test".to_string()),
 		test_date: None,
+		test_meddra_version: None,
+		test_meddra_code: None,
+		test_result_code: None,
 		test_result_value: Some("Normal".to_string()),
 		test_result_unit: None,
+		result_unstructured: None,
 		normal_low_value: None,
 		normal_high_value: None,
 		comments: None,
+		more_info_available: None,
 	};
 	TestResultBmc::update_in_case(&ctx, &mm, case_id, test_id, test_u).await?;
 	let test = TestResultBmc::get_in_case(&ctx, &mm, case_id, test_id).await?;

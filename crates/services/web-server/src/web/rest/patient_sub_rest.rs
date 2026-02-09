@@ -25,11 +25,11 @@ use lib_core::model::patient::{
 	PastDrugHistoryBmc, PastDrugHistoryFilter, PastDrugHistoryForCreate,
 	PastDrugHistoryForUpdate, PatientDeathInformation, PatientDeathInformationBmc,
 	PatientDeathInformationFilter, PatientDeathInformationForCreate,
-	PatientDeathInformationForUpdate, PatientInformationBmc, ReportedCauseOfDeath,
-	ReportedCauseOfDeathBmc, ReportedCauseOfDeathFilter,
-	ReportedCauseOfDeathForCreate, ReportedCauseOfDeathForUpdate,
-	PatientIdentifier, PatientIdentifierBmc, PatientIdentifierFilter,
-	PatientIdentifierForCreate, PatientIdentifierForUpdate,
+	PatientDeathInformationForUpdate, PatientIdentifier, PatientIdentifierBmc,
+	PatientIdentifierFilter, PatientIdentifierForCreate, PatientIdentifierForUpdate,
+	PatientInformationBmc, ReportedCauseOfDeath, ReportedCauseOfDeathBmc,
+	ReportedCauseOfDeathFilter, ReportedCauseOfDeathForCreate,
+	ReportedCauseOfDeathForUpdate,
 };
 use lib_core::model::{self, ModelManager};
 use lib_rest_core::rest_params::{ParamsForCreate, ParamsForUpdate};

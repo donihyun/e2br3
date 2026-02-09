@@ -56,7 +56,7 @@ Goal: Close FDA-required gaps identified in `docs/FDA_E2B_MAPPING.md` and make e
 - [x] Add code-list validation for FDA-specific coded fields (race/ethnicity, intervention, etc.).
 
 ## 5) Data realism for FDA validation
-- [ ] Replace template placeholders with real values (no "D.10.3", "G.k.4.r.6a", etc.).
+- [ ] Replace placeholder values with real values (no "D.10.3", "G.k.4.r.6a", etc.).
 - [ ] Ensure dates follow FDA/HL7 patterns and required elements appear in order.
 
 ---

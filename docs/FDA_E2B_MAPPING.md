@@ -83,7 +83,7 @@
 
 | Data Element | DB Table.Column | API Endpoint | Exporter XPath | Validator Rule | Notes |
 |---|---|---|---|---|---|
-| N.1.1 Types of Message in Batch | **MISSING (DB)** (constant in template) | **MISSING (API)** (not exposed) | `/MCCI_IN200100UV01/name[@codeSystem='2.16.840.1.113883.3.989.2.1.1.1']/@code` | XSD | Currently fixed in template; should be stored or derived if variable. |
+| N.1.1 Types of Message in Batch | **MISSING (DB)** (constant in export skeleton) | **MISSING (API)** (not exposed) | `/MCCI_IN200100UV01/name[@codeSystem='2.16.840.1.113883.3.989.2.1.1.1']/@code` | XSD | Currently fixed in export skeleton; should be stored or derived if variable. |
 | N.1.2 Batch Number | `message_headers.batch_number` | `POST/PUT /api/cases/{case_id}/message-header` | `/MCCI_IN200100UV01/id[@root='2.16.840.1.113883.3.989.2.1.3.22']/@extension` | XSD | Set via message header update. |
 | N.1.3 Batch Sender Identifier | `message_headers.batch_sender_identifier` | `POST/PUT /api/cases/{case_id}/message-header` | `/MCCI_IN200100UV01/sender/device/id/@extension` | XSD | Required by FDA; must be populated. |
 | N.1.4 Batch Receiver Identifier | `message_headers.batch_receiver_identifier` | `POST/PUT /api/cases/{case_id}/message-header` | `/MCCI_IN200100UV01/receiver/device/id/@extension` | XSD | Required by FDA; must be populated. |
@@ -151,8 +151,8 @@
 | D.2.2.1a Gestation Period (number) | `patient_information.gestation_period` | `PUT /api/cases/{case_id}/patient` | `//subjectOf2/observation[code='16']/value/@value` | XSD | |
 | D.2.2.1b Gestation Period (unit) | `patient_information.gestation_period_unit` | `PUT /api/cases/{case_id}/patient` | `//subjectOf2/observation[code='16']/value/@unit` | XSD | |
 | D.2.3 Patient Age Group | `patient_information.age_group` | `PUT /api/cases/{case_id}/patient` | `//subjectOf2/observation[code='4']/value/@code` | XSD | |
-| D.3 Body Weight | `patient_information.weight_kg` | `PUT /api/cases/{case_id}/patient` | `//subjectOf2/observation[code='7']/value/@value` | XSD | Units assumed kg in template. |
-| D.4 Height | `patient_information.height_cm` | `PUT /api/cases/{case_id}/patient` | `//subjectOf2/observation[code='17']/value/@value` | XSD | Units assumed cm in template. |
+| D.3 Body Weight | `patient_information.weight_kg` | `PUT /api/cases/{case_id}/patient` | `//subjectOf2/observation[code='7']/value/@value` | XSD | Units assumed kg by export mapping. |
+| D.4 Height | `patient_information.height_cm` | `PUT /api/cases/{case_id}/patient` | `//subjectOf2/observation[code='17']/value/@value` | XSD | Units assumed cm by export mapping. |
 | D.5 Sex | `patient_information.sex` | `PUT /api/cases/{case_id}/patient` | `//primaryRole/player1/administrativeGenderCode/@code` | XSD | |
 | D.6 LMP | `patient_information.last_menstrual_period_date` | `PUT /api/cases/{case_id}/patient` | `//subjectOf2/observation[code='22']/value/@value` | XSD | Removes `nullFlavor` when set. |
 | D.7.1.r Medical History (MedDRA) | `medical_history_episodes.meddra_code/meddra_version/start_date/continuing/comments/family_history` | `POST/PUT /api/cases/{case_id}/patient/medical-history` | `//organizer[code='1']/component/observation/*` | XSD | Repeats per episode. |
@@ -170,8 +170,8 @@
 | D.10.4/5 Parent LMP / Weight / Height | `parent_information.last_menstrual_period_date` / `weight_kg` / `height_cm` | `POST/PUT /api/cases/{case_id}/patient/parents` | `//role[@classCode='PRS']/subjectOf2/observation[code='22' or code='7' or code='17']/value` | XSD | Weight/height units set to kg/cm. |
 | D.10.7.r Parent Medical History | `parent_medical_history.*` | `POST/PUT /api/cases/{case_id}/patient/parent/{parent_id}/medical-history` | `//role[@classCode='PRS']/subjectOf2/organizer[code='1']/component/observation/*` | XSD | Repeats per episode. |
 | D.10.8.r Parent Past Drug History | `parent_past_drug_history.*` | `POST/PUT /api/cases/{case_id}/patient/parent/{parent_id}/past-drugs` | `//role[@classCode='PRS']/subjectOf2/organizer[code='2']/component/substanceAdministration/*` | XSD | Repeats per drug. |
-| FDA.D.11.r.1 Patient Race Code | `patient_information.race_code` | `PUT /api/cases/{case_id}/patient` | `//primaryRole/subjectOf2/observation[code='C17049']/value/@code` | custom (FDA.D.11) | Exported via subjectOf2/observation in template. |
-| FDA.D.12 Patient Ethnicity Code | `patient_information.ethnicity_code` | `PUT /api/cases/{case_id}/patient` | `//primaryRole/subjectOf2/observation[code='C16564']/value/@code` | custom (FDA.D.12) | Exported via subjectOf2/observation in template. |
+| FDA.D.11.r.1 Patient Race Code | `patient_information.race_code` | `PUT /api/cases/{case_id}/patient` | `//primaryRole/subjectOf2/observation[code='C17049']/value/@code` | custom (FDA.D.11) | Exported via subjectOf2/observation. |
+| FDA.D.12 Patient Ethnicity Code | `patient_information.ethnicity_code` | `PUT /api/cases/{case_id}/patient` | `//primaryRole/subjectOf2/observation[code='C16564']/value/@code` | custom (FDA.D.12) | Exported via subjectOf2/observation. |
 
 ## Gap Mapping (Phase 1) — E Section (Reaction/Event)
 

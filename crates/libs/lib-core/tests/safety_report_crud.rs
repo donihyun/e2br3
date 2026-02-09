@@ -98,9 +98,15 @@ async fn test_safety_report_submodels_crud() -> Result<()> {
 		department: None,
 		street_address: None,
 		city: None,
+		state: None,
+		postcode: None,
+		country_code: None,
+		person_title: None,
 		person_given_name: None,
+		person_middle_name: None,
 		person_family_name: None,
 		telephone: None,
+		fax: None,
 		email: None,
 	};
 	SenderInformationBmc::update(&ctx, &mm, sender_id, sender_u).await?;
@@ -117,9 +123,19 @@ async fn test_safety_report_submodels_crud() -> Result<()> {
 	assert_eq!(primary.sequence_number, 1);
 
 	let primary_u = PrimarySourceForUpdate {
+		reporter_title: None,
 		reporter_given_name: Some("Jane".to_string()),
+		reporter_middle_name: None,
 		reporter_family_name: Some("Doe".to_string()),
 		organization: None,
+		department: None,
+		street: None,
+		city: None,
+		state: None,
+		postcode: None,
+		telephone: None,
+		country_code: None,
+		email: None,
 		qualification: None,
 		primary_source_regulatory: Some("1".to_string()),
 	};

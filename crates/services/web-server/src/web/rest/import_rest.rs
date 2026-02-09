@@ -3,19 +3,21 @@ use axum::http::StatusCode;
 use axum::Json;
 use lib_core::model::acs::XML_IMPORT;
 use lib_core::model::ModelManager;
-use lib_core::xml::{import_e2b_xml, validate_e2b_xml, XmlImportRequest, XmlValidationReport};
+use lib_core::xml::{
+	import_e2b_xml, validate_e2b_xml, XmlImportRequest, XmlValidationReport,
+};
 use lib_rest_core::rest_result::DataRestResult;
 use lib_rest_core::{require_permission, Error, Result};
 use lib_web::middleware::mw_auth::CtxW;
 
 async fn read_xml_multipart(mut multipart: Multipart) -> Result<Vec<u8>> {
-	while let Some(field) = multipart
-		.next_field()
-		.await
-		.map_err(|err| Error::BadRequest {
-			message: format!("multipart error: {err}"),
-		})?
-	{
+	while let Some(field) =
+		multipart
+			.next_field()
+			.await
+			.map_err(|err| Error::BadRequest {
+				message: format!("multipart error: {err}"),
+			})? {
 		let name = field.name().map(|v| v.to_string());
 		if name.as_deref() == Some("file") || name.as_deref() == Some("xml") {
 			let bytes = field.bytes().await.map_err(|err| Error::BadRequest {
@@ -52,7 +54,10 @@ pub async fn import_xml(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
 	multipart: Multipart,
-) -> Result<(StatusCode, Json<DataRestResult<lib_core::xml::XmlImportResult>>)> {
+) -> Result<(
+	StatusCode,
+	Json<DataRestResult<lib_core::xml::XmlImportResult>>,
+)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, XML_IMPORT)?;
 

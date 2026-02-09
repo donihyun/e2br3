@@ -1,23 +1,10 @@
-use crate::xml::error::Error;
 use crate::xml::types::ParsedE2b;
-use crate::xml::validator::{
-	should_skip_xml_validation, validate_e2b_xml, XmlValidatorConfig,
-};
 use crate::xml::Result;
 use serde_json::json;
 
 pub fn parse_e2b_xml(xml: &[u8]) -> Result<ParsedE2b> {
-	let root = if should_skip_xml_validation() {
-		"ichicsr".to_string()
-	} else {
-		let report = validate_e2b_xml(xml, Some(XmlValidatorConfig::default()))?;
-		if !report.ok {
-			return Err(Error::XsdValidationFailed {
-				errors: report.errors,
-			});
-		}
-		report.root_element.unwrap_or_else(|| "ichicsr".to_string())
-	};
+	// Import performs validation before parse; keep parser focused on parsing metadata.
+	let root = extract_root_element_name(xml).unwrap_or_else(|| "ichicsr".to_string());
 	let json = json!({
 		"root": root,
 		"size_bytes": xml.len(),
@@ -27,4 +14,22 @@ pub fn parse_e2b_xml(xml: &[u8]) -> Result<ParsedE2b> {
 		root_element: root,
 		json,
 	})
+}
+
+fn extract_root_element_name(xml: &[u8]) -> Option<String> {
+	let xml_str = std::str::from_utf8(xml).ok()?;
+	let start = xml_str.find('<')?;
+	let rest = &xml_str[start + 1..];
+	if rest.starts_with('?') || rest.starts_with('!') {
+		return None;
+	}
+	let end = rest
+		.find(|c: char| c.is_whitespace() || c == '>' || c == '/')
+		.unwrap_or(rest.len());
+	let name = rest[..end].trim();
+	if name.is_empty() {
+		None
+	} else {
+		Some(name.to_string())
+	}
 }

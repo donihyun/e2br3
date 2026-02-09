@@ -50,29 +50,29 @@ impl Ctx {
 
 	/// Creates a new context with the given user UUID, organization ID, and role.
 	/// This is the primary constructor for user-initiated operations.
-pub fn new(
-	user_id: uuid::Uuid,
-	organization_id: uuid::Uuid,
-	role: String,
-) -> Result<Self> {
-	if user_id.is_nil() {
-		return Err(Error::CtxCannotNewNilUuid);
-	}
-	if organization_id.is_nil() && role != ROLE_ADMIN {
-		return Err(Error::CtxCannotNewNilOrgId);
-	}
-	if !matches!(
-		role.as_str(),
-		ROLE_ADMIN | ROLE_MANAGER | ROLE_USER | ROLE_VIEWER
-	) {
-		return Err(Error::CtxCannotNewInvalidRole);
-	}
+	pub fn new(
+		user_id: uuid::Uuid,
+		organization_id: uuid::Uuid,
+		role: String,
+	) -> Result<Self> {
+		if user_id.is_nil() {
+			return Err(Error::CtxCannotNewNilUuid);
+		}
+		if organization_id.is_nil() && role != ROLE_ADMIN {
+			return Err(Error::CtxCannotNewNilOrgId);
+		}
+		if !matches!(
+			role.as_str(),
+			ROLE_ADMIN | ROLE_MANAGER | ROLE_USER | ROLE_VIEWER
+		) {
+			return Err(Error::CtxCannotNewInvalidRole);
+		}
 
-	Ok(Self {
-		user_id,
-		organization_id,
-		role,
-	})
+		Ok(Self {
+			user_id,
+			organization_id,
+			role,
+		})
 	}
 
 	/// Creates a new context with just user_id (legacy support).
@@ -127,7 +127,7 @@ impl Ctx {
 	}
 
 	/// Returns true if the user can modify data (not a viewer)
-pub fn can_modify(&self) -> bool {
-	self.is_admin() || self.is_manager() || self.is_user()
-}
+	pub fn can_modify(&self) -> bool {
+		self.is_admin() || self.is_manager() || self.is_user()
+	}
 }

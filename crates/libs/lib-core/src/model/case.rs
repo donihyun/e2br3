@@ -21,6 +21,7 @@ pub struct Case {
 	pub safety_report_id: String,
 	pub version: i32,
 	pub status: String,
+	pub validation_profile: Option<String>,
 
 	// Workflow
 	pub created_by: Uuid,
@@ -47,6 +48,7 @@ pub struct CaseForCreate {
 	pub organization_id: Uuid,
 	pub safety_report_id: String,
 	pub status: Option<String>,
+	pub validation_profile: Option<String>,
 	pub version: Option<i32>,
 }
 
@@ -54,6 +56,7 @@ pub struct CaseForCreate {
 pub struct CaseForUpdate {
 	pub safety_report_id: Option<String>,
 	pub status: Option<String>,
+	pub validation_profile: Option<String>,
 	pub submitted_by: Option<Uuid>,
 	pub submitted_at: Option<OffsetDateTime>,
 	pub raw_xml: Option<Vec<u8>>,

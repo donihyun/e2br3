@@ -24,6 +24,7 @@ async fn test_audit_trail_cases() -> Result<()> {
 	let case_u = CaseForUpdate {
 		safety_report_id: None,
 		status: Some("validated".to_string()),
+		validation_profile: None,
 		submitted_by: None,
 		submitted_at: None,
 		raw_xml: None,

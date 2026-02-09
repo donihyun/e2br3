@@ -4,9 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 fn examples_dir() -> Option<PathBuf> {
-	std::env::var("E2BR3_EXAMPLES_DIR")
-		.ok()
-		.map(PathBuf::from)
+	std::env::var("E2BR3_EXAMPLES_DIR").ok().map(PathBuf::from)
 }
 
 fn read_example(dir: &Path, filename: &str) -> Result<String, Box<dyn Error>> {
@@ -54,6 +52,11 @@ fn test_invalid_telecom_fails() -> Result<(), Box<dyn Error>> {
 		.iter()
 		.any(|e| e.message.contains("telecom value must start"));
 	assert!(has_error, "telecom error not reported");
+	let has_code = report
+		.errors
+		.iter()
+		.any(|e| e.message.contains("[ICH.XML.TELECOM.FORMAT.REQUIRED]"));
+	assert!(has_code, "telecom code not reported");
 
 	Ok(())
 }
@@ -74,6 +77,11 @@ fn test_invalid_reaction_term_fails() -> Result<(), Box<dyn Error>> {
 		.iter()
 		.any(|e| e.message.contains("reaction term missing code"));
 	assert!(has_error, "reaction term error not reported");
+	let has_code = report
+		.errors
+		.iter()
+		.any(|e| e.message.contains("[ICH.E.i.2.NULLFLAVOR.REQUIRED]"));
+	assert!(has_code, "reaction term code not reported");
 
 	Ok(())
 }
@@ -86,20 +94,27 @@ fn test_missing_schema_location_fails() -> Result<(), Box<dyn Error>> {
 	};
 
 	let xml = read_example(&dir, "1-1_ExampleCase_literature_initial_v1_0.xml")?;
-	let broken = xml.replace("xsi:schemaLocation=\"urn:hl7-org:v3 MCCI_IN200100UV01.xsd\"", "");
+	let broken = xml.replace(
+		"xsi:schemaLocation=\"urn:hl7-org:v3 MCCI_IN200100UV01.xsd\"",
+		"",
+	);
 	let report = validate_e2b_xml(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected schemaLocation error");
 	let has_schema_error = report
 		.errors
 		.iter()
 		.any(|e| e.message.contains("schemaLocation"));
-	assert!(has_schema_error, "missing schemaLocation error not reported");
+	assert!(
+		has_schema_error,
+		"missing schemaLocation error not reported"
+	);
 
 	Ok(())
 }
 
 #[test]
-fn test_fda_combination_product_requires_value_or_nullflavor() -> Result<(), Box<dyn Error>> {
+fn test_fda_combination_product_requires_value_or_nullflavor(
+) -> Result<(), Box<dyn Error>> {
 	let Some(dir) = examples_dir() else {
 		eprintln!("E2BR3_EXAMPLES_DIR not set; skipping XML validation examples");
 		return Ok(());
@@ -123,21 +138,26 @@ fn test_fda_combination_product_requires_value_or_nullflavor() -> Result<(), Box
 <value xsi:type=\"BL\"/>\
 </investigationCharacteristic>\
 </subjectOf2>";
-	let broken = fda_xml.replacen("</investigationEvent>", &format!("{insert}</investigationEvent>"), 1);
+	let broken = fda_xml.replacen(
+		"</investigationEvent>",
+		&format!("{insert}</investigationEvent>"),
+		1,
+	);
 	assert_ne!(broken, fda_xml, "failed to insert FDA.C.1.12 test node");
 	let report = validate_e2b_xml(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected FDA.C.1.12 error");
-	let has_error = report
-		.errors
-		.iter()
-		.any(|e| e.message.contains("FDA.C.1.12 combination product indicator"));
+	let has_error = report.errors.iter().any(|e| {
+		e.message
+			.contains("FDA.C.1.12 combination product indicator")
+	});
 	assert!(has_error, "FDA.C.1.12 error not reported");
 
 	Ok(())
 }
 
 #[test]
-fn test_fda_local_criteria_requires_code_or_nullflavor() -> Result<(), Box<dyn Error>> {
+fn test_fda_local_criteria_requires_code_or_nullflavor() -> Result<(), Box<dyn Error>>
+{
 	let Some(dir) = examples_dir() else {
 		eprintln!("E2BR3_EXAMPLES_DIR not set; skipping XML validation examples");
 		return Ok(());
@@ -161,7 +181,11 @@ fn test_fda_local_criteria_requires_code_or_nullflavor() -> Result<(), Box<dyn E
 <value xsi:type=\"CE\"/>\
 </investigationCharacteristic>\
 </subjectOf2>";
-	let broken = fda_xml.replacen("</investigationEvent>", &format!("{insert}</investigationEvent>"), 1);
+	let broken = fda_xml.replacen(
+		"</investigationEvent>",
+		&format!("{insert}</investigationEvent>"),
+		1,
+	);
 	assert_ne!(broken, fda_xml, "failed to insert FDA.C.1.7.1 test node");
 	let report = validate_e2b_xml(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected FDA.C.1.7.1 error");
@@ -175,7 +199,8 @@ fn test_fda_local_criteria_requires_code_or_nullflavor() -> Result<(), Box<dyn E
 }
 
 #[test]
-fn test_fda_patient_race_requires_code_or_nullflavor() -> Result<(), Box<dyn Error>> {
+fn test_fda_patient_race_requires_code_or_nullflavor() -> Result<(), Box<dyn Error>>
+{
 	let Some(dir) = examples_dir() else {
 		eprintln!("E2BR3_EXAMPLES_DIR not set; skipping XML validation examples");
 		return Ok(());
@@ -194,7 +219,7 @@ fn test_fda_patient_race_requires_code_or_nullflavor() -> Result<(), Box<dyn Err
 			1,
 		);
 	let insert = "<player1 classCode=\"PSN\" determinerCode=\"INSTANCE\">\
-<raceCode/>"; 
+<raceCode/>";
 	let broken = fda_xml.replacen(
 		"<player1 classCode=\"PSN\" determinerCode=\"INSTANCE\">",
 		insert,
@@ -213,7 +238,8 @@ fn test_fda_patient_race_requires_code_or_nullflavor() -> Result<(), Box<dyn Err
 }
 
 #[test]
-fn test_fda_patient_ethnicity_requires_code_or_nullflavor() -> Result<(), Box<dyn Error>> {
+fn test_fda_patient_ethnicity_requires_code_or_nullflavor(
+) -> Result<(), Box<dyn Error>> {
 	let Some(dir) = examples_dir() else {
 		eprintln!("E2BR3_EXAMPLES_DIR not set; skipping XML validation examples");
 		return Ok(());
@@ -251,7 +277,8 @@ fn test_fda_patient_ethnicity_requires_code_or_nullflavor() -> Result<(), Box<dy
 }
 
 #[test]
-fn test_fda_required_intervention_requires_value_or_nullflavor() -> Result<(), Box<dyn Error>> {
+fn test_fda_required_intervention_requires_value_or_nullflavor(
+) -> Result<(), Box<dyn Error>> {
 	let Some(dir) = examples_dir() else {
 		eprintln!("E2BR3_EXAMPLES_DIR not set; skipping XML validation examples");
 		return Ok(());
@@ -275,7 +302,11 @@ fn test_fda_required_intervention_requires_value_or_nullflavor() -> Result<(), B
 <value xsi:type=\"BL\"/>\
 </observation>\
 </outboundRelationship2>";
-	let broken = fda_xml.replacen("</outboundRelationship2>", &format!("{insert}</outboundRelationship2>"), 1);
+	let broken = fda_xml.replacen(
+		"</outboundRelationship2>",
+		&format!("{insert}</outboundRelationship2>"),
+		1,
+	);
 	assert_ne!(broken, fda_xml, "failed to insert FDA.E.i.3.2h test node");
 	let report = validate_e2b_xml(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected FDA.E.i.3.2h error");
@@ -289,7 +320,8 @@ fn test_fda_required_intervention_requires_value_or_nullflavor() -> Result<(), B
 }
 
 #[test]
-fn test_fda_gk10a_requires_code_or_na_when_pre_anda_present() -> Result<(), Box<dyn Error>> {
+fn test_fda_gk10a_requires_code_or_na_when_pre_anda_present(
+) -> Result<(), Box<dyn Error>> {
 	let Some(dir) = examples_dir() else {
 		eprintln!("E2BR3_EXAMPLES_DIR not set; skipping XML validation examples");
 		return Ok(());
@@ -309,12 +341,26 @@ fn test_fda_gk10a_requires_code_or_na_when_pre_anda_present() -> Result<(), Box<
 			1,
 		);
 	let pre_anda = "<subjectOf1 typeCode=\"SBJ\"><researchStudy classCode=\"CLNTRL\" moodCode=\"EVN\"><authorization typeCode=\"AUTH\"><studyRegistration classCode=\"ACT\" moodCode=\"EVN\"><id root=\"2.16.840.1.113883.3.989.5.1.2.2.1.2.2\" extension=\"234567\"/></studyRegistration></authorization></researchStudy></subjectOf1>";
-	let with_pre_anda = fda_xml.replacen("</investigationEvent>", &format!("{pre_anda}</investigationEvent>"), 1);
-	assert_ne!(with_pre_anda, fda_xml, "failed to insert FDA.C.5.5b test node");
+	let with_pre_anda = fda_xml.replacen(
+		"</investigationEvent>",
+		&format!("{pre_anda}</investigationEvent>"),
+		1,
+	);
+	assert_ne!(
+		with_pre_anda, fda_xml,
+		"failed to insert FDA.C.5.5b test node"
+	);
 
 	let bad_gk10a = "<outboundRelationship2 typeCode=\"REFR\"><observation classCode=\"OBS\" moodCode=\"EVN\"><code code=\"9\" codeSystem=\"2.16.840.1.113883.3.989.2.1.1.19\"/><value xsi:type=\"CE\" code=\"9\"/></observation></outboundRelationship2>";
-	let broken = with_pre_anda.replacen("</substanceAdministration>", &format!("{bad_gk10a}</substanceAdministration>"), 1);
-	assert_ne!(broken, with_pre_anda, "failed to insert FDA.G.k.10a test node");
+	let broken = with_pre_anda.replacen(
+		"</substanceAdministration>",
+		&format!("{bad_gk10a}</substanceAdministration>"),
+		1,
+	);
+	assert_ne!(
+		broken, with_pre_anda,
+		"failed to insert FDA.G.k.10a test node"
+	);
 
 	let report = validate_e2b_xml(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected FDA.G.k.10a error");
@@ -328,7 +374,8 @@ fn test_fda_gk10a_requires_code_or_na_when_pre_anda_present() -> Result<(), Box<
 }
 
 #[test]
-fn test_fda_reporter_email_required_when_primary_source_present() -> Result<(), Box<dyn Error>> {
+fn test_fda_reporter_email_required_when_primary_source_present(
+) -> Result<(), Box<dyn Error>> {
 	let Some(dir) = examples_dir() else {
 		eprintln!("E2BR3_EXAMPLES_DIR not set; skipping XML validation examples");
 		return Ok(());
@@ -402,7 +449,11 @@ fn test_fda_pre_anda_not_allowed_postmarket() -> Result<(), Box<dyn Error>> {
 
 	let xml = read_example(&dir, "1-1_ExampleCase_literature_initial_v1_0.xml")?;
 	let pre_anda = "<subjectOf1 typeCode=\"SBJ\"><researchStudy classCode=\"CLNTRL\" moodCode=\"EVN\"><authorization typeCode=\"AUTH\"><studyRegistration classCode=\"ACT\" moodCode=\"EVN\"><id root=\"2.16.840.1.113883.3.989.5.1.2.2.1.2.2\" extension=\"234567\"/></studyRegistration></authorization></researchStudy></subjectOf1>";
-	let with_pre_anda = xml.replacen("</investigationEvent>", &format!("{pre_anda}</investigationEvent>"), 1);
+	let with_pre_anda = xml.replacen(
+		"</investigationEvent>",
+		&format!("{pre_anda}</investigationEvent>"),
+		1,
+	);
 	let broken = with_pre_anda
 		.replacen(
 			"extension=\"ICHTEST\" root=\"2.16.840.1.113883.3.989.2.1.3.12\"",

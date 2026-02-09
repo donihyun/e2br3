@@ -1,7 +1,7 @@
-# Appendix I B Mentioned Elements Missing From Template
+# Appendix I B Mentioned Elements Missing From Export Skeleton
 
 Total mentioned elements: 186
-Missing in template: 93
+Missing in export skeleton: 93
 
 | Element |
 |---|

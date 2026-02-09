@@ -1,13 +1,13 @@
+use axum::http::header;
+use axum::response::Response;
 use lib_core::model::acs::{
 	CASE_CREATE, CASE_DELETE, CASE_LIST, CASE_READ, CASE_UPDATE, XML_EXPORT,
 };
 use lib_core::model::case::{CaseBmc, CaseFilter, CaseForCreate, CaseForUpdate};
-use lib_core::xml::export_case_xml;
-use axum::http::header;
-use axum::response::Response;
-use lib_web::middleware::mw_auth::CtxW;
+use lib_core::xml::{export_case_xml, validate_e2b_xml};
 use lib_rest_core::prelude::*;
 use lib_rest_core::Error;
+use lib_web::middleware::mw_auth::CtxW;
 use tokio::runtime::Handle;
 use tokio::task;
 
@@ -47,10 +47,40 @@ pub async fn export_case(
 	.map_err(|err| Error::BadRequest {
 		message: format!("export task failed: {err}"),
 	})??;
+
+	if should_validate_export_xml() {
+		let report = validate_e2b_xml(xml.as_bytes(), None).map_err(|err| Error::BadRequest {
+			message: format!("export XML validation failed: {err}"),
+		})?;
+		if !report.ok {
+			let first = report
+				.errors
+				.first()
+				.map(|e| e.message.clone())
+				.unwrap_or_else(|| "unknown validation error".to_string());
+			return Err(Error::BadRequest {
+				message: format!(
+					"exported XML failed validation ({} issue(s)); first: {first}",
+					report.errors.len()
+				),
+			});
+		}
+	}
+
 	let mut response = (StatusCode::OK, xml).into_response();
 	response.headers_mut().insert(
 		header::CONTENT_TYPE,
 		header::HeaderValue::from_static("application/xml"),
 	);
 	Ok(response)
+}
+
+fn should_validate_export_xml() -> bool {
+	match std::env::var("E2BR3_EXPORT_VALIDATE") {
+		Ok(value) => matches!(
+			value.trim().to_ascii_lowercase().as_str(),
+			"1" | "true" | "yes"
+		),
+		Err(_) => false,
+	}
 }

@@ -63,6 +63,7 @@ CREATE TABLE if NOT EXISTS cases (
     safety_report_id VARCHAR(100) NOT NULL,  -- C.1.1
     version INTEGER NOT NULL DEFAULT 1,      -- C.1.1.r.1
     status VARCHAR(50) NOT NULL DEFAULT 'draft',
+    validation_profile VARCHAR(10),
 
     -- Workflow tracking
     created_by UUID NOT NULL REFERENCES users(id),
@@ -87,7 +88,8 @@ CREATE TABLE if NOT EXISTS cases (
 
     -- Unique constraint: one active version per safety_report_id
     CONSTRAINT unique_safety_report_version UNIQUE (safety_report_id, version),
-    CONSTRAINT case_status_valid CHECK (status IN ('draft', 'validated', 'submitted', 'archived', 'nullified'))
+    CONSTRAINT case_status_valid CHECK (status IN ('draft', 'validated', 'submitted', 'archived', 'nullified')),
+    CONSTRAINT case_validation_profile_valid CHECK (validation_profile IS NULL OR validation_profile IN ('ich', 'fda', 'mfds'))
 );
 
 CREATE INDEX idx_cases_organization ON cases(organization_id);

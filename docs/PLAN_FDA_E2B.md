@@ -6,7 +6,7 @@ Produce FDA‑compliant E2B(R3) XML with real‑world values, validated by XSD +
 ## Phase 0 — Baseline & Guardrails
 - Confirm target schema: FDA uses ICH E2B(R3) HL7 message `MCCI_IN200100UV01` (XML_1.0).
 - Ensure `E2BR3_XSD_PATH` points to full schema set (multicacheschemas + coreschemas).
-- Lock template version and export path to a single canonical template.
+- Lock the export skeleton and mapping rules to a single canonical baseline.
 
 ## Phase 1 — Required Field Audit & Mapping (FDA)
 **Deliverable:** A mapping table of FDA‑required fields → DB column/API → exporter mapping → validation rule.
@@ -59,8 +59,8 @@ Produce FDA‑compliant E2B(R3) XML with real‑world values, validated by XSD +
 
 ## Current Status (as of 2026‑02‑04)
 - XSD validation works when schemas mounted.
-- Export pipeline works but still contains template placeholders unless replaced.
-- Batch sender/receiver now injected; template updated for proper ordering.
+- Export pipeline works but still contains placeholder values unless replaced.
+- Batch sender/receiver now injected; export ordering updated for proper ordering.
 
 ## Immediate Next Actions
 1) Build FDA required field checklist from the FDA Core/Regional Excel.
@@ -70,4 +70,4 @@ Produce FDA‑compliant E2B(R3) XML with real‑world values, validated by XSD +
 
 ## Notes
 - FDA validation is stricter than XSD alone.
-- Template placeholders must be replaced with real values or removed.
+- Placeholder values must be replaced with real values or removed.

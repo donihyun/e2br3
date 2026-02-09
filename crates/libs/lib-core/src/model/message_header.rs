@@ -173,13 +173,14 @@ impl MessageHeaderBmc {
 					.bind(data.message_receiver_identifier)
 					.bind(ctx.user_id()),
 			)
-			.await {
-				Ok(res) => res,
-				Err(err) => {
-					mm.dbx().rollback_txn().await?;
-					return Err(err.into());
-				}
-			};
+			.await
+		{
+			Ok(res) => res,
+			Err(err) => {
+				mm.dbx().rollback_txn().await?;
+				return Err(err.into());
+			}
+		};
 		if result == 0 {
 			mm.dbx().rollback_txn().await?;
 			return Err(crate::model::Error::EntityUuidNotFound {

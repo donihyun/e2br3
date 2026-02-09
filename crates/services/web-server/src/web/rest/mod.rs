@@ -1,5 +1,6 @@
 // Declare handler modules
 pub mod case_rest;
+pub mod case_validation_rest;
 pub mod organization_rest;
 pub mod patient_rest;
 pub mod user_rest;
@@ -21,6 +22,7 @@ pub mod import_rest;
 pub mod narrative_sub_rest;
 pub mod parent_history_rest;
 pub mod patient_sub_rest;
+pub mod presave_template_rest;
 pub mod receiver_rest;
 pub mod relatedness_assessment_rest;
 pub mod safety_report_sub_rest;
@@ -409,6 +411,10 @@ pub fn routes_cases(mm: ModelManager) -> Router {
 		"/cases/{case_id}/versions",
 		get(audit_rest::list_case_versions),
 	)
+	.route(
+		"/cases/{case_id}/validation",
+		get(case_validation_rest::validate_case),
+	)
 	.route("/cases/{id}/export/xml", get(case_rest::export_case))
 	.with_state(mm)
 }
@@ -442,6 +448,27 @@ pub fn routes_users(mm: ModelManager) -> Router {
 			get(user_rest::get_user)
 				.put(user_rest::update_user)
 				.delete(user_rest::delete_user),
+		)
+		.with_state(mm)
+}
+
+/// Routes for /api/presave-templates
+pub fn routes_presave_templates(mm: ModelManager) -> Router {
+	Router::new()
+		.route(
+			"/presave-templates",
+			get(presave_template_rest::list_presave_templates)
+				.post(presave_template_rest::create_presave_template),
+		)
+		.route(
+			"/presave-templates/{id}",
+			get(presave_template_rest::get_presave_template)
+				.patch(presave_template_rest::update_presave_template)
+				.delete(presave_template_rest::delete_presave_template),
+		)
+		.route(
+			"/presave-templates/{id}/audit",
+			get(presave_template_rest::list_presave_template_audits),
 		)
 		.with_state(mm)
 }
