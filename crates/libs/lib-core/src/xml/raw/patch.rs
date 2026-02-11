@@ -10,6 +10,10 @@ use crate::xml::export_sections::e_reaction::reaction_fragment;
 use crate::xml::export_sections::f_test_result::test_result_fragment;
 use crate::xml::export_sections::g_drug::drug_fragment;
 use crate::xml::export_sections::h_narrative::comment_fragment;
+use crate::xml::validate::{
+	drug_characterization_display_name, normalize_drug_characterization,
+	should_clear_null_flavor_on_value,
+};
 use crate::xml::Result;
 use libxml::parser::Parser;
 use libxml::tree::{Document, Node, NodeType};
@@ -89,22 +93,6 @@ pub fn patch_c_safety_report(
 		&fmt_date_time_fallback(patch.transmission_date),
 	);
 
-	// C.1.3 Type of Report
-	ensure_investigation_characteristic(
-		&mut doc,
-		&parser,
-		&mut xpath,
-		"1",
-		"2.16.840.1.113883.3.989.2.1.1.23",
-		Some("2.16.840.1.113883.3.989.2.1.1.2"),
-	)?;
-	set_attr_first(
-		&mut xpath,
-		"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.23']]/hl7:value",
-		"code",
-		patch.report_type,
-	);
-
 	// C.1.4 Date First Received
 	ensure_investigation_effective_time(&mut doc, &parser, &mut xpath)?;
 	set_attr_first(
@@ -171,10 +159,10 @@ pub fn patch_c_safety_report(
 			"code",
 			code,
 		);
-		remove_attr_first(
+		clear_null_flavor_if_catalog_directive(
 			&mut xpath,
+			"FDA.C.1.7.1.REQUIRED",
 			"//hl7:component/hl7:observationEvent[hl7:code[@code='C54588' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
-			"nullFlavor",
 		);
 	}
 
@@ -194,12 +182,30 @@ pub fn patch_c_safety_report(
 			"value",
 			value,
 		);
-		remove_attr_first(
+		clear_null_flavor_if_catalog_directive(
 			&mut xpath,
+			"FDA.C.1.12.REQUIRED",
 			"//hl7:component/hl7:observationEvent[hl7:code[@code='C156384' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
-			"nullFlavor",
 		);
 	}
+
+	// C.1.3 Type of Report
+	// Keep investigationCharacteristic insertion after component insertions so
+	// investigationEvent children remain in schema order.
+	ensure_investigation_characteristic(
+		&mut doc,
+		&parser,
+		&mut xpath,
+		"1",
+		"2.16.840.1.113883.3.989.2.1.1.23",
+		Some("2.16.840.1.113883.3.989.2.1.1.2"),
+	)?;
+	set_attr_first(
+		&mut xpath,
+		"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.23']]/hl7:value",
+		"code",
+		patch.report_type,
+	);
 
 	// C.1.11.1 Nullification/Amendment Code
 	if let Some(code) = patch.nullification_code {
@@ -467,6 +473,11 @@ pub fn patch_g_drugs(
 		&mut xpath,
 		"//hl7:primaryRole/hl7:subjectOf2[hl7:organizer/hl7:code[@code='4' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.20']]",
 	);
+	// Remove template causality blocks so we don't leak hardcoded product/reaction IDs.
+	remove_nodes(
+		&mut xpath,
+		"//hl7:adverseEventAssessment/hl7:component[hl7:causalityAssessment]",
+	);
 
 	for drug in drugs {
 		let subs: Vec<&DrugActiveSubstance> =
@@ -489,9 +500,45 @@ pub fn patch_g_drugs(
 			"//hl7:primaryRole",
 			&fragment,
 		)?;
+		let role_fragment = causality_role_fragment(drug);
+		append_fragment_child(
+			&mut doc,
+			&parser,
+			&mut xpath,
+			"//hl7:adverseEventAssessment",
+			&role_fragment,
+		)?;
 	}
 
 	Ok(doc.to_string())
+}
+
+fn causality_role_fragment(drug: &DrugInformation) -> String {
+	let role_code = normalize_drug_characterization(&drug.drug_characterization);
+	let display = drug_characterization_display_name(role_code);
+	format!(
+		"<component typeCode=\"COMP\">\
+			<causalityAssessment classCode=\"OBS\" moodCode=\"EVN\">\
+				<code code=\"20\" codeSystem=\"2.16.840.1.113883.3.989.2.1.1.19\" displayName=\"interventionCharacterization\"/>\
+				<value xsi:type=\"CE\" code=\"{role_code}\" displayName=\"{display}\" codeSystem=\"2.16.840.1.113883.3.989.2.1.1.13\"/>\
+				<subject2 typeCode=\"SUBJ\">\
+					<productUseReference classCode=\"SBADM\" moodCode=\"EVN\">\
+						<id root=\"{}\"/>\
+					</productUseReference>\
+				</subject2>\
+			</causalityAssessment>\
+		</component>",
+		xml_escape(&drug.id.to_string())
+	)
+}
+
+fn xml_escape(value: &str) -> String {
+	value
+		.replace('&', "&amp;")
+		.replace('<', "&lt;")
+		.replace('>', "&gt;")
+		.replace('"', "&quot;")
+		.replace('\'', "&apos;")
 }
 
 pub fn patch_h_narrative(
@@ -898,6 +945,16 @@ fn remove_attr_first(xpath: &mut Context, path: &str, attr: &str) {
 		if let Some(mut node) = nodes.into_iter().next() {
 			let _ = node.remove_attribute(attr);
 		}
+	}
+}
+
+fn clear_null_flavor_if_catalog_directive(
+	xpath: &mut Context,
+	rule_code: &str,
+	path: &str,
+) {
+	if should_clear_null_flavor_on_value(rule_code) {
+		remove_attr_first(xpath, path, "nullFlavor");
 	}
 }
 

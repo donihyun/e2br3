@@ -14,9 +14,13 @@ These examples are organized by user flow and all start with login.
    - Login -> create FDA case -> validate -> export
 2. `case_create_ich_minimal`
    - Login -> create ICH case -> validate -> export
-3. `import_export_fda_roundtrip`
+3. `case_create_fda_validation_batch`
+   - Login -> create multiple FDA scratch cases with varied reaction/drug combinations -> validate -> export all
+4. `case_create_fda_submission_pack`
+   - Login -> create multiple FDA scratch cases (postmarket + premarket variants) -> validate -> export all
+5. `import_export_fda_roundtrip`
    - Login -> import FDA XML -> validate -> export
-4. `import_export_ich_roundtrip`
+6. `import_export_ich_roundtrip`
    - Login -> import ICH XML -> validate -> export
 
 ## Run
@@ -26,6 +30,8 @@ From repository root:
 ```bash
 cargo run -p web-server --example case_create_fda_minimal
 cargo run -p web-server --example case_create_ich_minimal
+cargo run -p web-server --example case_create_fda_validation_batch
+cargo run -p web-server --example case_create_fda_submission_pack
 cargo run -p web-server --example import_export_fda_roundtrip
 cargo run -p web-server --example import_export_ich_roundtrip
 ```

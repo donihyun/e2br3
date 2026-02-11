@@ -27,6 +27,7 @@ pub mod receiver_rest;
 pub mod relatedness_assessment_rest;
 pub mod safety_report_sub_rest;
 pub mod terminology_rest;
+pub mod validation_rules_rest;
 
 use axum::routing::get;
 use axum::Router;
@@ -40,8 +41,20 @@ pub fn routes_cases(mm: ModelManager) -> Router {
 		"/cases/{id}",
 		get(case_rest::list_cases).post(case_rest::create_case),
 		get(case_rest::get_case)
-			.put(case_rest::update_case)
+			.put(case_rest::update_case_guarded)
 			.delete(case_rest::delete_case),
+	)
+	.route(
+		"/cases/intake-check",
+		axum::routing::post(case_rest::check_case_intake_duplicate),
+	)
+	.route(
+		"/cases/from-intake",
+		axum::routing::post(case_rest::create_case_from_intake),
+	)
+	.route(
+		"/cases/{id}/validator/mark-validated",
+		axum::routing::post(case_rest::mark_case_validated_by_validator),
 	)
 	// Patient (singleton per case)
 	.route(
@@ -510,6 +523,16 @@ pub fn routes_audit(mm: ModelManager) -> Router {
 		.route(
 			"/audit-logs/by-record/{table_name}/{record_id}",
 			get(audit_rest::list_audit_logs_by_record),
+		)
+		.with_state(mm)
+}
+
+/// Routes for /api/validation
+pub fn routes_validation(mm: ModelManager) -> Router {
+	Router::new()
+		.route(
+			"/validation/rules",
+			get(validation_rules_rest::list_validation_rules),
 		)
 		.with_state(mm)
 }

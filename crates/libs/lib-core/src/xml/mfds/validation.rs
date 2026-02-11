@@ -3,8 +3,9 @@ use crate::model::drug::{DrugActiveSubstance, DrugInformation};
 use crate::model::safety_report::SenderInformation;
 use crate::model::{ModelManager, Result};
 use crate::xml::validate::{
-	build_report, has_text, push_issue_by_code, CaseValidationReport,
-	ValidationIssue, ValidationProfile,
+	build_report, has_text, CaseValidationReport,
+	ValidationIssue, ValidationProfile, RuleFacts,
+	push_issue_if_conditioned_value_invalid, push_issue_if_condition_violated,
 };
 use sqlx::types::Uuid;
 
@@ -67,6 +68,26 @@ async fn list_senders_by_case(
 		.map_err(Into::into)
 }
 
+fn push_mfds_required_issue(
+	issues: &mut Vec<ValidationIssue>,
+	code: &str,
+	path: String,
+	value: Option<&str>,
+	condition_facts: RuleFacts,
+) {
+	let _ = push_issue_if_conditioned_value_invalid(
+		issues,
+		code,
+		code,
+		code,
+		path,
+		value,
+		None,
+		condition_facts,
+		RuleFacts::default(),
+	);
+}
+
 pub async fn validate_case(
 	ctx: &Ctx,
 	mm: &ModelManager,
@@ -84,13 +105,15 @@ pub async fn validate_case(
 
 	// MFDS-specific checks (KR profile): only rules backed by persisted fields.
 	senders.iter().enumerate().for_each(|(idx, sender)| {
-		if sender.sender_type.trim() == "3" {
-			push_issue_by_code(
-				&mut issues,
-				"MFDS.C.3.1.KR.1.REQUIRED",
-				format!("senderInformation.{idx}.senderType"),
-			);
-		}
+		let _ = push_issue_if_condition_violated(
+			&mut issues,
+			"MFDS.C.3.1.KR.1.REQUIRED",
+			format!("senderInformation.{idx}.senderType"),
+			RuleFacts {
+				mfds_sender_type_disallowed: Some(sender.sender_type.trim() == "3"),
+				..RuleFacts::default()
+			},
+		);
 	});
 
 	let mut domestic_drug_ids = std::collections::HashSet::new();
@@ -99,51 +122,62 @@ pub async fn validate_case(
 	drugs.iter().enumerate().for_each(|(idx, drug)| {
 		drug_index_by_id.insert(drug.id, idx);
 		let country = drug.obtain_drug_country.as_deref().map(str::trim);
+		let is_domestic_kr = matches!(country, Some("KR"));
+		let is_foreign_non_kr = matches!(country, Some(other) if !other.is_empty() && other != "KR");
 		match country {
 			Some("KR") => {
 				domestic_drug_ids.insert(drug.id);
-				if !has_text(drug.mpid.as_deref()) {
-					push_issue_by_code(
-						&mut issues,
-						"MFDS.KR.DOMESTIC.PRODUCTCODE.REQUIRED",
-						format!("drugs.{idx}.mpid"),
-					);
-				}
+				push_mfds_required_issue(
+					&mut issues,
+					"MFDS.KR.DOMESTIC.PRODUCTCODE.REQUIRED",
+					format!("drugs.{idx}.mpid"),
+					drug.mpid.as_deref(),
+					RuleFacts {
+						mfds_drug_domestic_kr: Some(is_domestic_kr),
+						..RuleFacts::default()
+					},
+				);
 			}
 			Some(other) if !other.is_empty() => {
-				if !has_text(drug.mpid.as_deref()) {
-					push_issue_by_code(
-						&mut issues,
-						"MFDS.KR.FOREIGN.WHOMPID.RECOMMENDED",
-						format!("drugs.{idx}.mpid"),
-					);
-				}
+				push_mfds_required_issue(
+					&mut issues,
+					"MFDS.KR.FOREIGN.WHOMPID.RECOMMENDED",
+					format!("drugs.{idx}.mpid"),
+					drug.mpid.as_deref(),
+					RuleFacts {
+						mfds_drug_foreign_non_kr: Some(is_foreign_non_kr),
+						..RuleFacts::default()
+					},
+				);
 			}
 			_ => {}
 		}
 	});
 
 	active_substances.iter().for_each(|substance| {
-		if domestic_drug_ids.contains(&substance.drug_id)
-			&& !has_text(substance.substance_termid.as_deref())
-		{
-			let drug_index = drug_index_by_id.get(&substance.drug_id).copied();
-			let substance_index = substance
-				.sequence_number
-				.checked_sub(1)
-				.and_then(|v| usize::try_from(v).ok());
-			let path = match (drug_index, substance_index) {
-				(Some(d_idx), Some(s_idx)) => {
-					format!("drugs.{d_idx}.activeSubstances.{s_idx}.substanceTermId")
-				}
-				_ => "drugs".to_string(),
-			};
-			push_issue_by_code(
-				&mut issues,
-				"MFDS.KR.DOMESTIC.INGREDIENTCODE.REQUIRED",
-				path,
-			);
-		}
+		let drug_index = drug_index_by_id.get(&substance.drug_id).copied();
+		let substance_index = substance
+			.sequence_number
+			.checked_sub(1)
+			.and_then(|v| usize::try_from(v).ok());
+		let path = match (drug_index, substance_index) {
+			(Some(d_idx), Some(s_idx)) => {
+				format!("drugs.{d_idx}.activeSubstances.{s_idx}.substanceTermId")
+			}
+			_ => "drugs".to_string(),
+		};
+		push_mfds_required_issue(
+			&mut issues,
+			"MFDS.KR.DOMESTIC.INGREDIENTCODE.REQUIRED",
+			path,
+			substance.substance_termid.as_deref(),
+			RuleFacts {
+				mfds_drug_domestic_kr: Some(
+					domestic_drug_ids.contains(&substance.drug_id),
+				),
+				..RuleFacts::default()
+			},
+		);
 	});
 
 	relatedness.iter().for_each(|r| {
@@ -162,25 +196,38 @@ pub async fn validate_case(
 			_ => "drugs".to_string(),
 		};
 
-		if has_source && !has_method {
-			push_issue_by_code(
-				&mut issues,
-				"MFDS.G.k.9.i.2.r.2.KR.1.REQUIRED",
-				path_for("methodOfAssessment"),
-			);
-		}
-		if has_source && !has_result {
-			push_issue_by_code(
-				&mut issues,
-				"MFDS.G.k.9.i.2.r.3.KR.1.REQUIRED",
-				path_for("resultOfAssessment"),
-			);
-		}
-		if !has_source && (has_method || has_result) {
-			push_issue_by_code(
+		push_mfds_required_issue(
+			&mut issues,
+			"MFDS.G.k.9.i.2.r.2.KR.1.REQUIRED",
+			path_for("methodOfAssessment"),
+			r.method_of_assessment.as_deref(),
+			RuleFacts {
+				mfds_relatedness_source_present: Some(has_source),
+				..RuleFacts::default()
+			},
+		);
+		push_mfds_required_issue(
+			&mut issues,
+			"MFDS.G.k.9.i.2.r.3.KR.1.REQUIRED",
+			path_for("resultOfAssessment"),
+			r.result_of_assessment.as_deref(),
+			RuleFacts {
+				mfds_relatedness_source_present: Some(has_source),
+				..RuleFacts::default()
+			},
+		);
+		if !has_source
+		{
+			push_mfds_required_issue(
 				&mut issues,
 				"MFDS.G.k.9.i.2.r.1.REQUIRED",
 				path_for("sourceOfAssessment"),
+				r.source_of_assessment.as_deref(),
+				RuleFacts {
+					mfds_relatedness_method_present: Some(has_method),
+					mfds_relatedness_result_present: Some(has_result),
+					..RuleFacts::default()
+				},
 			);
 		}
 	});

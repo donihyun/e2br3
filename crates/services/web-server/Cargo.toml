@@ -46,6 +46,14 @@ name = "case_create_ich_minimal"
 path = "examples/case_creation/ich_minimal.rs"
 
 [[example]]
+name = "case_create_fda_validation_batch"
+path = "examples/case_creation/fda_validation_batch.rs"
+
+[[example]]
+name = "case_create_fda_submission_pack"
+path = "examples/case_creation/fda_submission_pack.rs"
+
+[[example]]
 name = "import_export_fda_roundtrip"
 path = "examples/import_export/fda_xml_roundtrip.rs"
 

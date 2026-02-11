@@ -62,6 +62,7 @@ CREATE TABLE if NOT EXISTS cases (
     -- Case identification
     safety_report_id VARCHAR(100) NOT NULL,  -- C.1.1
     version INTEGER NOT NULL DEFAULT 1,      -- C.1.1.r.1
+    dg_prd_key TEXT,
     status VARCHAR(50) NOT NULL DEFAULT 'draft',
     validation_profile VARCHAR(10),
 
@@ -88,7 +89,7 @@ CREATE TABLE if NOT EXISTS cases (
 
     -- Unique constraint: one active version per safety_report_id
     CONSTRAINT unique_safety_report_version UNIQUE (safety_report_id, version),
-    CONSTRAINT case_status_valid CHECK (status IN ('draft', 'validated', 'submitted', 'archived', 'nullified')),
+    CONSTRAINT case_status_valid CHECK (status IN ('draft', 'checked', 'validated', 'submitted', 'archived', 'nullified')),
     CONSTRAINT case_validation_profile_valid CHECK (validation_profile IS NULL OR validation_profile IN ('ich', 'fda', 'mfds'))
 );
 

@@ -1,4 +1,8 @@
 use crate::model::reaction::Reaction;
+use crate::xml::validate::{
+	normalize_outcome_code, outcome_display_name,
+	should_emit_required_intervention_null_flavor_ni,
+};
 use crate::xml::Result;
 use sqlx::types::time::Date;
 
@@ -14,38 +18,22 @@ pub fn export_e_reactions_xml(reactions: &[Reaction]) -> Result<String> {
 pub(crate) fn reaction_fragment(reaction: &Reaction) -> String {
 	let mut out = String::new();
 	out.push_str("<subjectOf2 typeCode=\"SBJ\"><observation classCode=\"OBS\" moodCode=\"EVN\">");
+	out.push_str("<id root=\"");
+	out.push_str(&xml_escape(&reaction.id.to_string()));
+	out.push_str("\"/>");
 	out.push_str(
 		"<code code=\"29\" codeSystem=\"2.16.840.1.113883.3.989.2.1.1.19\"/>",
 	);
-
-	let mut value_attrs = String::new();
-	if let Some(code) = reaction.reaction_meddra_code.as_deref() {
-		value_attrs.push_str(" code=\"");
-		value_attrs.push_str(&xml_escape(code));
-		value_attrs.push_str("\"");
-	}
-	if let Some(version) = reaction.reaction_meddra_version.as_deref() {
-		value_attrs.push_str(" codeSystemVersion=\"");
-		value_attrs.push_str(&xml_escape(version));
-		value_attrs.push_str("\"");
-	}
-	out.push_str(&format!(
-		"<value xsi:type=\"CE\"{value_attrs}><originalText",
-	));
-	if let Some(lang) = reaction.reaction_language.as_deref() {
-		out.push_str(" language=\"");
-		out.push_str(&xml_escape(lang));
-		out.push_str("\"");
-	}
-	out.push_str(">\"");
-	out.push_str(&xml_escape(&reaction.primary_source_reaction));
-	out.push_str("\"</originalText></value>");
 
 	if reaction.start_date.is_some()
 		|| reaction.end_date.is_some()
 		|| reaction.duration_value.is_some()
 	{
-		out.push_str("<effectiveTime>");
+		if reaction.duration_value.is_some() {
+			out.push_str("<effectiveTime xsi:type=\"SXPR_TS\">");
+		} else {
+			out.push_str("<effectiveTime xsi:type=\"IVL_TS\">");
+		}
 		if let Some(start) = reaction.start_date {
 			out.push_str("<low value=\"");
 			out.push_str(&fmt_date(start));
@@ -70,44 +58,63 @@ pub(crate) fn reaction_fragment(reaction: &Reaction) -> String {
 		out.push_str("</effectiveTime>");
 	}
 
+	let meddracode = reaction.reaction_meddra_code.as_deref().unwrap_or("").trim();
+	if !meddracode.is_empty() {
+		out.push_str("<value xsi:type=\"CE\" code=\"");
+		out.push_str(&xml_escape(meddracode));
+		out.push_str("\" codeSystem=\"2.16.840.1.113883.6.163\"");
+		if let Some(version) = reaction.reaction_meddra_version.as_deref() {
+			out.push_str(" codeSystemVersion=\"");
+			out.push_str(&xml_escape(version));
+			out.push_str("\"");
+		}
+		out.push_str("/>");
+	} else {
+		out.push_str("<value xsi:type=\"CE\"><originalText");
+		if let Some(lang) = reaction.reaction_language.as_deref() {
+			out.push_str(" language=\"");
+			out.push_str(&xml_escape(lang));
+			out.push_str("\"");
+		}
+		out.push_str(">");
+		out.push_str(&xml_escape(&reaction.primary_source_reaction));
+		out.push_str("</originalText></value>");
+	}
+
 	if let Some(term_code) =
 		term_highlight_code(reaction.term_highlighted, reaction.serious)
 	{
 		out.push_str(&observation_rel_code("37", &term_code));
 	}
 
-	if reaction.criteria_death {
-		out.push_str(&observation_rel_bool("34", true));
-	}
-	if reaction.criteria_life_threatening {
-		out.push_str(&observation_rel_bool("21", true));
-	}
-	if reaction.criteria_hospitalization {
-		out.push_str(&observation_rel_bool("33", true));
-	}
-	if reaction.criteria_disabling {
-		out.push_str(&observation_rel_bool("35", true));
-	}
-	if reaction.criteria_congenital_anomaly {
-		out.push_str(&observation_rel_bool("12", true));
-	}
-	if reaction.criteria_other_medically_important {
-		out.push_str(&observation_rel_bool("26", true));
-	}
+	out.push_str(&observation_rel_bool_or_ni("34", reaction.criteria_death));
+	out.push_str(&observation_rel_bool_or_ni(
+		"21",
+		reaction.criteria_life_threatening,
+	));
+	out.push_str(&observation_rel_bool_or_ni(
+		"33",
+		reaction.criteria_hospitalization,
+	));
+	out.push_str(&observation_rel_bool_or_ni("35", reaction.criteria_disabling));
+	out.push_str(&observation_rel_bool_or_ni(
+		"12",
+		reaction.criteria_congenital_anomaly,
+	));
+	out.push_str(&observation_rel_bool_or_ni(
+		"26",
+		reaction.criteria_other_medically_important,
+	));
 
-	if let Some(value) = reaction.required_intervention.as_deref() {
-		out.push_str(&observation_rel_value("7", value));
-	}
+	out.push_str(&observation_rel_required_intervention());
 
-	if let Some(outcome) = reaction.outcome.as_deref() {
-		out.push_str(&observation_rel_code("27", outcome));
-	}
+	out.push_str(&observation_rel_outcome(reaction.outcome.as_deref()));
 	if let Some(value) = reaction.medical_confirmation {
 		out.push_str(&observation_rel_bool("24", value));
 	}
 
 	if let Some(country) = reaction.country_code.as_deref() {
-		out.push_str("<location><locatedEntity><locatedPlace><code code=\"");
+		out.push_str("<location typeCode=\"LOC\"><locatedEntity classCode=\"LOCE\"><locatedPlace classCode=\"COUNTRY\" determinerCode=\"INSTANCE\"><code code=\"");
 		out.push_str(&xml_escape(country));
 		out.push_str("\"/></locatedPlace></locatedEntity></location>");
 	}
@@ -119,22 +126,43 @@ pub(crate) fn reaction_fragment(reaction: &Reaction) -> String {
 fn observation_rel_bool(code: &str, value: bool) -> String {
 	let v = if value { "true" } else { "false" };
 	format!(
-		"<outboundRelationship2 typeCode=\"COMP\"><observation classCode=\"OBS\" moodCode=\"EVN\"><code code=\"{code}\" codeSystem=\"2.16.840.1.113883.3.989.2.1.1.19\"/><value xsi:type=\"BL\" value=\"{v}\"/></observation></outboundRelationship2>"
+		"<outboundRelationship2 typeCode=\"PERT\"><observation classCode=\"OBS\" moodCode=\"EVN\"><code code=\"{code}\" codeSystem=\"2.16.840.1.113883.3.989.2.1.1.19\"/><value xsi:type=\"BL\" value=\"{v}\"/></observation></outboundRelationship2>"
 	)
 }
 
 fn observation_rel_code(code: &str, value: &str) -> String {
 	format!(
-		"<outboundRelationship2 typeCode=\"COMP\"><observation classCode=\"OBS\" moodCode=\"EVN\"><code code=\"{code}\" codeSystem=\"2.16.840.1.113883.3.989.2.1.1.19\"/><value xsi:type=\"CE\" code=\"{}\"/></observation></outboundRelationship2>",
+		"<outboundRelationship2 typeCode=\"PERT\"><observation classCode=\"OBS\" moodCode=\"EVN\"><code code=\"{code}\" codeSystem=\"2.16.840.1.113883.3.989.2.1.1.19\"/><value xsi:type=\"CE\" code=\"{}\"/></observation></outboundRelationship2>",
 		xml_escape(value)
 	)
 }
 
-fn observation_rel_value(code: &str, value: &str) -> String {
+fn observation_rel_bool_or_ni(code: &str, value: bool) -> String {
+	if value {
+		observation_rel_bool(code, true)
+	} else {
+		format!(
+			"<outboundRelationship2 typeCode=\"PERT\"><observation classCode=\"OBS\" moodCode=\"EVN\"><code code=\"{code}\" codeSystem=\"2.16.840.1.113883.3.989.2.1.1.19\"/><value xsi:type=\"BL\" nullFlavor=\"NI\"/></observation></outboundRelationship2>"
+		)
+	}
+}
+
+fn observation_rel_outcome(value: Option<&str>) -> String {
+	let code = normalize_outcome_code(value);
+	let display_name = outcome_display_name(code);
 	format!(
-		"<outboundRelationship2 typeCode=\"COMP\"><observation classCode=\"OBS\" moodCode=\"EVN\"><code code=\"{code}\" codeSystem=\"2.16.840.1.113883.3.989.2.1.1.19\"/><value xsi:type=\"ST\" value=\"{}\"/></observation></outboundRelationship2>",
-		xml_escape(value)
+		"<outboundRelationship2 typeCode=\"PERT\"><observation classCode=\"OBS\" moodCode=\"EVN\"><code code=\"27\" codeSystem=\"2.16.840.1.113883.3.989.2.1.1.19\"/><value xsi:type=\"CE\" code=\"{}\" codeSystem=\"2.16.840.1.113883.3.989.2.1.1.11\" displayName=\"{}\"/></observation></outboundRelationship2>",
+		xml_escape(code),
+		xml_escape(display_name)
 	)
+}
+
+fn observation_rel_required_intervention() -> String {
+	if should_emit_required_intervention_null_flavor_ni() {
+		"<outboundRelationship2 typeCode=\"PERT\"><observation classCode=\"OBS\" moodCode=\"EVN\"><code code=\"7\" codeSystem=\"2.16.840.1.113883.3.989.5.1.2.2.1.3\"/><value xsi:type=\"BL\" nullFlavor=\"NI\"/></observation></outboundRelationship2>".to_string()
+	} else {
+		"<outboundRelationship2 typeCode=\"PERT\"><observation classCode=\"OBS\" moodCode=\"EVN\"><code code=\"7\" codeSystem=\"2.16.840.1.113883.3.989.5.1.2.2.1.3\"/><value xsi:type=\"BL\" value=\"true\"/></observation></outboundRelationship2>".to_string()
+	}
 }
 
 fn term_highlight_code(

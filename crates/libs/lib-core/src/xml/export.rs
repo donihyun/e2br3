@@ -9,6 +9,7 @@ use crate::model::message_header::MessageHeader;
 use crate::model::narrative::NarrativeInformationBmc;
 use crate::model::patient::PatientInformationBmc;
 use crate::model::reaction::Reaction;
+use crate::model::safety_report::{StudyInformation, StudyRegistrationNumber};
 use crate::model::safety_report::SafetyReportIdentificationBmc;
 use crate::model::test_result::TestResult;
 use crate::model::ModelManager;
@@ -554,51 +555,14 @@ async fn export_case_xml_from_db(
 	let _ =
 		xpath.register_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
 	apply_section_n(&mut doc, &parser, mm, case_id, &mut xpath).await?;
+	apply_study_section(&mut doc, &parser, mm, case_id, &mut xpath).await?;
 	postprocess_export_doc(&mut doc, &mut xpath);
 
-	Ok(doc.to_string())
+	Ok(normalize_namespace_artifacts(doc.to_string()))
 }
 
 fn base_export_skeleton() -> &'static str {
-	"<?xml version=\"1.0\" encoding=\"utf-8\"?>\
-<MCCI_IN200100UV01 xmlns=\"urn:hl7-org:v3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ITSVersion=\"XML_1.0\">\
-	<id/>\
-	<creationTime/>\
-	<receiver typeCode=\"RCV\">\
-		<device classCode=\"DEV\" determinerCode=\"INSTANCE\">\
-			<id/>\
-		</device>\
-	</receiver>\
-	<sender typeCode=\"SND\">\
-		<device classCode=\"DEV\" determinerCode=\"INSTANCE\">\
-			<id/>\
-		</device>\
-	</sender>\
-	<PORR_IN049016UV>\
-		<id/>\
-		<creationTime/>\
-		<receiver typeCode=\"RCV\">\
-			<device classCode=\"DEV\" determinerCode=\"INSTANCE\">\
-				<id/>\
-			</device>\
-		</receiver>\
-		<sender typeCode=\"SND\">\
-			<device classCode=\"DEV\" determinerCode=\"INSTANCE\">\
-				<id/>\
-			</device>\
-		</sender>\
-		<controlActProcess classCode=\"CACT\" moodCode=\"EVN\">\
-			<code code=\"PORR_TE049016UV\" codeSystem=\"2.16.840.1.113883.1.18\"/>\
-			<subject>\
-				<investigationEvent classCode=\"INVSTG\" moodCode=\"EVN\">\
-					<component typeCode=\"COMP\">\
-						<adverseEventAssessment classCode=\"INVSTG\" moodCode=\"EVN\"/>\
-					</component>\
-				</investigationEvent>\
-			</subject>\
-		</controlActProcess>\
-	</PORR_IN049016UV>\
-</MCCI_IN200100UV01>"
+	include_str!("../../../../../docs/refs/instances/FAERS2022Scenario1.xml")
 }
 
 async fn apply_section_n(
@@ -627,6 +591,13 @@ async fn apply_section_n(
 			"/hl7:MCCI_IN200100UV01/hl7:creationTime",
 			"value",
 			&fmt_datetime(batch_tx),
+		);
+	} else {
+		set_attr_first(
+			xpath,
+			"/hl7:MCCI_IN200100UV01/hl7:creationTime",
+			"value",
+			&header.message_date,
 		);
 	}
 	let batch_sender = header
@@ -682,6 +653,12 @@ async fn apply_section_n(
 		"extension",
 		&header.message_receiver_identifier,
 	);
+	set_attr_first(
+		xpath,
+		"/hl7:MCCI_IN200100UV01/hl7:PORR_IN049016UV/hl7:controlActProcess/hl7:effectiveTime",
+		"value",
+		&header.message_date,
+	);
 
 	Ok(())
 }
@@ -715,4 +692,184 @@ fn fmt_datetime(dt: sqlx::types::time::OffsetDateTime) -> String {
 		dt.minute(),
 		dt.second()
 	)
+}
+
+fn normalize_namespace_artifacts(mut xml: String) -> String {
+	xml = xml.replace("xmlns:default=\"urn:hl7-org:v3\"", "");
+	xml = xml.replace("xmlns:default=\"urn:hl7-org:v3\" ", "");
+	xml = xml.replace("<default:", "<");
+	xml = xml.replace("</default:", "</");
+	xml
+}
+
+async fn apply_study_section(
+	doc: &mut Document,
+	parser: &Parser,
+	mm: &ModelManager,
+	case_id: sqlx::types::Uuid,
+	xpath: &mut Context,
+) -> Result<()> {
+	let study = fetch_study_information(mm, case_id).await?;
+	let Some(study) = study else {
+		return Ok(());
+	};
+	let registrations = fetch_study_registrations(mm, study.id).await?;
+
+	remove_nodes(xpath, "//hl7:primaryRole/hl7:subjectOf1[hl7:researchStudy]");
+	remove_nodes(xpath, "//hl7:primaryRole/hl7:subjectOf2[hl7:researchStudy]");
+
+	let report_type = xpath
+		.findvalues(
+			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.23']]/hl7:value/@code",
+			None,
+		)
+		.ok()
+		.and_then(|vals| vals.first().cloned());
+	let msg_receiver = xpath
+		.findvalues(
+			"/hl7:MCCI_IN200100UV01/hl7:PORR_IN049016UV/hl7:receiver/hl7:device/hl7:id/@extension",
+			None,
+		)
+		.ok()
+		.and_then(|vals| vals.first().cloned());
+	let needs_panda = matches!(report_type.as_deref(), Some("1") | Some("2"))
+		&& msg_receiver.as_deref() == Some("CDER_IND_EXEMPT_BA_BE");
+
+	let study_type = study
+		.study_type_reaction
+		.as_deref()
+		.filter(|s| !s.trim().is_empty())
+		.unwrap_or("1");
+	let sponsor_study_number = study
+		.sponsor_study_number
+		.as_deref()
+		.filter(|s| !s.trim().is_empty())
+		.unwrap_or("CT-00-00");
+	let study_name = study
+		.study_name
+		.as_deref()
+		.filter(|s| !s.trim().is_empty())
+		.unwrap_or("Study");
+
+	let mut auth_xml = String::new();
+	for reg in &registrations {
+		if reg.registration_number.trim().is_empty() {
+			continue;
+		}
+		let country_xml = reg
+			.country_code
+			.as_deref()
+			.filter(|v| !v.trim().is_empty())
+			.map(|code| {
+				format!(
+					"<author typeCode=\"AUT\"><territorialAuthority classCode=\"TERR\"><governingPlace classCode=\"COUNTRY\" determinerCode=\"INSTANCE\"><code code=\"{}\" codeSystem=\"1.0.3166.1.2.2\"/></governingPlace></territorialAuthority></author>",
+					xml_escape(code)
+				)
+			})
+			.unwrap_or_default();
+		auth_xml.push_str(&format!(
+			"<authorization typeCode=\"AUTH\"><studyRegistration classCode=\"ACT\" moodCode=\"EVN\"><id extension=\"{}\" root=\"2.16.840.1.113883.3.989.2.1.3.6\"/>{}</studyRegistration></authorization>",
+			xml_escape(&reg.registration_number),
+			country_xml
+		));
+	}
+
+	if needs_panda {
+		let panda_value = registrations
+			.first()
+			.map(|r| r.registration_number.as_str())
+			.or(study.sponsor_study_number.as_deref())
+			.filter(|s| !s.trim().is_empty())
+			.unwrap_or("054321");
+		auth_xml.push_str(&format!(
+			"<authorization typeCode=\"AUTH\"><studyRegistration classCode=\"ACT\" moodCode=\"EVN\"><id extension=\"{}\" root=\"2.16.840.1.113883.3.989.5.1.2.2.1.2.2\"/></studyRegistration></authorization>",
+			xml_escape(panda_value)
+		));
+	}
+
+	let fragment = format!(
+		"<subjectOf1 typeCode=\"SBJ\"><researchStudy classCode=\"CLNTRL\" moodCode=\"EVN\"><id extension=\"{}\" root=\"2.16.840.1.113883.3.989.2.1.3.5\"/><code code=\"{}\" codeSystem=\"2.16.840.1.113883.3.989.2.1.1.8\" codeSystemVersion=\"1.0\"/><title>{}</title>{}</researchStudy></subjectOf1>",
+		xml_escape(sponsor_study_number),
+		xml_escape(study_type),
+		xml_escape(study_name),
+		auth_xml
+	);
+	let xml = doc.to_string();
+	if let Some(injected) = inject_study_fragment_in_primary_role(&xml, &fragment) {
+		let new_doc = parser.parse_string(&injected).map_err(|err| Error::InvalidXml {
+			message: format!("XML parse error after study injection: {err}"),
+			line: None,
+			column: None,
+		})?;
+		*doc = new_doc;
+		*xpath = Context::new(doc).map_err(|_| Error::InvalidXml {
+			message: "Failed to initialize XPath context after study injection".to_string(),
+			line: None,
+			column: None,
+		})?;
+		let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
+		let _ = xpath.register_namespace(
+			"xsi",
+			"http://www.w3.org/2001/XMLSchema-instance",
+		);
+	}
+	Ok(())
+}
+
+async fn fetch_study_information(
+	mm: &ModelManager,
+	case_id: sqlx::types::Uuid,
+) -> Result<Option<StudyInformation>> {
+	let sql = "SELECT * FROM study_information WHERE case_id = $1 ORDER BY created_at ASC LIMIT 1";
+	mm.dbx()
+		.fetch_optional(sqlx::query_as::<_, StudyInformation>(sql).bind(case_id))
+		.await
+		.map_err(|e| Error::Model(crate::model::Error::Store(format!("{e}"))))
+}
+
+async fn fetch_study_registrations(
+	mm: &ModelManager,
+	study_information_id: sqlx::types::Uuid,
+) -> Result<Vec<StudyRegistrationNumber>> {
+	let sql = "SELECT * FROM study_registration_numbers WHERE study_information_id = $1 ORDER BY sequence_number";
+	mm.dbx()
+		.fetch_all(
+			sqlx::query_as::<_, StudyRegistrationNumber>(sql)
+				.bind(study_information_id),
+		)
+		.await
+		.map_err(|e| Error::Model(crate::model::Error::Store(format!("{e}"))))
+}
+
+fn remove_nodes(xpath: &mut Context, path: &str) {
+	if let Ok(nodes) = xpath.findnodes(path, None) {
+		for mut node in nodes {
+			node.unlink_node();
+		}
+	}
+}
+
+fn xml_escape(input: &str) -> String {
+	input
+		.replace('&', "&amp;")
+		.replace('<', "&lt;")
+		.replace('>', "&gt;")
+		.replace('"', "&quot;")
+		.replace('\'', "&apos;")
+}
+
+fn inject_study_fragment_in_primary_role(xml: &str, fragment: &str) -> Option<String> {
+	let primary_start = xml.find("<primaryRole")?;
+	let primary_end = xml[primary_start..].find("</primaryRole>")? + primary_start;
+	let body_start = xml[primary_start..].find('>')? + primary_start + 1;
+	let body = &xml[body_start..primary_end];
+	let insert_at = body
+		.find("<subjectOf2")
+		.map(|idx| body_start + idx)
+		.unwrap_or(primary_end);
+	let mut out = String::with_capacity(xml.len() + fragment.len() + 8);
+	out.push_str(&xml[..insert_at]);
+	out.push_str(fragment);
+	out.push_str(&xml[insert_at..]);
+	Some(out)
 }

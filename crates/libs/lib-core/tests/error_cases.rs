@@ -189,6 +189,7 @@ async fn test_case_update_not_found() -> Result<()> {
 
 	let case_u = CaseForUpdate {
 		safety_report_id: None,
+		dg_prd_key: None,
 		status: Some("validated".to_string()),
 		validation_profile: None,
 		submitted_by: None,

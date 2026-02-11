@@ -45,11 +45,78 @@ fn export_e_reaction_basic() {
 	let mut xpath = Context::new(&doc).expect("xpath");
 	xpath.register_namespace("hl7", "urn:hl7-org:v3").unwrap();
 	let text = xpath
+		.findvalue("//hl7:subjectOf2/hl7:observation/hl7:value/@code", None)
+		.unwrap();
+	assert_eq!(text, "10019211");
+
+	let outcome_code = xpath
 		.findvalue(
-			"//hl7:subjectOf2/hl7:observation/hl7:value/hl7:originalText",
+			"//hl7:subjectOf2/hl7:observation/hl7:outboundRelationship2/hl7:observation[hl7:code[@code='27']]/hl7:value/@code",
 			None,
 		)
 		.unwrap();
-	let text = text.trim_matches('\"');
-	assert_eq!(text, "Headache");
+	assert_eq!(outcome_code, "1");
+
+	let required_intervention_null_flavor = xpath
+		.findvalue(
+			"//hl7:subjectOf2/hl7:observation/hl7:outboundRelationship2/hl7:observation[hl7:code[@code='7']]/hl7:value/@nullFlavor",
+			None,
+		)
+		.unwrap();
+	assert_eq!(required_intervention_null_flavor, "NI");
+}
+
+#[test]
+fn export_e_reaction_outcome_defaults_to_code_3() {
+	let reaction = Reaction {
+		id: Uuid::new_v4(),
+		case_id: Uuid::new_v4(),
+		sequence_number: 1,
+		primary_source_reaction: "Headache".to_string(),
+		reaction_language: Some("en".to_string()),
+		reaction_meddra_version: Some("24.1".to_string()),
+		reaction_meddra_code: Some("10019211".to_string()),
+		term_highlighted: Some(true),
+		serious: Some(false),
+		criteria_death: false,
+		criteria_life_threatening: false,
+		criteria_hospitalization: false,
+		criteria_disabling: false,
+		criteria_congenital_anomaly: false,
+		criteria_other_medically_important: false,
+		required_intervention: Some("true".to_string()),
+		start_date: None,
+		end_date: None,
+		duration_value: None,
+		duration_unit: None,
+		outcome: None,
+		medical_confirmation: None,
+		country_code: None,
+		created_at: OffsetDateTime::now_utc(),
+		updated_at: OffsetDateTime::now_utc(),
+		created_by: Uuid::new_v4(),
+		updated_by: None,
+	};
+
+	let xml = export_e_reactions_xml(&[reaction]).expect("export xml");
+	let parser = Parser::default();
+	let doc = parser.parse_string(&xml).expect("parse");
+	let mut xpath = Context::new(&doc).expect("xpath");
+	xpath.register_namespace("hl7", "urn:hl7-org:v3").unwrap();
+
+	let outcome_code = xpath
+		.findvalue(
+			"//hl7:subjectOf2/hl7:observation/hl7:outboundRelationship2/hl7:observation[hl7:code[@code='27']]/hl7:value/@code",
+			None,
+		)
+		.unwrap();
+	assert_eq!(outcome_code, "3");
+
+	let required_intervention_null_flavor = xpath
+		.findvalue(
+			"//hl7:subjectOf2/hl7:observation/hl7:outboundRelationship2/hl7:observation[hl7:code[@code='7']]/hl7:value/@nullFlavor",
+			None,
+		)
+		.unwrap();
+	assert_eq!(required_intervention_null_flavor, "NI");
 }

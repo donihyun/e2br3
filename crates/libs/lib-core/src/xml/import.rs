@@ -273,6 +273,7 @@ pub async fn import_e2b_xml(
 		CaseForCreate {
 			organization_id: ctx.organization_id(),
 			safety_report_id: safety_report_id.clone(),
+			dg_prd_key: None,
 			status: Some("draft".to_string()),
 			validation_profile: Some(inferred_validation_profile),
 			version: Some(next_version),
@@ -285,6 +286,7 @@ pub async fn import_e2b_xml(
 			.message_number
 			.clone()
 			.unwrap_or_else(|| safety_report_id.clone());
+		let message_number = make_import_message_number(&message_number, case_id);
 		let message_sender = header
 			.message_sender
 			.clone()
@@ -293,10 +295,11 @@ pub async fn import_e2b_xml(
 			.message_receiver
 			.clone()
 			.or_else(|| header.batch_receiver.clone());
-		let message_date = header
-			.message_date
-			.clone()
-			.or_else(|| header.batch_transmission.clone());
+			let message_date = header
+				.message_date
+				.clone()
+				.or_else(|| header.batch_transmission.clone())
+				.and_then(normalize_message_date);
 		let (msg_sender, msg_receiver, msg_date) = (
 			message_sender.clone(),
 			message_receiver.clone(),
@@ -305,27 +308,27 @@ pub async fn import_e2b_xml(
 		if let (Some(message_sender), Some(message_receiver), Some(message_date)) =
 			(msg_sender, msg_receiver, msg_date)
 		{
-			let has_header = MessageHeaderBmc::get_by_case(ctx, &mm, case_id)
-				.await
-				.is_ok();
-			if !has_header {
-				let _ = MessageHeaderBmc::create(
-					ctx,
-					&mm,
-					MessageHeaderForCreate {
+				let has_header = MessageHeaderBmc::get_by_case(ctx, &mm, case_id)
+					.await
+					.is_ok();
+				if !has_header {
+					MessageHeaderBmc::create(
+						ctx,
+						&mm,
+						MessageHeaderForCreate {
 						case_id,
 						message_number,
 						message_sender_identifier: message_sender,
 						message_receiver_identifier: message_receiver,
 						message_date,
 					},
-				)
-				.await;
-			}
-			let _ = MessageHeaderBmc::update_by_case(
-				ctx,
-				&mm,
-				case_id,
+					)
+					.await?;
+				}
+				MessageHeaderBmc::update_by_case(
+					ctx,
+					&mm,
+					case_id,
 				MessageHeaderForUpdate {
 					batch_number: header.batch_number.clone(),
 					batch_sender_identifier: header.batch_sender.clone(),
@@ -335,9 +338,9 @@ pub async fn import_e2b_xml(
 					message_sender_identifier: None,
 					message_receiver_identifier: None,
 				},
-			)
-			.await;
-		} else {
+				)
+				.await?;
+			} else {
 			tracing::warn!(
 				message_sender = ?message_sender,
 				message_receiver = ?message_receiver,
@@ -346,27 +349,6 @@ pub async fn import_e2b_xml(
 			);
 		}
 	}
-
-	CaseBmc::update(
-		ctx,
-		&mm,
-		case_id,
-		CaseForUpdate {
-			raw_xml: Some(req.xml.to_vec()),
-			safety_report_id: None,
-			status: None,
-			validation_profile: None,
-			submitted_by: None,
-			submitted_at: None,
-			dirty_c: Some(false),
-			dirty_d: Some(false),
-			dirty_e: Some(false),
-			dirty_f: Some(false),
-			dirty_g: Some(false),
-			dirty_h: Some(false),
-		},
-	)
-	.await?;
 
 	import_safety_report(ctx, &mm, &req.xml, case_id, header_extract.as_ref())
 		.await?;
@@ -414,6 +396,30 @@ pub async fn import_e2b_xml(
 		Ok(id) => id,
 		Err(err) => return Err(err.into()),
 	};
+
+	// Keep imported XML as authoritative source and reset dirty flags after all
+	// section inserts/updates (DB triggers may mark sections dirty during import).
+	CaseBmc::update(
+		ctx,
+		&mm,
+		case_id,
+		CaseForUpdate {
+			raw_xml: Some(req.xml.to_vec()),
+			safety_report_id: None,
+			dg_prd_key: None,
+			status: None,
+			validation_profile: None,
+			submitted_by: None,
+			submitted_at: None,
+			dirty_c: Some(false),
+			dirty_d: Some(false),
+			dirty_e: Some(false),
+			dirty_f: Some(false),
+			dirty_g: Some(false),
+			dirty_h: Some(false),
+		},
+	)
+	.await?;
 
 	Ok(XmlImportResult {
 		case_id: Some(case_id.to_string()),
@@ -1717,7 +1723,7 @@ async fn import_patient_information(
 		.await?
 	};
 
-	let _ = PatientInformationBmc::update(
+	PatientInformationBmc::update(
 		ctx,
 		mm,
 		patient_id,
@@ -1741,7 +1747,7 @@ async fn import_patient_information(
 			concomitant_therapy: patient.concomitant_therapy,
 		},
 	)
-	.await;
+	.await?;
 
 	Ok(Some(patient_id))
 }
@@ -3383,15 +3389,25 @@ fn parse_patient_information(xml: &[u8]) -> Result<Option<PatientImport>> {
 		column: None,
 	})?;
 
-	let patient_given_name =
-		first_text_root(&mut xpath, "//hl7:patient/hl7:name/hl7:given");
-	let patient_family_name =
-		first_text_root(&mut xpath, "//hl7:patient/hl7:name/hl7:family");
+	let patient_given_name = first_text_root(
+		&mut xpath,
+		"//hl7:primaryRole/hl7:player1/hl7:name/hl7:given",
+	)
+	.or_else(|| first_text_root(&mut xpath, "//hl7:patient/hl7:name/hl7:given"));
+	let patient_family_name = first_text_root(
+		&mut xpath,
+		"//hl7:primaryRole/hl7:player1/hl7:name/hl7:family",
+	)
+	.or_else(|| first_text_root(&mut xpath, "//hl7:patient/hl7:name/hl7:family"));
+	let patient_name_text =
+		first_text_root(&mut xpath, "//hl7:primaryRole/hl7:player1/hl7:name")
+			.or_else(|| first_text_root(&mut xpath, "//hl7:patient/hl7:name"));
 
 	let initials = build_initials(
 		patient_given_name.as_deref(),
 		patient_family_name.as_deref(),
-	);
+	)
+	.or_else(|| patient_name_text.as_deref().and_then(initials_from_name_text));
 	let sex = normalize_sex_code(first_value_root(
 		&mut xpath,
 		"//hl7:administrativeGenderCode/@code",
@@ -3991,6 +4007,40 @@ fn build_initials(given: Option<&str>, family: Option<&str>) -> Option<String> {
 	}
 }
 
+fn initials_from_name_text(name: &str) -> Option<String> {
+	let mut out = String::new();
+	let trimmed = name.trim();
+
+	// Some reports encode initials as a compact token (e.g., "JD") with no spaces.
+	if !trimmed.contains(char::is_whitespace) {
+		let mut letters = trimmed.chars().filter(|c| c.is_ascii_alphabetic());
+		if let Some(first) = letters.next() {
+			out.push(first.to_ascii_uppercase());
+			if let Some(last) = trimmed
+				.chars()
+				.rev()
+				.find(|c| c.is_ascii_alphabetic() && !c.eq_ignore_ascii_case(&first))
+			{
+				out.push(last.to_ascii_uppercase());
+			}
+		}
+	}
+
+	for token in trimmed.split_whitespace() {
+		if let Some(ch) = token.chars().find(|c| c.is_ascii_alphabetic()) {
+			out.push(ch.to_ascii_uppercase());
+			if out.len() >= 2 {
+				break;
+			}
+		}
+	}
+	if out.is_empty() {
+		None
+	} else {
+		Some(out)
+	}
+}
+
 fn telecom_first(xpath: &mut Context, prefix: &str) -> Option<String> {
 	let values = xpath.findvalues("//hl7:telecom/@value", None).ok()?;
 	for value in values {
@@ -4029,6 +4079,25 @@ fn infer_validation_profile(header: Option<&MessageHeaderExtract>) -> String {
 	} else {
 		"fda".to_string()
 	}
+}
+
+fn normalize_message_date(value: String) -> Option<String> {
+	let digits: String = value.chars().filter(|c| c.is_ascii_digit()).collect();
+	if digits.len() < 14 {
+		return None;
+	}
+	Some(digits[0..14].to_string())
+}
+
+fn make_import_message_number(base: &str, case_id: Uuid) -> String {
+	let suffix = case_id.to_string();
+	let max_base = 100usize.saturating_sub(1 + suffix.len());
+	let truncated = if base.len() > max_base {
+		base[..max_base].to_string()
+	} else {
+		base.to_string()
+	};
+	format!("{truncated}-{suffix}")
 }
 
 #[derive(Debug)]

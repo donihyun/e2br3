@@ -15,6 +15,12 @@ Align validation behavior across frontend/backend, reduce duplicated rule logic,
 - Completed: FDA/MFDS compose from ICH base validator.
 - Completed: optional export-time guard via `E2BR3_EXPORT_VALIDATE`.
 - Completed: case validators emit issues via metadata lookup (`push_issue_by_code`), not duplicated hardcoded messages.
+- Completed: import mapping hardening for HL7 v3 roundtrip reliability.
+  - Message header import now fails fast on write errors (no swallowed errors).
+  - Message date is normalized to DB format (`YYYYMMDDHHMMSS`) before persistence.
+  - Message number collision handling added for import-created headers.
+  - Patient initials extraction now supports `primaryRole/player1/name` and compact initials tokens.
+  - Patient update errors during import are now propagated.
 - Completed (partial): XML validator now resolves stable coded FDA/ICH checks through metadata (`find_validation_rule`) while keeping parser/XSD diagnostics direct.
 - Completed (incremental): additional ICH XML checks now metadata-backed (`ICH.C.1.9.1.CONDITIONAL`, `ICH.E.i.4-6.CONDITIONAL`, `ICH.G.k.4.r.4-8.CONDITIONAL`).
 - Completed (incremental): structural timing XML checks now metadata-backed (`ICH.XML.EFFECTIVETIME.WIDTH.REQUIRES_BOUND`, `ICH.XML.SXPR_TS.COMP.REQUIRED`, `ICH.XML.PIVL_TS.PERIOD.REQUIRED`, `ICH.XML.PIVL_TS.PERIOD.VALUE_UNIT.REQUIRED`, `ICH.XML.IVL_TS.OPERATOR_A.BOUND_REQUIRED`).
@@ -24,6 +30,13 @@ Align validation behavior across frontend/backend, reduce duplicated rule logic,
 - Completed (incremental): BL + reaction linkage/country structural checks now metadata-backed (`ICH.XML.BL.*`, `ICH.XML.INV_CHAR_BL.*`, `ICH.E.i.0.RELATIONSHIP.CODE.*`, `ICH.E.i.9.COUNTRY.NULLFLAVOR.REQUIRED`).
 - Completed (incremental): person/organization/title/id nullFlavor structural checks now metadata-backed (`ICH.C.2.r.*.NULLFLAVOR.*`, `ICH.D.2.BIRTHTIME.NULLFLAVOR.*`, `ICH.D.PARENT.*.NULLFLAVOR.*`, `ICH.C.5.TITLE.NULLFLAVOR.*`, `ICH.G.k.9.i.2.ID.NULLFLAVOR.*`, `ICH.G.k.2.3.NAME.NULLFLAVOR.*`).
 - Completed (incremental): generic text and low/high structural checks now metadata-backed (`ICH.XML.TEXT.NULLFLAVOR.*`, `ICH.XML.LOW_HIGH.NULLFLAVOR.*`, `ICH.E.i.4-5.LOW_HIGH.NULLFLAVOR.REQUIRED`, `ICH.G.k.4.r.4-5.LOW_HIGH.NULLFLAVOR.REQUIRED`, `ICH.D.EFFECTIVETIME.LOW_HIGH.NULLFLAVOR.REQUIRED`).
+- Completed (incremental): shared Section-E policy module (`xml/validate/e_reaction_policy.rs`) now drives exporter defaults for `E.i.7` and `FDA.E.i.3.2h`, and FDA case-validator requirement gating for `FDA.E.i.3.2h`.
+- Completed (incremental): shared Section-C/D/F/G/H policy modules introduced and wired for C/D/E/G/H validator parity paths (`xml/validate/*_policy.rs`).
+- Completed (foundation): canonical rule catalog introduced for migrated parity slice (`xml/validate/catalog.rs`) with validation-metadata cross-check test.
+- Completed (cutover): `VALIDATION_RULES` metadata moved into `xml/validate/catalog.rs`; legacy `xml/validate/rules.rs` module removed.
+- Completed (incremental): canonical evaluator expanded to condition/value/presence helpers, with FDA/MFDS rule-gating/value checks progressively routed through catalog (`is_rule_condition_satisfied`, `is_rule_value_valid`, `is_rule_presence_valid`).
+- Completed (incremental): exporter behavior now consumes catalog directives for key required/default/nullFlavor paths (`ICH.E.i.7`, `FDA.E.i.3.2h`, `ICH.G.k.1`, `FDA.C.1.7.1`, `FDA.C.1.12`).
+- Completed (incremental): cross-profile parity matrix integration test added to assert validator/exporter behavior alignment from the same rule source (`tests/rule_source_parity_matrix.rs`).
 - Completed: explicit `cases.validation_profile` support added (schema/model/import inference + profile resolution precedence).
 - Verified: `cargo test -p web-server --test case_validation_web` passing.
   - Verified: `cargo test -p lib-core --test xml_validation` passing.
@@ -55,6 +68,7 @@ Align validation behavior across frontend/backend, reduce duplicated rule logic,
 - Run targeted tests for case validation and import/export paths.
 - Verify no API signature changes.
 - Verify FDA/MFDS profile behavior remains correct.
+- Added regression assertions in `xml_import_export` to verify imported `message_header.message_number` and `patient.patient_initials` are present.
 
 6. Source-of-Truth Expansion (Next Execution Phase)
 - Expand metadata-driven issue generation from current coded XML checks to broader XML checks where stable rule codes exist.

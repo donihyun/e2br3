@@ -629,11 +629,13 @@ impl PatientInformationBmc {
 			     weight_kg = COALESCE($11, weight_kg),
 			     height_cm = COALESCE($12, height_cm),
 			     sex = COALESCE($13, sex),
-			     last_menstrual_period_date = COALESCE($14, last_menstrual_period_date),
-			     medical_history_text = COALESCE($15, medical_history_text),
-			     concomitant_therapy = COALESCE($16, concomitant_therapy),
+			     race_code = COALESCE($14, race_code),
+			     ethnicity_code = COALESCE($15, ethnicity_code),
+			     last_menstrual_period_date = COALESCE($16, last_menstrual_period_date),
+			     medical_history_text = COALESCE($17, medical_history_text),
+			     concomitant_therapy = COALESCE($18, concomitant_therapy),
 			     updated_at = now(),
-			     updated_by = $17
+			     updated_by = $19
 			 WHERE case_id = $1",
 			Self::TABLE
 		);
@@ -654,6 +656,8 @@ impl PatientInformationBmc {
 					.bind(data.weight_kg)
 					.bind(data.height_cm)
 					.bind(data.sex)
+					.bind(data.race_code)
+					.bind(data.ethnicity_code)
 					.bind(data.last_menstrual_period_date)
 					.bind(data.medical_history_text)
 					.bind(data.concomitant_therapy)

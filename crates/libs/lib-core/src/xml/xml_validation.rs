@@ -1,6 +1,16 @@
 use crate::xml::error::Error;
 use crate::xml::types::{XmlValidationError, XmlValidationReport};
-use crate::xml::validate::find_validation_rule;
+use crate::xml::validate::{
+	find_canonical_rule, is_rule_condition_satisfied, is_rule_value_valid,
+	is_rule_presence_valid, ExportNormalizeKind, ExportNormalizationSpec,
+	RuleFacts,
+};
+use crate::xml::xml_validation_fda::collect_fda_profile_errors;
+use crate::xml::xml_validation_ich::{
+	collect_ich_case_history_errors,
+	collect_ich_identity_text_errors, collect_ich_profile_value_presence_errors,
+	collect_ich_structural_value_errors,
+};
 use crate::xml::Result;
 use libxml::parser::Parser;
 use libxml::schemas::{SchemaParserContext, SchemaValidationContext};
@@ -279,1335 +289,14 @@ fn validate_e2b_xml_rules(
 		}
 	}
 
-	// Rule: telecom values must use tel:/fax:/mailto:
-	if let Ok(values) = xpath.findvalues("//hl7:telecom/@value", None) {
-		for value in values {
-			if !(value.starts_with("tel:")
-				|| value.starts_with("fax:")
-				|| value.starts_with("mailto:"))
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.TELECOM.FORMAT.REQUIRED",
-					&format!(
-						"telecom value must start with tel:, fax:, or mailto:, got '{value}'"
-					),
-				);
-			}
-		}
-	}
+	collect_ich_identity_text_errors(&mut xpath, &mut errors);
+	collect_ich_profile_value_presence_errors(&mut xpath, &mut errors);
+	collect_ich_structural_value_errors(&mut xpath, &mut errors);
+	collect_ich_case_history_errors(&mut xpath, &mut errors);
 
-	// Rule: telecom missing/blank value requires nullFlavor
-	if let Ok(nodes) = xpath.findnodes("//hl7:telecom", None) {
-		for node in nodes {
-			let value = node.get_attribute("value");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if value.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.TELECOM.NULLFLAVOR.REQUIRED",
-					"telecom missing value; nullFlavor is required",
-				);
-			}
-			if value
-				.as_deref()
-				.map(|v| !v.trim().is_empty())
-				.unwrap_or(false)
-				&& has_null_flavor
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.TELECOM.NULLFLAVOR.FORBIDDEN",
-					"telecom has value and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: if ingredientSubstance/name is empty, nullFlavor is required
-	if let Ok(nodes) = xpath.findnodes("//hl7:ingredientSubstance/hl7:name", None) {
-		for node in nodes {
-			let content = node.get_content();
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if content.trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.G.k.2.3.NAME.NULLFLAVOR.REQUIRED",
-					"ingredientSubstance/name is empty; nullFlavor is required",
-				);
-			}
-			if !content.trim().is_empty() && has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.G.k.2.3.NAME.NULLFLAVOR.FORBIDDEN",
-					"ingredientSubstance/name has value and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: if primary reporter name fields are empty, nullFlavor is required
-	if let Ok(nodes) = xpath.findnodes("//hl7:primaryRole//hl7:name/*", None) {
-		for node in nodes {
-			let content = node.get_content();
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if content.trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.C.2.r.2.NAME.NULLFLAVOR.REQUIRED",
-					"primaryRole name element is empty; nullFlavor is required",
-				);
-			}
-			if !content.trim().is_empty() && has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.C.2.r.2.NAME.NULLFLAVOR.FORBIDDEN",
-					"primaryRole name element has value and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: organization name empty requires nullFlavor
-	if let Ok(nodes) =
-		xpath.findnodes("//hl7:representedOrganization/hl7:name", None)
-	{
-		for node in nodes {
-			let content = node.get_content();
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if content.trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.C.2.r.3.ORG_NAME.NULLFLAVOR.REQUIRED",
-					"representedOrganization/name is empty; nullFlavor is required",
-				);
-			}
-			if !content.trim().is_empty() && has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.C.2.r.3.ORG_NAME.NULLFLAVOR.FORBIDDEN",
-					"representedOrganization/name has value and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: primaryRole id missing extension requires nullFlavor
-	if let Ok(nodes) = xpath.findnodes("//hl7:primaryRole/hl7:id", None) {
-		for node in nodes {
-			let extension = node.get_attribute("extension");
-			let root_attr = node.get_attribute("root");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if extension.as_deref().unwrap_or("").trim().is_empty()
-				&& !has_null_flavor
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.C.2.r.1.ID.NULLFLAVOR.REQUIRED",
-					"primaryRole/id missing extension; nullFlavor is required",
-				);
-			}
-			if root_attr
-				.as_deref()
-				.map(|v| v == "2.16.840.1.113883.3.989.2.1.3.6")
-				.unwrap_or(false)
-				&& extension.as_deref().unwrap_or("").trim().is_empty()
-				&& !has_null_flavor
-			{
-				errors.push(XmlValidationError {
-					message:
-						"primaryRole/id with root 2.16.840.1.113883.3.989.2.1.3.6 requires extension or nullFlavor"
-							.to_string(),
-					line: None,
-					column: None,
-				});
-			}
-			if extension
-				.as_deref()
-				.map(|v| !v.trim().is_empty())
-				.unwrap_or(false)
-				&& has_null_flavor
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.C.2.r.1.ID.NULLFLAVOR.FORBIDDEN",
-					"primaryRole/id has extension and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: birthTime empty requires nullFlavor
-	if let Ok(nodes) = xpath.findnodes("//hl7:primaryRole//hl7:birthTime", None) {
-		for node in nodes {
-			let value = node.get_attribute("value");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if value.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.D.2.BIRTHTIME.NULLFLAVOR.REQUIRED",
-					"birthTime missing value; nullFlavor is required",
-				);
-			}
-			if value
-				.as_deref()
-				.map(|v| !v.trim().is_empty())
-				.unwrap_or(false)
-				&& has_null_flavor
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.D.2.BIRTHTIME.NULLFLAVOR.FORBIDDEN",
-					"birthTime has value and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: narrative/free text empty requires nullFlavor
-	if let Ok(nodes) = xpath.findnodes("//hl7:text | //hl7:originalText", None) {
-		for node in nodes {
-			let content = node.get_content();
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if content.trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.TEXT.NULLFLAVOR.REQUIRED",
-					"text/originalText is empty; nullFlavor is required",
-				);
-			}
-			if !content.trim().is_empty() && has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.TEXT.NULLFLAVOR.FORBIDDEN",
-					"text/originalText has value and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Determine whether FDA-specific rules should be enforced
-	let batch_receiver = xpath
-		.findvalues(
-			"/hl7:MCCI_IN200100UV01/hl7:receiver/hl7:device/hl7:id/@extension",
-			None,
-		)
-		.ok()
-		.and_then(|vals| vals.get(0).cloned());
-	let msg_receiver = xpath
-		.findvalues(
-			"/hl7:MCCI_IN200100UV01/hl7:PORR_IN049016UV/hl7:receiver/hl7:device/hl7:id/@extension",
-			None,
-		)
-		.ok()
-		.and_then(|vals| vals.get(0).cloned());
-	let is_fda = matches!(
-		batch_receiver.as_deref(),
-		Some("ZZFDA") | Some("ZZFDA_PREMKT")
-	) || matches!(
-		msg_receiver.as_deref(),
-		Some("CDER")
-			| Some("CBER")
-			| Some("CDER_IND")
-			| Some("CBER_IND")
-			| Some("CDER_IND_EXEMPT_BA_BE")
-	);
-
-	if is_fda {
-		// FDA Rule: N.1.4 Batch Receiver Identifier is required
-		let has_batch_receiver = batch_receiver
-			.as_deref()
-			.map(|val| !val.trim().is_empty())
-			.unwrap_or(false);
-		if !has_batch_receiver {
-			push_rule_error(
-				&mut errors,
-				"FDA.N.1.4.REQUIRED",
-				"FDA.N.1.4 batch receiver identifier missing",
-			);
-		}
-
-		// FDA Rule: Combination Product Report Indicator must have value or nullFlavor
-		if let Ok(nodes) = xpath.findnodes(
-				"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.5.1.2.2.1.3']]/hl7:value",
-			None,
-		) {
-			for node in nodes {
-				let value = node.get_attribute("value");
-				let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-				if value.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
-					push_rule_error(
-						&mut errors,
-						"FDA.C.1.12.REQUIRED",
-						"FDA.C.1.12 combination product indicator missing value; nullFlavor is required",
-					);
-				}
-			}
-		}
-
-		// FDA Rule: Local Criteria Report Type must have code or nullFlavor
-		if let Ok(nodes) = xpath.findnodes(
-			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='2' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]/hl7:value",
-			None,
-		) {
-			for node in nodes {
-				let code = node.get_attribute("code");
-				let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-				if code.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
-					push_rule_error(
-						&mut errors,
-						"FDA.C.1.7.1.REQUIRED",
-						"FDA.C.1.7.1 local criteria report type missing code; nullFlavor is required",
-					);
-				}
-			}
-		}
-
-		// FDA Rule: Patient race must have code or nullFlavor
-		if let Ok(nodes) = xpath.findnodes(
-				"//hl7:primaryRole/hl7:subjectOf2/hl7:observation[hl7:code[@code='C17049' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
-				None,
-			) {
-				for node in nodes {
-					let code = node.get_attribute("code");
-					let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-				if code.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
-					push_rule_error(
-						&mut errors,
-						"FDA.D.11.REQUIRED",
-						"FDA.D.11 patient race missing code; nullFlavor is required",
-					);
-				}
-			}
-		}
-
-		// FDA Rule: Patient ethnicity must have code or nullFlavor
-		if let Ok(nodes) = xpath.findnodes(
-			"//hl7:primaryRole/hl7:subjectOf2/hl7:observation[hl7:code[@code='C16564' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
-			None,
-		) {
-			for node in nodes {
-				let code = node.get_attribute("code");
-				let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-				if code.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
-					push_rule_error(
-						&mut errors,
-						"FDA.D.12.REQUIRED",
-						"FDA.D.12 patient ethnicity missing code; nullFlavor is required",
-					);
-				}
-			}
-		}
-
-		// FDA Rule: Required Intervention must have value or nullFlavor when present
-		if let Ok(nodes) = xpath.findnodes(
-			"//hl7:observation[hl7:code[@code='29' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]//hl7:outboundRelationship2/hl7:observation[hl7:code[@code='726' and @codeSystem='2.16.840.1.113883.3.989.5.1.2.2.1.32']]/hl7:value",
-			None,
-		) {
-			for node in nodes {
-				let value = node.get_attribute("value");
-				let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-				if value.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
-					push_rule_error(
-						&mut errors,
-						"FDA.E.i.3.2h.REQUIRED",
-						"FDA.E.i.3.2h required intervention missing value; nullFlavor is required",
-					);
-				}
-			}
-		}
-	}
-
-	// FDA Rule: Local Criteria Report Type codes depend on Combination Product indicator and C.1.7
-	let comb_ind = xpath
-		.findvalues(
-			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.5.1.2.2.1.3']]/hl7:value/@value",
-			None,
-		)
-		.ok()
-		.and_then(|vals| vals.get(0).cloned());
-	let local_criteria = xpath
-		.findvalues(
-			"//hl7:component/hl7:observationEvent[hl7:code[@code='23' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]/hl7:value/@value",
-			None,
-		)
-		.ok()
-		.and_then(|vals| vals.get(0).cloned());
-	let local_criteria_code = xpath
-		.findvalues(
-			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='2' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]/hl7:value/@code",
-			None,
-		)
-		.ok()
-		.and_then(|vals| vals.get(0).cloned());
-	if let (Some(comb), Some(criteria), Some(code)) = (
-		comb_ind.as_deref(),
-		local_criteria.as_deref(),
-		local_criteria_code.as_deref(),
-	) {
-		let comb_true = comb.eq_ignore_ascii_case("true");
-		let criteria_true = criteria.eq_ignore_ascii_case("true");
-		let allowed: &[&str] = if comb_true && criteria_true {
-			&["1", "4"]
-		} else if comb_true && !criteria_true {
-			&["2", "5"]
-		} else if !comb_true && criteria_true {
-			&["1"]
-		} else {
-			&["2"]
-		};
-		if !allowed.contains(&code) {
-			push_rule_error(
-				&mut errors,
-				"FDA.C.1.7.1.REQUIRED",
-				&format!(
-					"FDA.C.1.7.1 local criteria report type '{code}' invalid for combination_product={comb} expedited={criteria}"
-				),
-			);
-		}
-	}
-
-	// FDA Rule: G.k.10a required when FDA.C.5.5b present (codes 1 or 2, or nullFlavor NA)
-	let pre_anda = xpath
-		.findvalues(
-			"//hl7:researchStudy/hl7:authorization/hl7:studyRegistration/hl7:id[@root='2.16.840.1.113883.3.989.5.1.2.2.1.2.2']/@extension",
-			None,
-		)
-		.ok()
-		.and_then(|vals| vals.get(0).cloned());
-	if pre_anda
-		.as_deref()
-		.map(|v| !v.trim().is_empty())
-		.unwrap_or(false)
-	{
-		let values = xpath
-			.findnodes(
-				"//hl7:organizer[hl7:code[@code='4' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.20']]/hl7:component/hl7:substanceAdministration/hl7:outboundRelationship2[@typeCode='REFR']/hl7:observation[hl7:code[@code='9']]/hl7:value",
-				None,
-			)
-			.unwrap_or_default();
-		if values.is_empty() {
-			push_rule_error(
-				&mut errors,
-				"FDA.G.k.10a.REQUIRED",
-				"FDA.G.k.10a missing: required when FDA.C.5.5b is present",
-			);
-		} else {
-			for node in values {
-				let code = node.get_attribute("code");
-				let null_flavor = node.get_attribute("nullFlavor");
-				let code_ok = code
-					.as_deref()
-					.map(|v| v == "1" || v == "2")
-					.unwrap_or(false);
-				let null_ok =
-					null_flavor.as_deref().map(|v| v == "NA").unwrap_or(false);
-				if !(code_ok || null_ok) {
-					push_rule_error(
-						&mut errors,
-						"FDA.G.k.10a.REQUIRED",
-						"FDA.G.k.10a must be code 1/2 or nullFlavor NA when FDA.C.5.5b is present",
-					);
-				}
-			}
-		}
-	}
-
-	// FDA Rule: Reporter email required when primary source present
-	let has_primary_source = xpath
-		.findnodes(
-			"//hl7:outboundRelationship[@typeCode='SPRT']/hl7:relatedInvestigation/hl7:subjectOf2/hl7:controlActEvent/hl7:author/hl7:assignedEntity",
-			None,
-		)
-		.map(|nodes| !nodes.is_empty())
-		.unwrap_or(false);
-	if is_fda && has_primary_source {
-		let has_email = xpath
-			.findvalues(
-				"//hl7:outboundRelationship[@typeCode='SPRT']/hl7:relatedInvestigation/hl7:subjectOf2/hl7:controlActEvent/hl7:author/hl7:assignedEntity/hl7:telecom/@value",
-				None,
-			)
-			.ok()
-			.map(|vals| vals.iter().any(|v| v.starts_with("mailto:")))
-			.unwrap_or(false);
-		if !has_email {
-			push_rule_error(
-				&mut errors,
-				"FDA.C.2.r.2.EMAIL.REQUIRED",
-				"FDA requires reporter email when primary source is present",
-			);
-		}
-	}
-
-	// FDA Rule: C.1.3 report type must be 2 under specific premarket conditions
-	let study_type = xpath
-		.findvalues("//hl7:researchStudy/hl7:code/@code", None)
-		.ok()
-		.and_then(|vals| vals.get(0).cloned());
-	let type_of_report = xpath
-		.findvalues(
-			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.23']]/hl7:value/@code",
-			None,
-		)
-		.ok()
-		.and_then(|vals| vals.get(0).cloned());
-	let type_of_report = type_of_report.or_else(|| {
-		xpath
-			.findvalues(
-				"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.23']]/hl7:value/@code",
-				None,
-			)
-			.ok()
-			.and_then(|vals| vals.get(0).cloned())
-	});
-	let has_pre_anda = pre_anda
-		.as_deref()
-		.map(|v| !v.trim().is_empty())
-		.unwrap_or(false);
-	if is_fda && batch_receiver.as_deref() == Some("ZZFDA_PREMKT") {
-		if let Some(receiver) = msg_receiver.as_deref() {
-			let premkt_rcv = ["CDER_IND", "CBER_IND", "CDER_IND_EXEMPT_BA_BE"];
-			if premkt_rcv.contains(&receiver) {
-				let study_match = study_type
-					.as_deref()
-					.map(|v| v == "1" || v == "2" || v == "3")
-					.unwrap_or(false);
-				if has_pre_anda && study_match {
-					if type_of_report.as_deref() != Some("2") {
-						push_rule_error(
-							&mut errors,
-							"ICH.C.1.3.CONDITIONAL",
-							"C.1.3 must be 2 when premarket receiver and FDA.C.5.5b present with study type 1/2/3",
-						);
-					}
-				}
-			}
-		}
-	}
-
-	// FDA Rule: Pre-ANDA number required for IND-exempt BA/BE when report type is 2
-	if is_fda
-		&& type_of_report.as_deref() == Some("2")
-		&& msg_receiver.as_deref() == Some("CDER_IND_EXEMPT_BA_BE")
-		&& !has_pre_anda
-	{
-		push_rule_error(
-			&mut errors,
-			"FDA.C.5.5b.REQUIRED",
-			"FDA.C.5.5b required when C.1.3=2 and N.2.r.3=CDER_IND_EXEMPT_BA_BE",
-		);
-	}
-
-	// FDA Rule: Pre-ANDA number must not appear for postmarket receivers
-	if is_fda
-		&& has_pre_anda
-		&& batch_receiver.as_deref() == Some("ZZFDA")
-		&& matches!(msg_receiver.as_deref(), Some("CDER") | Some("CBER"))
-	{
-		push_rule_error(
-			&mut errors,
-			"FDA.C.5.5b.FORBIDDEN",
-			"FDA.C.5.5b must not be provided for postmarket (N.1.4=ZZFDA, N.2.r.3=CDER/CBER)",
-		);
-	}
-
-	// Rule: associatedPerson name fields empty require nullFlavor
-	if let Ok(nodes) = xpath.findnodes("//hl7:associatedPerson//hl7:name/*", None) {
-		for node in nodes {
-			let content = node.get_content();
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if content.trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.D.PARENT.NAME.NULLFLAVOR.REQUIRED",
-					"associatedPerson name element is empty; nullFlavor is required",
-				);
-			}
-			if !content.trim().is_empty() && has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.D.PARENT.NAME.NULLFLAVOR.FORBIDDEN",
-					"associatedPerson name element has value and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: associatedPerson birthTime empty requires nullFlavor
-	if let Ok(nodes) = xpath.findnodes("//hl7:associatedPerson//hl7:birthTime", None)
-	{
-		for node in nodes {
-			let value = node.get_attribute("value");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if value.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.D.PARENT.BIRTHTIME.NULLFLAVOR.REQUIRED",
-					"associatedPerson birthTime missing value; nullFlavor is required",
-				);
-			}
-			if value
-				.as_deref()
-				.map(|v| !v.trim().is_empty())
-				.unwrap_or(false)
-				&& has_null_flavor
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.D.PARENT.BIRTHTIME.NULLFLAVOR.FORBIDDEN",
-					"associatedPerson birthTime has value and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: researchStudy/title empty requires nullFlavor
-	if let Ok(nodes) = xpath.findnodes("//hl7:researchStudy/hl7:title", None) {
-		for node in nodes {
-			let content = node.get_content();
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if content.trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.C.5.TITLE.NULLFLAVOR.REQUIRED",
-					"researchStudy/title is empty; nullFlavor is required",
-				);
-			}
-			if !content.trim().is_empty() && has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.C.5.TITLE.NULLFLAVOR.FORBIDDEN",
-					"researchStudy/title has value and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: adverseEventAssessment id missing extension requires nullFlavor
-	if let Ok(nodes) = xpath.findnodes("//hl7:adverseEventAssessment/hl7:id", None) {
-		for node in nodes {
-			let extension = node.get_attribute("extension");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if extension.as_deref().unwrap_or("").trim().is_empty()
-				&& !has_null_flavor
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.G.k.9.i.2.ID.NULLFLAVOR.REQUIRED",
-					"adverseEventAssessment/id missing extension; nullFlavor is required",
-				);
-			}
-			if extension
-				.as_deref()
-				.map(|v| !v.trim().is_empty())
-				.unwrap_or(false)
-				&& has_null_flavor
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.G.k.9.i.2.ID.NULLFLAVOR.FORBIDDEN",
-					"adverseEventAssessment/id has extension and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: low/high without value must include nullFlavor
-	if let Ok(nodes) = xpath.findnodes("//hl7:low | //hl7:high", None) {
-		for node in nodes {
-			let value = node.get_attribute("value");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if value.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.LOW_HIGH.NULLFLAVOR.REQUIRED",
-					"low/high missing value; nullFlavor is required",
-				);
-			}
-			if !value.as_deref().unwrap_or("").trim().is_empty() && has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.LOW_HIGH.NULLFLAVOR.FORBIDDEN",
-					"low/high has value and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: reaction effectiveTime low/high require value or nullFlavor
-	if let Ok(nodes) = xpath.findnodes(
-		"//hl7:observation[hl7:code[@code='29']]/hl7:effectiveTime/hl7:low | //hl7:observation[hl7:code[@code='29']]/hl7:effectiveTime/hl7:high",
-		None,
-	) {
-		for node in nodes {
-			let value = node.get_attribute("value");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if value.as_deref().unwrap_or("").trim().is_empty()
-				&& !has_null_flavor
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.E.i.4-5.LOW_HIGH.NULLFLAVOR.REQUIRED",
-					"reaction effectiveTime low/high missing value; nullFlavor is required",
-				);
-			}
-		}
-	}
-
-	// Rule: drug effectiveTime low/high require value or nullFlavor
-	if let Ok(nodes) = xpath.findnodes(
-		"//hl7:substanceAdministration/hl7:effectiveTime//hl7:low | //hl7:substanceAdministration/hl7:effectiveTime//hl7:high",
-		None,
-	) {
-		for node in nodes {
-			let value = node.get_attribute("value");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if value.as_deref().unwrap_or("").trim().is_empty()
-				&& !has_null_flavor
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.G.k.4.r.4-5.LOW_HIGH.NULLFLAVOR.REQUIRED",
-					"drug effectiveTime low/high missing value; nullFlavor is required",
-				);
-			}
-		}
-	}
-
-	// Rule: patient effectiveTime low/high require value or nullFlavor
-	if let Ok(nodes) = xpath.findnodes(
-		"//hl7:primaryRole//hl7:effectiveTime//hl7:low | //hl7:primaryRole//hl7:effectiveTime//hl7:high",
-		None,
-	) {
-		for node in nodes {
-			let value = node.get_attribute("value");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if value.as_deref().unwrap_or("").trim().is_empty()
-				&& !has_null_flavor
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.D.EFFECTIVETIME.LOW_HIGH.NULLFLAVOR.REQUIRED",
-					"patient effectiveTime low/high missing value; nullFlavor is required",
-				);
-			}
-		}
-	}
-
-	// Rule: BL values missing value must include nullFlavor
-	if let Ok(nodes) = xpath.findnodes("//hl7:value[@xsi:type='BL']", None) {
-		for node in nodes {
-			let value = node.get_attribute("value");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if value.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.BL.NULLFLAVOR.REQUIRED",
-					"BL value missing value; nullFlavor is required",
-				);
-			}
-			if !value.as_deref().unwrap_or("").trim().is_empty() && has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.BL.NULLFLAVOR.FORBIDDEN",
-					"BL value has value and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: code missing code attribute must include nullFlavor unless originalText or codeSystem is present
-	if let Ok(nodes) = xpath.findnodes("//hl7:code", None) {
-		for node in nodes {
-			let code = node.get_attribute("code");
-			let code_system = node.get_attribute("codeSystem");
-			let has_original_text = node.get_child_elements().iter().any(|c| {
-				c.get_name() == "originalText" && !c.get_content().trim().is_empty()
-			});
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if code.as_deref().unwrap_or("").trim().is_empty()
-				&& code_system.as_deref().unwrap_or("").trim().is_empty()
-				&& !has_null_flavor
-				&& !has_original_text
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.CODE.NULLFLAVOR.REQUIRED",
-					"code missing code/codeSystem; nullFlavor is required when originalText is absent",
-				);
-			}
-			if !code.as_deref().unwrap_or("").trim().is_empty() && has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.CODE.NULLFLAVOR.FORBIDDEN",
-					"code has value and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: reaction investigation characteristic BL values missing value must include nullFlavor
-	if let Ok(nodes) = xpath.findnodes(
-		"//hl7:investigationCharacteristic/hl7:value[@xsi:type='BL']",
-		None,
-	) {
-		for node in nodes {
-			let value = node.get_attribute("value");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if value.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.INV_CHAR_BL.NULLFLAVOR.REQUIRED",
-					"investigationCharacteristic BL missing value; nullFlavor is required",
-				);
-			}
-			if !value.as_deref().unwrap_or("").trim().is_empty() && has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.INV_CHAR_BL.NULLFLAVOR.FORBIDDEN",
-					"investigationCharacteristic BL has value and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: reaction report linkage code nullFlavor when missing
-	if let Ok(nodes) = xpath.findnodes(
-		"//hl7:outboundRelationship[@typeCode='SPRT']/hl7:relatedInvestigation/hl7:code",
-		None,
-	) {
-		for node in nodes {
-			let code = node.get_attribute("code");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if code.as_deref().unwrap_or("").trim().is_empty()
-				&& !has_null_flavor
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.E.i.0.RELATIONSHIP.CODE.NULLFLAVOR.REQUIRED",
-					"relatedInvestigation/code missing code; nullFlavor is required",
-				);
-			}
-			if !code.as_deref().unwrap_or("").trim().is_empty()
-				&& has_null_flavor
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.E.i.0.RELATIONSHIP.CODE.NULLFLAVOR.FORBIDDEN",
-					"relatedInvestigation/code has value and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: reaction outcome value nullFlavor when missing
-	if let Ok(nodes) =
-		xpath.findnodes("//hl7:observation[hl7:code[@code='27']]/hl7:value", None)
-	{
-		for node in nodes {
-			let code = node.get_attribute("code");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if code.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.E.i.7.NULLFLAVOR.REQUIRED",
-					"reaction outcome value missing code; nullFlavor is required",
-				);
-			}
-			if !code.as_deref().unwrap_or("").trim().is_empty() && has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.E.i.7.NULLFLAVOR.FORBIDDEN",
-					"reaction outcome value has value and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: reaction term (E.i.2) must have code or nullFlavor
-	if let Ok(nodes) =
-		xpath.findnodes("//hl7:observation[hl7:code[@code='29']]/hl7:value", None)
-	{
-		for node in nodes {
-			let code = node.get_attribute("code");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if code.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.E.i.2.NULLFLAVOR.REQUIRED",
-					"reaction term missing code; nullFlavor is required",
-				);
-			}
-			if !code.as_deref().unwrap_or("").trim().is_empty() && has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.E.i.2.NULLFLAVOR.FORBIDDEN",
-					"reaction term has code and nullFlavor; nullFlavor must be absent when value present",
-				);
-			}
-		}
-	}
-
-	// Rule: reaction translation (E.i.1.2) ED must have content or nullFlavor
-	if let Ok(nodes) = xpath.findnodes(
-		"//hl7:observation[hl7:code[@code='30']]/hl7:value[@xsi:type='ED']",
-		None,
-	) {
-		for node in nodes {
-			let content = node.get_content();
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if content.trim().is_empty() && !has_null_flavor {
-				errors.push(XmlValidationError {
-					message:
-						"reaction translation missing value; nullFlavor is required"
-							.to_string(),
-					line: None,
-					column: None,
-				});
-			}
-			if !content.trim().is_empty() && has_null_flavor {
-				errors.push(XmlValidationError {
-					message:
-						"reaction translation has value and nullFlavor; nullFlavor must be absent when value present"
-							.to_string(),
-					line: None,
-					column: None,
-				});
-			}
-		}
-	}
-
-	// Rule: reaction country code must have code or nullFlavor
-	if let Ok(nodes) = xpath.findnodes("//hl7:locatedPlace/hl7:code", None) {
-		for node in nodes {
-			let code = node.get_attribute("code");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if code.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.E.i.9.COUNTRY.NULLFLAVOR.REQUIRED",
-					"reaction country missing code; nullFlavor is required",
-				);
-			}
-		}
-	}
-
-	// Rule: effectiveTime width must include low or high when present
-	if let Ok(nodes) = xpath.findnodes("//hl7:effectiveTime", None) {
-		for node in nodes {
-			let children = node.get_child_elements();
-			let mut has_low = false;
-			let mut has_high = false;
-			let mut has_width = false;
-			for child in children {
-				let name = child.get_name();
-				match name.as_str() {
-					"low" => has_low = true,
-					"high" => has_high = true,
-					"width" => has_width = true,
-					_ => {}
-				}
-			}
-			if has_width && !has_low && !has_high {
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.EFFECTIVETIME.WIDTH.REQUIRES_BOUND",
-					"effectiveTime has width but missing low/high",
-				);
-			}
-		}
-	}
-
-	// Rule: start/end/duration combos for reaction event (E.i.4/E.i.5/E.i.6)
-	if let Ok(nodes) = xpath.findnodes(
-		"//hl7:observation[hl7:id and hl7:code[@code='29'] and hl7:code[@codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]",
-		None,
-	) {
-		for node in nodes {
-			let mut has_start = false;
-			let mut has_end = false;
-			let mut has_duration = false;
-			for child in node.get_child_elements() {
-				match child.get_name().as_str() {
-					"effectiveTime" => {
-						let value = child.get_attribute("value");
-						let children = child.get_child_elements();
-						if value.is_some() {
-							// treat as date/time (start or end depending on code)
-							has_start = true;
-						} else {
-							for sub in children {
-								let name = sub.get_name();
-								if name == "low" {
-									has_start = true;
-								} else if name == "high" {
-									has_end = true;
-								} else if name == "width" {
-									has_duration = true;
-								} else if name == "comp" {
-									for comp_child in sub.get_child_elements() {
-										let cname = comp_child.get_name();
-										if cname == "low" {
-											has_start = true;
-										} else if cname == "high" {
-											has_end = true;
-										} else if cname == "width" {
-											has_duration = true;
-										}
-									}
-								}
-							}
-						}
-					}
-					"value" => {
-						// duration often encoded as PQ value
-						if child.get_attribute("value").is_some() {
-							has_duration = true;
-						}
-					}
-					_ => {}
-				}
-			}
-
-			if !has_start && !has_end && !has_duration {
-				push_rule_error(
-					&mut errors,
-					"ICH.E.i.4-6.CONDITIONAL",
-					"Reaction requires start, end, or duration",
-				);
-			}
-		}
-	}
-
-	// Rule: drug start/end/duration combos for dosage (G.k.4.r.4/5/8)
-	if let Ok(nodes) = xpath.findnodes(
-		"//hl7:substanceAdministration/hl7:effectiveTime[@xsi:type='SXPR_TS' or @xsi:type='IVL_TS']",
-		None,
-	) {
-		for node in nodes {
-			let mut has_start = false;
-			let mut has_end = false;
-			let mut has_duration = false;
-			for child in node.get_child_elements() {
-				let name = child.get_name();
-				if name == "low" {
-					has_start = true;
-				} else if name == "high" {
-					has_end = true;
-				} else if name == "width" {
-					has_duration = true;
-				} else if name == "comp" {
-					for comp_child in child.get_child_elements() {
-						let cname = comp_child.get_name();
-						if cname == "low" {
-							has_start = true;
-						} else if cname == "high" {
-							has_end = true;
-						} else if cname == "width" {
-							has_duration = true;
-						}
-					}
-				}
-			}
-			if !has_start && !has_end && !has_duration {
-				push_rule_error(
-					&mut errors,
-					"ICH.G.k.4.r.4-8.CONDITIONAL",
-					"Drug requires start, end, or duration",
-				);
-			}
-		}
-	}
-
-	// Rule: SXPR_TS must have at least one comp (PIVL_TS or IVL_TS)
-	if let Ok(nodes) =
-		xpath.findnodes("//hl7:effectiveTime[@xsi:type='SXPR_TS']", None)
-	{
-		for node in nodes {
-			let comps = node.get_child_elements();
-			let mut has_comp = false;
-			for comp in comps {
-				if comp.get_name() == "comp" {
-					has_comp = true;
-				}
-			}
-			if !has_comp {
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.SXPR_TS.COMP.REQUIRED",
-					"SXPR_TS must include comp elements",
-				);
-			}
-		}
-	}
-
-	// Rule: PIVL_TS must include period with value/unit
-	if let Ok(nodes) = xpath.findnodes("//hl7:comp[@xsi:type='PIVL_TS']", None) {
-		for node in nodes {
-			let mut has_period = false;
-			for child in node.get_child_elements() {
-				if child.get_name() == "period" {
-					has_period = true;
-					let value = child.get_attribute("value");
-					let unit = child.get_attribute("unit");
-					if value.is_none() || unit.is_none() {
-						push_rule_error(
-							&mut errors,
-							"ICH.XML.PIVL_TS.PERIOD.VALUE_UNIT.REQUIRED",
-							"PIVL_TS period must include value and unit",
-						);
-					}
-				}
-			}
-			if !has_period {
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.PIVL_TS.PERIOD.REQUIRED",
-					"PIVL_TS must include period",
-				);
-			}
-		}
-	}
-
-	// Rule: IVL_TS with operator='A' must include low/high or width
-	if let Ok(nodes) = xpath.findnodes("//hl7:comp[@xsi:type='IVL_TS']", None) {
-		for node in nodes {
-			let operator = node.get_attribute("operator");
-			if operator.as_deref() == Some("A") {
-				let mut has_low = false;
-				let mut has_high = false;
-				let mut has_width = false;
-				for child in node.get_child_elements() {
-					let name = child.get_name();
-					if name == "low" {
-						has_low = true;
-					} else if name == "high" {
-						has_high = true;
-					} else if name == "width" {
-						has_width = true;
-					}
-				}
-				if !has_low && !has_high && !has_width {
-					push_rule_error(
-						&mut errors,
-						"ICH.XML.IVL_TS.OPERATOR_A.BOUND_REQUIRED",
-						"IVL_TS operator='A' must include low, high, or width",
-					);
-				}
-			}
-		}
-	}
-
-	// Rule: test result values must be structurally valid
-	if let Ok(nodes) =
-		xpath.findnodes("//hl7:organizer[hl7:code[@code='3']]/hl7:component/hl7:observation/hl7:value", None)
-	{
-		for node in nodes {
-			let xsi_type = node
-				.get_attribute_ns("type", "http://www.w3.org/2001/XMLSchema-instance")
-				.or_else(|| node.get_attribute("xsi:type"));
-			match xsi_type.as_deref() {
-				Some("IVL_PQ") => {
-					let children = node.get_child_elements();
-					let mut has_any = false;
-					for child in children {
-						let name = child.get_name();
-						if name == "low" || name == "high" || name == "center" {
-							has_any = true;
-							let value = child.get_attribute("value");
-							let unit = child.get_attribute("unit");
-							let has_null_flavor = child.get_attribute("nullFlavor").is_some();
-							if (value.is_none() || unit.is_none()) && !has_null_flavor {
-								errors.push(XmlValidationError {
-									message: format!(
-										"IVL_PQ/{name} must include value and unit"
-									),
-									line: None,
-									column: None,
-								});
-							}
-						}
-					}
-					if !has_any {
-						errors.push(XmlValidationError {
-							message:
-								"IVL_PQ must include low/high/center".to_string(),
-							line: None,
-							column: None,
-						});
-					}
-				}
-				Some("PQ") => {
-					let value = node.get_attribute("value");
-					let unit = node.get_attribute("unit");
-					if value.is_none() || unit.is_none() {
-						errors.push(XmlValidationError {
-							message: "PQ must include value and unit".to_string(),
-							line: None,
-							column: None,
-						});
-					}
-				}
-				Some("ED") | Some("ST") | Some("BL") | Some("CE") | None => {}
-				Some(other) => {
-					errors.push(XmlValidationError {
-						message: format!("Unsupported test result xsi:type '{other}'"),
-						line: None,
-						column: None,
-					});
-				}
-			}
-		}
-	}
-
-	// Rule: doseQuantity must include value/unit
-	if let Ok(nodes) = xpath.findnodes("//hl7:doseQuantity", None) {
-		for node in nodes {
-			let value = node.get_attribute("value");
-			let unit = node.get_attribute("unit");
-			if value.is_none() || unit.is_none() {
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.DOSE_QUANTITY.VALUE_UNIT.REQUIRED",
-					"doseQuantity must include value and unit",
-				);
-			}
-		}
-	}
-
-	// Rule: routeCode must have code or originalText or nullFlavor
-	if let Ok(nodes) = xpath.findnodes("//hl7:routeCode", None) {
-		for node in nodes {
-			let code = node.get_attribute("code");
-			let has_original_text = node.get_child_elements().iter().any(|c| {
-				c.get_name() == "originalText" && !c.get_content().trim().is_empty()
-			});
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if code.as_deref().unwrap_or("").trim().is_empty()
-				&& !has_original_text
-				&& !has_null_flavor
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.G.k.4.r.11.NULLFLAVOR.REQUIRED",
-					"routeCode missing code; originalText or nullFlavor is required",
-				);
-			}
-		}
-	}
-
-	// Rule: formCode must have code/codeSystem, originalText, or nullFlavor
-	if let Ok(nodes) = xpath.findnodes("//hl7:formCode", None) {
-		for node in nodes {
-			let has_code = node
-				.get_attribute("code")
-				.as_deref()
-				.map(|v| !v.trim().is_empty())
-				.unwrap_or(false);
-			let has_code_system = node
-				.get_attribute("codeSystem")
-				.as_deref()
-				.map(|v| !v.trim().is_empty())
-				.unwrap_or(false);
-			let has_original_text = node.get_child_elements().iter().any(|c| {
-				c.get_name() == "originalText" && !c.get_content().trim().is_empty()
-			});
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if !has_code
-				&& !has_code_system
-				&& !has_original_text
-				&& !has_null_flavor
-			{
-				push_rule_error(
-					&mut errors,
-					"ICH.G.k.4.r.10.NULLFLAVOR.REQUIRED",
-					"formCode missing code/codeSystem/originalText; nullFlavor is required",
-				);
-			}
-		}
-	}
-
-	// Rule: administrativeGenderCode must have code or nullFlavor
-	if let Ok(nodes) = xpath.findnodes("//hl7:administrativeGenderCode", None) {
-		for node in nodes {
-			let code = node.get_attribute("code");
-			let has_null_flavor = node.get_attribute("nullFlavor").is_some();
-			if code.as_deref().unwrap_or("").trim().is_empty() && !has_null_flavor {
-				push_rule_error(
-					&mut errors,
-					"ICH.D.5.SEX.CONDITIONAL",
-					"administrativeGenderCode missing code; nullFlavor is required",
-				);
-			}
-		}
-	}
-
-	// Rule: period must include value/unit
-	if let Ok(nodes) = xpath.findnodes("//hl7:period", None) {
-		for node in nodes {
-			let value = node.get_attribute("value");
-			let unit = node.get_attribute("unit");
-			if value.is_none() || unit.is_none() {
-				push_rule_error(
-					&mut errors,
-					"ICH.XML.PERIOD.VALUE_UNIT.REQUIRED",
-					"period must include value and unit",
-				);
-			}
-		}
-	}
-
-	// Rule: MedDRA codes must be 8 digits and include codeSystemVersion
-	if let Ok(nodes) = xpath.findnodes(
-		"//hl7:code[@codeSystem='2.16.840.1.113883.6.163'] | //hl7:value[@codeSystem='2.16.840.1.113883.6.163']",
-		None,
-	) {
-		for node in nodes {
-			let code = node.get_attribute("code");
-			if let Some(code) = code.as_deref() {
-				if !is_digits_len(code, 8) {
-					errors.push(XmlValidationError {
-						message: format!("MedDRA code must be 8 digits, got '{code}'"),
-						line: None,
-						column: None,
-					});
-				}
-				let version = node.get_attribute("codeSystemVersion");
-				if version.as_deref().unwrap_or("").trim().is_empty() {
-					errors.push(XmlValidationError {
-						message: "MedDRA code missing codeSystemVersion".to_string(),
-						line: None,
-						column: None,
-					});
-				}
-			}
-		}
-	}
-
-	// Rule: ISO country codes must be 2 letters
-	if let Ok(nodes) =
-		xpath.findnodes("//hl7:code[@codeSystem='1.0.3166.1.2.2']", None)
-	{
-		for node in nodes {
-			let code = node.get_attribute("code");
-			if let Some(code) = code.as_deref() {
-				if !is_alpha_len(code, 2) {
-					errors.push(XmlValidationError {
-						message: format!(
-							"ISO country code must be 2 letters, got '{code}'"
-						),
-						line: None,
-						column: None,
-					});
-				}
-			}
-		}
-	}
+	collect_fda_profile_errors(&mut xpath, &mut errors);
 
 	collect_placeholder_errors(&root, &mut errors);
-	collect_case_identifier_errors(&mut xpath, &mut errors);
-	collect_medical_history_errors(&mut xpath, &mut errors);
-
 	Ok(errors)
 }
 
@@ -1649,96 +338,494 @@ fn collect_placeholder_errors(
 	}
 }
 
-fn collect_case_identifier_errors(
-	xpath: &mut Context,
-	errors: &mut Vec<XmlValidationError>,
-) {
-	let other_case_path =
-		"//hl7:investigationCharacteristic[hl7:code[@code='2' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.23']]/hl7:value";
-	let has_true = xpath
-		.findnodes(other_case_path, None)
-		.ok()
-		.map(|nodes| {
-			nodes.into_iter().any(|n| {
-				n.get_attribute("value")
-					.map(|v| v == "true" || v == "1")
-					.unwrap_or(false)
-			})
-		})
-		.unwrap_or(false);
-	if !has_true {
-		return;
-	}
-	let ids_path =
-		"//hl7:investigationEvent/hl7:subjectOf1/hl7:controlActEvent/hl7:id[@root='2.16.840.1.113883.3.989.2.1.3.3']";
-	let has_ids = xpath
-		.findnodes(ids_path, None)
-		.ok()
-		.map(|nodes| {
-			nodes.into_iter().any(|n| {
-				n.get_attribute("assigningAuthorityName")
-					.map(|v| !v.trim().is_empty())
-					.unwrap_or(false)
-					&& n.get_attribute("extension")
-						.map(|v| !v.trim().is_empty())
-						.unwrap_or(false)
-			})
-		})
-		.unwrap_or(false);
-	if !has_ids {
-		push_rule_error(
-			errors,
-			"ICH.C.1.9.1.CONDITIONAL",
-			"C.1.9.1 is true but C.1.9.1.r.1/.r.2 are missing",
-		);
-	}
-}
-
-fn collect_medical_history_errors(
-	xpath: &mut Context,
-	errors: &mut Vec<XmlValidationError>,
-) {
-	let coded_path = "//hl7:organizer[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.20']]/hl7:component/hl7:observation[hl7:code[@code!='18']]";
-	let has_coded = xpath
-		.findnodes(coded_path, None)
-		.ok()
-		.map(|nodes| !nodes.is_empty())
-		.unwrap_or(false);
-	if has_coded {
-		return;
-	}
-	let text_path = "//hl7:organizer[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.20']]/hl7:component/hl7:observation[hl7:code[@code='18']]/hl7:value";
-	let has_text = xpath
-		.findnodes(text_path, None)
-		.ok()
-		.map(|nodes| {
-			nodes.into_iter().any(|n| {
-				let content = n.get_content();
-				!content.trim().is_empty() && !looks_placeholder(content.trim())
-			})
-		})
-		.unwrap_or(false);
-	if !has_text {
-		push_rule_error(
-			errors,
-			"ICH.D.7.2.CONDITIONAL",
-			"D.7.2 must be provided when D.7.1.r.1b is not provided",
-		);
-	}
-}
-
-fn push_rule_error(
+pub(crate) fn push_rule_error(
 	errors: &mut Vec<XmlValidationError>,
 	code: &str,
 	fallback_message: &str,
 ) {
-	let message = find_validation_rule(code)
+	let message = find_canonical_rule(code)
 		.map(|rule| format!("[{}] {}", rule.code, rule.message))
 		.unwrap_or_else(|| format!("[{code}] {fallback_message}"));
 	errors.push(XmlValidationError {
 		message,
 		line: None,
 		column: None,
+	});
+}
+
+pub(crate) fn validate_value_rule_on_nodes(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	node_xpath: &str,
+	value_attr: &str,
+	rule_code: &str,
+	facts: RuleFacts,
+	fallback_message: &str,
+) {
+	for_each_xpath_node(xpath, node_xpath, |node| {
+		let value = node.get_attribute(value_attr);
+		let null_flavor = node.get_attribute("nullFlavor");
+		if !is_rule_value_valid(
+			rule_code,
+			value.as_deref(),
+			null_flavor.as_deref(),
+			facts,
+		) {
+			push_rule_error(errors, rule_code, fallback_message);
+		}
+	});
+}
+
+pub(crate) fn validate_attr_null_flavor_pair_on_nodes(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	node_xpath: &str,
+	value_attr: &str,
+	required_code: &str,
+	required_message: &str,
+	forbidden_code: Option<&str>,
+	forbidden_message: Option<&str>,
+) {
+	for_each_xpath_node(xpath, node_xpath, |node| {
+		let value = node.get_attribute(value_attr);
+		let has_value = value
+			.as_deref()
+			.map(|v| !v.trim().is_empty())
+			.unwrap_or(false);
+		let has_null_flavor = node.get_attribute("nullFlavor").is_some();
+		if !has_value && !has_null_flavor {
+			push_rule_error(errors, required_code, required_message);
+		}
+		if has_value && has_null_flavor {
+			if let (Some(code), Some(message)) = (forbidden_code, forbidden_message)
+			{
+				push_rule_error(errors, code, message);
+			}
+		}
+	});
+}
+
+pub(crate) fn validate_attr_or_null_flavor_required_on_nodes(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	node_xpath: &str,
+	value_attr: &str,
+	required_code: &str,
+	required_message: &str,
+) {
+	for_each_xpath_node(xpath, node_xpath, |node| {
+		let value = node.get_attribute(value_attr);
+		let has_value = value
+			.as_deref()
+			.map(|v| !v.trim().is_empty())
+			.unwrap_or(false);
+		let has_null_flavor = node.get_attribute("nullFlavor").is_some();
+		if !has_value && !has_null_flavor {
+			push_rule_error(errors, required_code, required_message);
+		}
+	});
+}
+
+pub(crate) fn validate_attr_or_text_or_null_required_on_nodes(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	node_xpath: &str,
+	value_attr: &str,
+	required_code: &str,
+	required_message: &str,
+) {
+	for_each_xpath_node(xpath, node_xpath, |node| {
+		let has_attr = node
+			.get_attribute(value_attr)
+			.as_deref()
+			.map(|v| !v.trim().is_empty())
+			.unwrap_or(false);
+		let has_original_text = node.get_child_elements().iter().any(|c| {
+			c.get_name() == "originalText" && !c.get_content().trim().is_empty()
+		});
+		let has_null_flavor = node.get_attribute("nullFlavor").is_some();
+		if !has_attr && !has_original_text && !has_null_flavor {
+			push_rule_error(errors, required_code, required_message);
+		}
+	});
+}
+
+pub(crate) fn validate_code_or_codesystem_or_text_or_null_required_on_nodes(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	node_xpath: &str,
+	required_code: &str,
+	required_message: &str,
+) {
+	for_each_xpath_node(xpath, node_xpath, |node| {
+		let has_code = node
+			.get_attribute("code")
+			.as_deref()
+			.map(|v| !v.trim().is_empty())
+			.unwrap_or(false);
+		let has_code_system = node
+			.get_attribute("codeSystem")
+			.as_deref()
+			.map(|v| !v.trim().is_empty())
+			.unwrap_or(false);
+		let has_original_text = node.get_child_elements().iter().any(|c| {
+			c.get_name() == "originalText" && !c.get_content().trim().is_empty()
+		});
+		let has_null_flavor = node.get_attribute("nullFlavor").is_some();
+		if !has_code && !has_code_system && !has_original_text && !has_null_flavor {
+			push_rule_error(errors, required_code, required_message);
+		}
+	});
+}
+
+pub(crate) fn validate_code_or_codesystem_or_text_required_with_nullflavor_forbidden_on_nodes(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	node_xpath: &str,
+	required_code: &str,
+	required_message: &str,
+	forbidden_code: &str,
+	forbidden_message: &str,
+) {
+	for_each_xpath_node(xpath, node_xpath, |node| {
+		let has_code = node
+			.get_attribute("code")
+			.as_deref()
+			.map(|v| !v.trim().is_empty())
+			.unwrap_or(false);
+		let has_code_system = node
+			.get_attribute("codeSystem")
+			.as_deref()
+			.map(|v| !v.trim().is_empty())
+			.unwrap_or(false);
+		let has_original_text = node.get_child_elements().iter().any(|c| {
+			c.get_name() == "originalText" && !c.get_content().trim().is_empty()
+		});
+		let has_null_flavor = node.get_attribute("nullFlavor").is_some();
+
+		if !has_code && !has_code_system && !has_original_text && !has_null_flavor {
+			push_rule_error(errors, required_code, required_message);
+		}
+		if has_code && has_null_flavor {
+			push_rule_error(errors, forbidden_code, forbidden_message);
+		}
+	});
+}
+
+pub(crate) fn validate_text_null_flavor_pair_on_nodes(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	node_xpath: &str,
+	required_code: &str,
+	required_message: &str,
+	forbidden_code: Option<&str>,
+	forbidden_message: Option<&str>,
+) {
+	for_each_xpath_node(xpath, node_xpath, |node| {
+		let content = node.get_content();
+		let has_text = !content.trim().is_empty();
+		let has_null_flavor = node.get_attribute("nullFlavor").is_some();
+		if !has_text && !has_null_flavor {
+			push_rule_error(errors, required_code, required_message);
+		}
+		if has_text && has_null_flavor {
+			if let (Some(code), Some(message)) = (forbidden_code, forbidden_message)
+			{
+				push_rule_error(errors, code, message);
+			}
+		}
+	});
+}
+
+pub(crate) fn validate_attr_prefix_on_nodes(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	node_xpath: &str,
+	attr_name: &str,
+	allowed_prefixes: &[&str],
+	rule_code: &str,
+	value_label: &str,
+) {
+	for_each_xpath_node(xpath, node_xpath, |node| {
+		let Some(value) = node.get_attribute(attr_name) else {
+			return;
+		};
+		if value.trim().is_empty() {
+			return;
+		}
+		if allowed_prefixes.iter().any(|prefix| value.starts_with(prefix)) {
+			return;
+		}
+		let expected = allowed_prefixes.join(", ");
+		push_rule_error(
+			errors,
+			rule_code,
+			&format!(
+				"{value_label} must start with {expected}, got '{value}'"
+			),
+		);
+	});
+}
+
+pub(crate) fn validate_normalized_code_format_on_nodes(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	rule_code: &str,
+	spec: ExportNormalizationSpec,
+	format_error_message: impl Fn(&str) -> String,
+	extra_required_attr: Option<(&str, &str, &'static str)>,
+) {
+	for_each_xpath_node(xpath, spec.xpath, |node| {
+		let Some(code) = node.get_attribute(spec.attribute) else {
+			return;
+		};
+		if !matches_normalization_kind(code.trim(), spec.kind) {
+			push_rule_error(errors, rule_code, &format_error_message(&code));
+		}
+		if let Some((attr, missing_rule, missing_message)) = extra_required_attr {
+			let value = node.get_attribute(attr);
+			if value.as_deref().unwrap_or("").trim().is_empty() {
+				push_rule_error(errors, missing_rule, missing_message);
+			}
+		}
+	});
+}
+
+fn matches_normalization_kind(value: &str, kind: ExportNormalizeKind) -> bool {
+	match kind {
+		ExportNormalizeKind::AsciiDigitsLen(len) => {
+			value.len() == len && value.chars().all(|c| c.is_ascii_digit())
+		}
+		ExportNormalizeKind::AsciiUpperLen(len) => {
+			value.len() == len && value.chars().all(|c| c.is_ascii_uppercase())
+		}
+	}
+}
+
+pub(crate) fn for_each_xpath_node(
+	xpath: &mut Context,
+	node_xpath: &str,
+	mut visitor: impl FnMut(libxml::tree::Node),
+) {
+	if let Ok(nodes) = xpath.findnodes(node_xpath, None) {
+		for node in nodes {
+			visitor(node);
+		}
+	}
+}
+
+pub(crate) fn xpath_has_nodes(xpath: &mut Context, node_xpath: &str) -> bool {
+	xpath
+		.findnodes(node_xpath, None)
+		.ok()
+		.map(|nodes| !nodes.is_empty())
+		.unwrap_or(false)
+}
+
+pub(crate) fn xpath_any_node(
+	xpath: &mut Context,
+	node_xpath: &str,
+	predicate: impl Fn(&libxml::tree::Node) -> bool,
+) -> bool {
+	xpath
+		.findnodes(node_xpath, None)
+		.ok()
+		.map(|nodes| nodes.into_iter().any(|n| predicate(&n)))
+		.unwrap_or(false)
+}
+
+pub(crate) fn xpath_any_value_prefix(
+	xpath: &mut Context,
+	expr: &str,
+	prefix: &str,
+) -> bool {
+	xpath
+		.findvalues(expr, None)
+		.ok()
+		.map(|vals| vals.iter().any(|v| v.starts_with(prefix)))
+		.unwrap_or(false)
+}
+
+pub(crate) fn validate_presence_rule(
+	errors: &mut Vec<XmlValidationError>,
+	rule_code: &str,
+	present: bool,
+	facts: RuleFacts,
+	fallback_message: &str,
+) {
+	if !is_rule_presence_valid(rule_code, present, facts) {
+		push_rule_error(errors, rule_code, fallback_message);
+	}
+}
+
+pub(crate) fn validate_condition_rule_violation(
+	errors: &mut Vec<XmlValidationError>,
+	rule_code: &str,
+	facts: RuleFacts,
+	fallback_message: &str,
+) {
+	if is_rule_condition_satisfied(rule_code, facts) {
+		push_rule_error(errors, rule_code, fallback_message);
+	}
+}
+
+pub(crate) fn validate_required_child_on_nodes(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	parent_xpath: &str,
+	required_child_name: &str,
+	rule_code: &str,
+	fallback_message: &str,
+) {
+	for_each_xpath_node(xpath, parent_xpath, |node| {
+		let has_child = node
+			.get_child_elements()
+			.into_iter()
+			.any(|child| child.get_name() == required_child_name);
+		if !has_child {
+			push_rule_error(errors, rule_code, fallback_message);
+		}
+	});
+}
+
+pub(crate) fn validate_required_attrs_on_nodes(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	node_xpath: &str,
+	required_attrs: &[&str],
+	rule_code: &str,
+	fallback_message: &str,
+) {
+	for_each_xpath_node(xpath, node_xpath, |node| {
+		let missing = required_attrs.iter().any(|attr| {
+			node.get_attribute(attr)
+				.as_deref()
+				.map(|v| v.trim().is_empty())
+				.unwrap_or(true)
+		});
+		if missing {
+			push_rule_error(errors, rule_code, fallback_message);
+		}
+	});
+}
+
+pub(crate) fn validate_when_child_present_require_any_children(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	node_xpath: &str,
+	trigger_child_name: &str,
+	required_child_names: &[&str],
+	rule_code: &str,
+	fallback_message: &str,
+) {
+	for_each_xpath_node(xpath, node_xpath, |node| {
+		let children = node.get_child_elements();
+		let has_trigger = children
+			.iter()
+			.any(|child| child.get_name() == trigger_child_name);
+		if !has_trigger {
+			return;
+		}
+		let has_required = children
+			.iter()
+			.any(|child| required_child_names.contains(&child.get_name().as_str()));
+		if !has_required {
+			push_rule_error(errors, rule_code, fallback_message);
+		}
+	});
+}
+
+pub(crate) fn validate_when_attr_equals_require_any_children(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	node_xpath: &str,
+	attr_name: &str,
+	expected_attr_value: &str,
+	required_child_names: &[&str],
+	rule_code: &str,
+	fallback_message: &str,
+) {
+	for_each_xpath_node(xpath, node_xpath, |node| {
+		if node.get_attribute(attr_name).as_deref() != Some(expected_attr_value) {
+			return;
+		}
+		let children = node.get_child_elements();
+		let has_required = children
+			.iter()
+			.any(|child| required_child_names.contains(&child.get_name().as_str()));
+		if !has_required {
+			push_rule_error(errors, rule_code, fallback_message);
+		}
+	});
+}
+
+fn xsi_type_of(node: &libxml::tree::Node) -> Option<String> {
+	node.get_attribute_ns("type", "http://www.w3.org/2001/XMLSchema-instance")
+		.or_else(|| node.get_attribute("xsi:type"))
+}
+
+pub(crate) fn validate_supported_xsi_types_on_nodes(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	node_xpath: &str,
+	allowed_types: &[&str],
+	rule_code: &str,
+	fallback_message_prefix: &str,
+) {
+	for_each_xpath_node(xpath, node_xpath, |node| {
+		if let Some(xsi_type) = xsi_type_of(&node) {
+			if !allowed_types.contains(&xsi_type.as_str()) {
+				push_rule_error(
+					errors,
+					rule_code,
+					&format!("{fallback_message_prefix} '{xsi_type}'"),
+				);
+			}
+		}
+	});
+}
+
+pub(crate) fn validate_typed_children_attrs_or_nullflavor_on_nodes(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	node_xpath: &str,
+	required_xsi_type: &str,
+	child_names: &[&str],
+	required_attrs: &[&str],
+	component_required_rule_code: &str,
+	component_required_message: &str,
+	attr_rule_code: &str,
+	attr_rule_message: &str,
+) {
+	for_each_xpath_node(xpath, node_xpath, |node| {
+		if xsi_type_of(&node).as_deref() != Some(required_xsi_type) {
+			return;
+		}
+		let mut has_any = false;
+		for child in node.get_child_elements() {
+			if !child_names.contains(&child.get_name().as_str()) {
+				continue;
+			}
+			has_any = true;
+			let missing_attr = required_attrs.iter().any(|attr| {
+				child
+					.get_attribute(attr)
+					.as_deref()
+					.map(|v| v.trim().is_empty())
+					.unwrap_or(true)
+			});
+			let has_null_flavor = child.get_attribute("nullFlavor").is_some();
+			if missing_attr && !has_null_flavor {
+				push_rule_error(errors, attr_rule_code, attr_rule_message);
+			}
+		}
+		if !has_any {
+			push_rule_error(
+				errors,
+				component_required_rule_code,
+				component_required_message,
+			);
+		}
 	});
 }
 
@@ -1765,12 +852,4 @@ fn looks_placeholder(value: &str) -> bool {
 	}
 	v.chars()
 		.all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-')
-}
-
-fn is_digits_len(value: &str, len: usize) -> bool {
-	value.len() == len && value.chars().all(|c| c.is_ascii_digit())
-}
-
-fn is_alpha_len(value: &str, len: usize) -> bool {
-	value.len() == len && value.chars().all(|c| c.is_ascii_alphabetic())
 }

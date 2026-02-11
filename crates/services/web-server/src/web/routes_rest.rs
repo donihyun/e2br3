@@ -20,5 +20,7 @@ pub fn routes(mm: ModelManager) -> Router {
 		// XML import/validate
 		.merge(rest::routes_import(mm.clone()))
 		// Audit logs
-		.merge(rest::routes_audit(mm))
+		.merge(rest::routes_audit(mm.clone()))
+		// Validation rule catalog
+		.merge(rest::routes_validation(mm))
 }

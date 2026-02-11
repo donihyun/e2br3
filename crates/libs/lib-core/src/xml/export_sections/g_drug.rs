@@ -76,7 +76,9 @@ pub(crate) fn drug_fragment(
 	out.push_str("<id root=\"");
 	out.push_str(&xml_escape(&drug.id.to_string()));
 	out.push_str("\"/>");
-	out.push_str("<consumable><instanceOfKind><kindOfProduct>");
+	out.push_str(
+		"<consumable typeCode=\"CSM\"><instanceOfKind classCode=\"INST\"><kindOfProduct classCode=\"MMAT\" determinerCode=\"KIND\">",
+	);
 	out.push_str("<name>");
 	out.push_str(&xml_escape(&drug.medicinal_product));
 	out.push_str("</name>");
@@ -150,8 +152,8 @@ pub(crate) fn drug_fragment(
 				out.push_str("/>");
 			}
 			out.push_str("</ingredientSubstance>");
-			if sub.strength_value.is_some() || sub.strength_unit.is_some() {
-				out.push_str("<quantity><numerator");
+				if sub.strength_value.is_some() || sub.strength_unit.is_some() {
+					out.push_str("<quantity><numerator");
 				if let Some(val) = sub.strength_value.as_ref() {
 					out.push_str(" value=\"");
 					out.push_str(&xml_escape(&val.to_string()));
@@ -162,8 +164,8 @@ pub(crate) fn drug_fragment(
 					out.push_str(&xml_escape(unit));
 					out.push_str("\"");
 				}
-				out.push_str("/></quantity>");
-			}
+					out.push_str("/><denominator value=\"1\" unit=\"1\"/></quantity>");
+				}
 			out.push_str("</ingredient>");
 		}
 	}
@@ -228,12 +230,12 @@ pub(crate) fn drug_fragment(
 	}
 
 	if let Some(action) = drug.action_taken.as_deref() {
-		out.push_str("<inboundRelationship typeCode=\"CAUS\"><act><code code=\"");
+		out.push_str("<inboundRelationship typeCode=\"CAUS\"><act classCode=\"ACT\" moodCode=\"EVN\"><code code=\"");
 		out.push_str(&xml_escape(action));
 		out.push_str("\"/></act></inboundRelationship>");
 	}
 	if let Some(rechallenge) = drug.rechallenge.as_deref() {
-		out.push_str("<outboundRelationship2 typeCode=\"COMP\"><observation><code code=\"31\"/><value code=\"");
+		out.push_str("<outboundRelationship2 typeCode=\"COMP\"><observation classCode=\"OBS\" moodCode=\"EVN\"><code code=\"31\"/><value xsi:type=\"CE\" code=\"");
 		out.push_str(&xml_escape(rechallenge));
 		out.push_str("\"/></observation></outboundRelationship2>");
 	}
@@ -243,13 +245,13 @@ pub(crate) fn drug_fragment(
 		out.push_str("</text>");
 	}
 	if let Some(code) = drug.fda_additional_info_coded.as_deref() {
-		out.push_str("<outboundRelationship2 typeCode=\"REFR\"><observation><code code=\"9\"/><value code=\"");
+		out.push_str("<outboundRelationship2 typeCode=\"REFR\"><observation classCode=\"OBS\" moodCode=\"EVN\"><code code=\"9\"/><value xsi:type=\"CE\" code=\"");
 		out.push_str(&xml_escape(code));
 		out.push_str("\"/></observation></outboundRelationship2>");
 	}
 	if drug.parent_route_termid.is_some() || drug.parent_route.is_some() {
 		out.push_str(
-			"<outboundRelationship2><observation><code code=\"G.k.4.r.11\"/><value",
+			"<outboundRelationship2 typeCode=\"COMP\"><observation classCode=\"OBS\" moodCode=\"EVN\"><code code=\"G.k.4.r.11\"/><value xsi:type=\"CE\"",
 		);
 		if let Some(code) = drug.parent_route_termid.as_deref() {
 			out.push_str(" code=\"");
@@ -265,12 +267,10 @@ pub(crate) fn drug_fragment(
 		if let Some(text) = drug.parent_route.as_deref() {
 			out.push_str(&xml_escape(text));
 		}
-		out.push_str(
-			"</originalText></value></observation></outboundRelationship2>",
-		);
+		out.push_str("</originalText></value></observation></outboundRelationship2>");
 	}
 	if let Some(text) = drug.parent_dosage_text.as_deref() {
-		out.push_str("<outboundRelationship2 typeCode=\"REFR\"><observation><code code=\"2\"/><value>");
+		out.push_str("<outboundRelationship2 typeCode=\"REFR\"><observation classCode=\"OBS\" moodCode=\"EVN\"><code code=\"2\"/><value xsi:type=\"ED\">");
 		out.push_str(&xml_escape(text));
 		out.push_str("</value></observation></outboundRelationship2>");
 	}

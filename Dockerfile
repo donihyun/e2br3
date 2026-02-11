@@ -17,6 +17,7 @@ WORKDIR /app
 # Copy everything (simpler approach)
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
+COPY docs/refs/instances/ docs/refs/instances/
 
 # Build the application
 RUN cargo build --release --package web-server

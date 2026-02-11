@@ -51,11 +51,11 @@ fn patch_e_reaction_updates_raw_xml() {
 	let doc = parser.parse_string(&patched).expect("parse");
 	let mut xpath = Context::new(&doc).expect("xpath");
 	xpath.register_namespace("hl7", "urn:hl7-org:v3").unwrap();
-	let text = xpath
+	let code = xpath
 		.findvalue(
-			"//hl7:subjectOf2/hl7:observation/hl7:value/hl7:originalText",
+			"//hl7:subjectOf2/hl7:observation/hl7:value[@codeSystem='2.16.840.1.113883.6.163']/@code",
 			None,
 		)
 		.unwrap();
-	assert!(text.contains("Headache"));
+	assert_eq!(code, "10019211");
 }

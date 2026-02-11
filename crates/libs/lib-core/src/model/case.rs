@@ -20,6 +20,7 @@ pub struct Case {
 	// E2B fields
 	pub safety_report_id: String,
 	pub version: i32,
+	pub dg_prd_key: Option<String>,
 	pub status: String,
 	pub validation_profile: Option<String>,
 
@@ -47,6 +48,7 @@ pub struct Case {
 pub struct CaseForCreate {
 	pub organization_id: Uuid,
 	pub safety_report_id: String,
+	pub dg_prd_key: Option<String>,
 	pub status: Option<String>,
 	pub validation_profile: Option<String>,
 	pub version: Option<i32>,
@@ -55,6 +57,7 @@ pub struct CaseForCreate {
 #[derive(Fields, Deserialize)]
 pub struct CaseForUpdate {
 	pub safety_report_id: Option<String>,
+	pub dg_prd_key: Option<String>,
 	pub status: Option<String>,
 	pub validation_profile: Option<String>,
 	pub submitted_by: Option<Uuid>,

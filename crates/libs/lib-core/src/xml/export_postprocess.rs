@@ -1,5 +1,11 @@
 use libxml::tree::{Document, Node, NodeType};
 use libxml::xpath::Context;
+use crate::xml::validate::{
+	export_attribute_strip_spec_for_rule, export_normalization_spec_for_rule,
+	export_xpath_for_rule, export_xpaths_for_rule,
+	has_export_directive, is_rule_condition_satisfied, ExportDirective,
+	ExportNormalizeKind, RuleFacts,
+};
 
 pub(crate) fn postprocess_export_doc(doc: &mut Document, xpath: &mut Context) {
 	normalize_export_values(xpath);
@@ -7,184 +13,194 @@ pub(crate) fn postprocess_export_doc(doc: &mut Document, xpath: &mut Context) {
 }
 
 fn normalize_export_values(xpath: &mut Context) {
-	if let Ok(nodes) =
-		xpath.findnodes("//hl7:value[@codeSystem='2.16.840.1.113883.6.163']", None)
-	{
-		for mut node in nodes {
-			let code = node.get_attribute("code").unwrap_or_default();
-			let code_ok =
-				code.len() == 8 && code.chars().all(|c| c.is_ascii_digit());
-			if !code_ok {
-				let _ = node.set_attribute("nullFlavor", "NI");
-				let _ = node.remove_attribute("code");
+	for rule_code in [
+		"ICH.XML.MEDDRA.CODE.FORMAT.REQUIRED",
+		"ICH.XML.COUNTRY.CODE.FORMAT.REQUIRED",
+	] {
+		if !has_export_directive(
+			rule_code,
+			ExportDirective::NormalizeInvalidCodeToNullFlavorNi,
+		) {
+			continue;
+		}
+		let Some(spec) = export_normalization_spec_for_rule(rule_code) else {
+			continue;
+		};
+		if let Ok(nodes) = xpath.findnodes(spec.xpath, None) {
+			for mut node in nodes {
+				let value = node.get_attribute(spec.attribute).unwrap_or_default();
+				let valid = matches_normalization_kind(value.trim(), spec.kind);
+				if !valid {
+					let _ = node.set_attribute("nullFlavor", "NI");
+					let _ = node.remove_attribute(spec.attribute);
+				}
 			}
 		}
 	}
 
-	if let Ok(nodes) =
-		xpath.findnodes("//hl7:code[@codeSystem='1.0.3166.1.2.2']", None)
-	{
-		for mut node in nodes {
-			let code = node.get_attribute("code").unwrap_or_default();
-			let code_ok =
-				code.len() == 2 && code.chars().all(|c| c.is_ascii_uppercase());
-			if !code_ok {
-				let _ = node.set_attribute("nullFlavor", "NI");
-				let _ = node.remove_attribute("code");
-			}
-		}
-	}
-
-	if let Ok(nodes) = xpath.findnodes("//*[@type]", None) {
-		for mut node in nodes {
-			if let Some(value) = node.get_attribute("type") {
-				let _ = node.remove_attribute("type");
-				let _ = node.set_attribute("xsi:type", &value);
+	if has_export_directive(
+		"ICH.XML.XSI_TYPE.NORMALIZE",
+		ExportDirective::NormalizeTypeAttributeToXsiType,
+	) {
+		if let Ok(nodes) = xpath.findnodes("//*[@type]", None) {
+			for mut node in nodes {
+				if let Some(value) = node.get_attribute("type") {
+					let _ = node.remove_attribute("type");
+					let _ = node.set_attribute("xsi:type", &value);
+				}
 			}
 		}
 	}
 }
 
+fn matches_normalization_kind(value: &str, kind: ExportNormalizeKind) -> bool {
+	match kind {
+		ExportNormalizeKind::AsciiDigitsLen(len) => {
+			value.len() == len && value.chars().all(|c| c.is_ascii_digit())
+		}
+		ExportNormalizeKind::AsciiUpperLen(len) => {
+			value.len() == len && value.chars().all(|c| c.is_ascii_uppercase())
+		}
+	}
+}
+
 fn prune_optional_nodes(_doc: &mut Document, xpath: &mut Context) {
-	let optional_paths = include_str!("fda_optional_paths.txt");
-	for raw in optional_paths
-		.lines()
-		.map(str::trim)
-		.filter(|l| !l.is_empty())
-	{
-		let xp = path_to_xpath(raw);
-		if let Ok(nodes) = xpath.findnodes(&xp, None) {
-			for node in nodes {
-				if node.get_name() == "substanceAdministration" {
-					if let Some(parent) = node.get_parent() {
-						if parent.get_name() == "outboundRelationship2" {
-							if parent.get_attribute("typeCode").as_deref()
-								== Some("FLFS")
-							{
-								continue;
+	if has_export_directive(
+		"ICH.XML.OPTIONAL.PATH.EMPTY.PRUNE",
+		ExportDirective::RemoveOptionalPathEmptyNodes,
+	) {
+		let optional_paths = include_str!("fda_optional_paths.txt");
+		for raw in optional_paths
+			.lines()
+			.map(str::trim)
+			.filter(|l| !l.is_empty())
+		{
+			let xp = path_to_xpath(raw);
+			if let Ok(nodes) = xpath.findnodes(&xp, None) {
+				for node in nodes {
+					if node.get_name() == "substanceAdministration" {
+						if let Some(parent) = node.get_parent() {
+							if parent.get_name() == "outboundRelationship2" {
+								if parent.get_attribute("typeCode").as_deref()
+									== Some("FLFS")
+								{
+									continue;
+								}
 							}
 						}
 					}
-				}
-				if !node_has_real_data(&node) {
-					let mut n = node;
-					n.unlink_node();
+					if !node_has_real_data(&node) {
+						let mut n = node;
+						n.unlink_node();
+					}
 				}
 			}
 		}
 	}
 
 	prune_placeholder_nodes(xpath);
-	prune_empty_structural_nodes(xpath);
+	if has_export_directive(
+		"ICH.XML.STRUCTURAL.EMPTY.PRUNE",
+		ExportDirective::RemoveEmptyStructuralNodes,
+	) {
+		prune_empty_structural_nodes(xpath);
+	}
 }
 
 fn prune_placeholder_nodes(xpath: &mut Context) {
-	let placeholder_value_nodes = [
-		"//hl7:observation/hl7:value[@code='G.k.10.r']",
-		"//hl7:investigationCharacteristic[hl7:code[@code='3' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.23']]/hl7:value[@code='C.1.11.1']",
-		"//hl7:observation/hl7:value[@code='D.2.3']",
-		"//hl7:observation/hl7:value[@unit='D.2.2.1b']",
-	];
-	for path in placeholder_value_nodes {
-		if let Ok(nodes) = xpath.findnodes(path, None) {
+	if has_export_directive(
+		"ICH.XML.PLACEHOLDER.VALUE.PRUNE",
+		ExportDirective::RemovePlaceholderValueNodes,
+	) {
+		for path in export_xpaths_for_rule("ICH.XML.PLACEHOLDER.VALUE.PRUNE") {
+			unlink_nodes(xpath, path, true);
+		}
+	}
+
+	if has_export_directive(
+		"ICH.XML.PLACEHOLDER.CODESYSTEMVERSION.PRUNE",
+		ExportDirective::RemovePlaceholderCodeSystemVersion,
+	) {
+		if let Some(spec) = export_attribute_strip_spec_for_rule(
+			"ICH.XML.PLACEHOLDER.CODESYSTEMVERSION.PRUNE",
+		) {
+			remove_attribute_on_nodes(xpath, spec.xpath, spec.attribute);
+		}
+	}
+
+	if has_export_directive(
+		"ICH.XML.RACE.NI.PRUNE",
+		ExportDirective::RemoveRaceNiNodes,
+	) {
+		if let Some(path) = export_xpath_for_rule("ICH.XML.RACE.NI.PRUNE") {
+			unlink_nodes(xpath, path, true);
+		}
+	}
+	if has_export_directive(
+		"ICH.XML.RACE.EMPTY.PRUNE",
+		ExportDirective::RemoveRaceEmptyNodes,
+	) {
+		if let Some(path) = export_xpath_for_rule("ICH.XML.RACE.EMPTY.PRUNE") {
+			unlink_nodes(xpath, path, true);
+		}
+	}
+
+	if has_export_directive(
+		"ICH.XML.GK11.EMPTY.PRUNE",
+		ExportDirective::RemoveEmptyGk11Relationships,
+	) {
+		if let Some(path) = export_xpath_for_rule("ICH.XML.GK11.EMPTY.PRUNE") {
+			unlink_nodes(xpath, path, false);
+		}
+	}
+
+	if has_export_directive(
+		"ICH.XML.DOCUMENT.TEXT.COMPRESSION.FORBIDDEN",
+		ExportDirective::RemoveDocumentTextCompression,
+	) {
+		if let Some(spec) =
+			export_attribute_strip_spec_for_rule("ICH.XML.DOCUMENT.TEXT.COMPRESSION.FORBIDDEN")
+		{
+			remove_attribute_on_nodes(xpath, spec.xpath, spec.attribute);
+		}
+	}
+
+	if has_export_directive(
+		"ICH.XML.SUMMARY.LANGUAGE.JA.FORBIDDEN",
+		ExportDirective::RemoveSummaryLanguageJa,
+	) {
+		if let Some(spec) =
+			export_attribute_strip_spec_for_rule("ICH.XML.SUMMARY.LANGUAGE.JA.FORBIDDEN")
+		{
+			remove_attribute_on_nodes(xpath, spec.xpath, spec.attribute);
+		}
+	}
+
+	if has_export_directive(
+		"FDA.E.i.3.2h.REQUIRED",
+		ExportDirective::RequiredInterventionNullFlavorNi,
+	) {
+		if let Some(path) = export_xpath_for_rule("FDA.E.i.3.2h.REQUIRED") {
+			if let Ok(nodes) = xpath.findnodes(path, None) {
 			for mut node in nodes {
-				if let Some(mut parent) = node.get_parent() {
-					parent.unlink_node();
-				} else {
-					node.unlink_node();
+				if !required_intervention_rule_applies(&node) {
+					continue;
+				}
+				let val = node.get_attribute("value").unwrap_or_default();
+				if looks_placeholder(val.trim()) {
+					let _ = node.remove_attribute("value");
+				}
+				if node.get_attribute("nullFlavor").is_none() {
+					let _ = node.set_attribute("nullFlavor", "NI");
 				}
 			}
 		}
-	}
-
-	let placeholder_attr_nodes = "//hl7:observation/hl7:value[@codeSystemVersion='D.8.r.6a' or @codeSystemVersion='D.8.r.7a' or @codeSystemVersion='D.9.2.r.1a' or @codeSystemVersion='D.9.4.r.1a']";
-	if let Ok(nodes) = xpath.findnodes(placeholder_attr_nodes, None) {
-		for mut node in nodes {
-			let _ = node.remove_attribute("codeSystemVersion");
-		}
-	}
-
-	let race_ni = "//hl7:observation[hl7:code[@code='C17049' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value[@code='NI']";
-	if let Ok(nodes) = xpath.findnodes(race_ni, None) {
-		for mut node in nodes {
-			if let Some(mut parent) = node.get_parent() {
-				parent.unlink_node();
-			} else {
-				node.unlink_node();
-			}
-		}
-	}
-	let race_empty = "//hl7:observation[hl7:code[@code='C17049' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value[not(@code) or @nullFlavor]";
-	if let Ok(nodes) = xpath.findnodes(race_empty, None) {
-		for mut node in nodes {
-			if let Some(mut parent) = node.get_parent() {
-				parent.unlink_node();
-			} else {
-				node.unlink_node();
-			}
-		}
-	}
-
-	let gk11_empty = "//hl7:outboundRelationship2[hl7:observation/hl7:code[@code='2'] and (not(hl7:observation/hl7:value) or normalize-space(hl7:observation/hl7:value)='')]";
-	if let Ok(nodes) = xpath.findnodes(gk11_empty, None) {
-		for mut node in nodes {
-			node.unlink_node();
-		}
-	}
-
-	let doc_text_with_compression = "//hl7:document/hl7:text[@compression]";
-	if let Ok(nodes) = xpath.findnodes(doc_text_with_compression, None) {
-		for mut node in nodes {
-			let _ = node.remove_attribute("compression");
-		}
-	}
-
-	let summary_lang = "//hl7:component/hl7:observationEvent[hl7:code[@code='36']]/hl7:value[@language='JA']";
-	if let Ok(nodes) = xpath.findnodes(summary_lang, None) {
-		for mut node in nodes {
-			let _ = node.remove_attribute("language");
-		}
-	}
-
-	let required_intervention = "//hl7:observation[hl7:code[@code='7']]/hl7:value";
-	if let Ok(nodes) = xpath.findnodes(required_intervention, None) {
-		for mut node in nodes {
-			let val = node.get_attribute("value").unwrap_or_default();
-			if looks_placeholder(val.trim()) {
-				let _ = node.remove_attribute("value");
-			}
-			if node.get_attribute("nullFlavor").is_none() {
-				let _ = node.set_attribute("nullFlavor", "NI");
-			}
 		}
 	}
 }
 
 fn prune_empty_structural_nodes(xpath: &mut Context) {
-	let structural_paths = [
-		"//hl7:outboundRelationship2",
-		"//hl7:component",
-		"//hl7:component1",
-		"//hl7:subjectOf2",
-	];
-	for path in structural_paths {
-		if let Ok(nodes) = xpath.findnodes(path, None) {
-			for node in nodes {
-				let is_empty = !node_has_real_data(&node)
-					&& !node
-						.get_child_nodes()
-						.into_iter()
-						.any(|c| c.get_type() == Some(NodeType::ElementNode));
-				if is_empty {
-					let mut n = node;
-					n.unlink_node();
-				}
-			}
-		}
-	}
-
-	let clean_paths = ["//hl7:observation", "//hl7:organizer"];
-	for path in clean_paths {
+	for path in export_xpaths_for_rule("ICH.XML.STRUCTURAL.EMPTY.PRUNE") {
 		if let Ok(nodes) = xpath.findnodes(path, None) {
 			for node in nodes {
 				let has_element_children = node
@@ -210,6 +226,28 @@ fn path_to_xpath(path: &str) -> String {
 		out.push_str(part);
 	}
 	out
+}
+
+fn remove_attribute_on_nodes(xpath: &mut Context, node_xpath: &str, attr: &str) {
+	if let Ok(nodes) = xpath.findnodes(node_xpath, None) {
+		for mut node in nodes {
+			let _ = node.remove_attribute(attr);
+		}
+	}
+}
+
+fn unlink_nodes(xpath: &mut Context, node_xpath: &str, unlink_parent_if_present: bool) {
+	if let Ok(nodes) = xpath.findnodes(node_xpath, None) {
+		for mut node in nodes {
+			if unlink_parent_if_present {
+				if let Some(mut parent) = node.get_parent() {
+					parent.unlink_node();
+					continue;
+				}
+			}
+			node.unlink_node();
+		}
+	}
 }
 
 fn node_has_real_data(node: &Node) -> bool {
@@ -258,4 +296,77 @@ fn looks_placeholder(value: &str) -> bool {
 		}
 	}
 	false
+}
+
+fn required_intervention_rule_applies(value_node: &Node) -> bool {
+	let mut current = value_node.clone();
+	let mut reaction_observation: Option<Node> = None;
+
+	for _ in 0..4 {
+		let Some(parent) = current.get_parent() else {
+			break;
+		};
+		if parent.get_name() == "observation"
+			&& child_observation_code(&parent).as_deref() == Some("29")
+		{
+			reaction_observation = Some(parent);
+			break;
+		}
+		current = parent;
+	}
+
+	let other_medically_important = reaction_observation
+		.as_ref()
+		.map(reaction_has_other_medically_important_true)
+		.unwrap_or(false);
+
+	is_rule_condition_satisfied(
+		"FDA.E.i.3.2h.REQUIRED",
+		RuleFacts {
+			fda_reaction_other_medically_important: Some(other_medically_important),
+			..RuleFacts::default()
+		},
+	)
+}
+
+fn reaction_has_other_medically_important_true(reaction_obs: &Node) -> bool {
+	for rel in reaction_obs.get_child_nodes() {
+		if rel.get_name() != "outboundRelationship2" {
+			continue;
+		}
+		for obs in rel.get_child_nodes() {
+			if obs.get_name() != "observation"
+				|| child_observation_code(&obs).as_deref() != Some("26")
+			{
+				continue;
+			}
+			for child in obs.get_child_nodes() {
+				if child.get_name() != "value" {
+					continue;
+				}
+				let explicit_true = child
+					.get_attribute("value")
+					.map(|v| v.eq_ignore_ascii_case("true") || v == "1")
+					.unwrap_or(false);
+				let coded_true = child
+					.get_attribute("code")
+					.map(|v| v == "true" || v == "1")
+					.unwrap_or(false);
+				if explicit_true || coded_true {
+					return true;
+				}
+			}
+		}
+	}
+	false
+}
+
+fn child_observation_code(obs: &Node) -> Option<String> {
+	obs.get_child_nodes().into_iter().find_map(|child| {
+		if child.get_name() == "code" {
+			child.get_attribute("code")
+		} else {
+			None
+		}
+	})
 }
