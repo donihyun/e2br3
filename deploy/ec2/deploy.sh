@@ -1,0 +1,43 @@
+#!/usr/bin/env sh
+set -eu
+
+APP_DIR="${APP_DIR:-/opt/e2br3}"
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+ENV_FILE="${ENV_FILE:-.env.prod}"
+IMAGE_REF="${IMAGE_REF:-}"
+
+if [ -z "${IMAGE_REF}" ]; then
+  echo "IMAGE_REF is required (for example ghcr.io/<owner>/e2br3-web-server:<sha>)"
+  exit 1
+fi
+
+cd "${APP_DIR}"
+
+if [ ! -f "${ENV_FILE}" ]; then
+  echo "Missing ${APP_DIR}/${ENV_FILE}. Copy from .env.prod.example and fill secrets."
+  exit 1
+fi
+
+if [ ! -f "${COMPOSE_FILE}" ]; then
+  echo "Missing ${APP_DIR}/${COMPOSE_FILE}"
+  exit 1
+fi
+
+if [ -n "${GHCR_USERNAME:-}" ] && [ -n "${GHCR_TOKEN:-}" ]; then
+  echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
+fi
+
+echo "Pulling ${IMAGE_REF}"
+docker pull "${IMAGE_REF}"
+
+# Update runtime image reference in env file idempotently.
+if grep -q '^IMAGE_REF=' "${ENV_FILE}"; then
+  sed -i.bak "s|^IMAGE_REF=.*|IMAGE_REF=${IMAGE_REF}|" "${ENV_FILE}"
+else
+  echo "IMAGE_REF=${IMAGE_REF}" >> "${ENV_FILE}"
+fi
+
+docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d app
+docker image prune -f
+
+echo "Deploy complete: ${IMAGE_REF}"
