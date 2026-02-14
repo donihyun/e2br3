@@ -1,11 +1,10 @@
-use libxml::tree::{Document, Node, NodeType};
-use libxml::xpath::Context;
 use crate::xml::validate::{
 	export_attribute_strip_spec_for_rule, export_normalization_spec_for_rule,
-	export_xpath_for_rule, export_xpaths_for_rule,
-	has_export_directive, is_rule_condition_satisfied, ExportDirective,
-	ExportNormalizeKind, RuleFacts,
+	export_xpath_for_rule, export_xpaths_for_rule, has_export_directive,
+	is_rule_condition_satisfied, ExportDirective, ExportNormalizeKind, RuleFacts,
 };
+use libxml::tree::{Document, Node, NodeType};
+use libxml::xpath::Context;
 
 pub(crate) fn postprocess_export_doc(doc: &mut Document, xpath: &mut Context) {
 	normalize_export_values(xpath);
@@ -158,9 +157,9 @@ fn prune_placeholder_nodes(xpath: &mut Context) {
 		"ICH.XML.DOCUMENT.TEXT.COMPRESSION.FORBIDDEN",
 		ExportDirective::RemoveDocumentTextCompression,
 	) {
-		if let Some(spec) =
-			export_attribute_strip_spec_for_rule("ICH.XML.DOCUMENT.TEXT.COMPRESSION.FORBIDDEN")
-		{
+		if let Some(spec) = export_attribute_strip_spec_for_rule(
+			"ICH.XML.DOCUMENT.TEXT.COMPRESSION.FORBIDDEN",
+		) {
 			remove_attribute_on_nodes(xpath, spec.xpath, spec.attribute);
 		}
 	}
@@ -169,9 +168,9 @@ fn prune_placeholder_nodes(xpath: &mut Context) {
 		"ICH.XML.SUMMARY.LANGUAGE.JA.FORBIDDEN",
 		ExportDirective::RemoveSummaryLanguageJa,
 	) {
-		if let Some(spec) =
-			export_attribute_strip_spec_for_rule("ICH.XML.SUMMARY.LANGUAGE.JA.FORBIDDEN")
-		{
+		if let Some(spec) = export_attribute_strip_spec_for_rule(
+			"ICH.XML.SUMMARY.LANGUAGE.JA.FORBIDDEN",
+		) {
 			remove_attribute_on_nodes(xpath, spec.xpath, spec.attribute);
 		}
 	}
@@ -182,19 +181,19 @@ fn prune_placeholder_nodes(xpath: &mut Context) {
 	) {
 		if let Some(path) = export_xpath_for_rule("FDA.E.i.3.2h.REQUIRED") {
 			if let Ok(nodes) = xpath.findnodes(path, None) {
-			for mut node in nodes {
-				if !required_intervention_rule_applies(&node) {
-					continue;
-				}
-				let val = node.get_attribute("value").unwrap_or_default();
-				if looks_placeholder(val.trim()) {
-					let _ = node.remove_attribute("value");
-				}
-				if node.get_attribute("nullFlavor").is_none() {
-					let _ = node.set_attribute("nullFlavor", "NI");
+				for mut node in nodes {
+					if !required_intervention_rule_applies(&node) {
+						continue;
+					}
+					let val = node.get_attribute("value").unwrap_or_default();
+					if looks_placeholder(val.trim()) {
+						let _ = node.remove_attribute("value");
+					}
+					if node.get_attribute("nullFlavor").is_none() {
+						let _ = node.set_attribute("nullFlavor", "NI");
+					}
 				}
 			}
-		}
 		}
 	}
 }
@@ -236,7 +235,11 @@ fn remove_attribute_on_nodes(xpath: &mut Context, node_xpath: &str, attr: &str) 
 	}
 }
 
-fn unlink_nodes(xpath: &mut Context, node_xpath: &str, unlink_parent_if_present: bool) {
+fn unlink_nodes(
+	xpath: &mut Context,
+	node_xpath: &str,
+	unlink_parent_if_present: bool,
+) {
 	if let Ok(nodes) = xpath.findnodes(node_xpath, None) {
 		for mut node in nodes {
 			if unlink_parent_if_present {

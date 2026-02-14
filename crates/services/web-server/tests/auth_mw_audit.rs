@@ -130,6 +130,46 @@ async fn test_auth_login_unknown_email() -> Result<()> {
 
 #[serial]
 #[tokio::test]
+async fn test_auth_login_created_user_email_case_insensitive() -> Result<()> {
+	let mm = init_test_mm().await?;
+	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
+	let admin_token = generate_web_token(&seed.admin.email, seed.admin.token_salt)?;
+	let app = web_server::app(mm);
+	let suffix = Uuid::new_v4();
+	let mixed_case_email = format!("CaseMix-{suffix}@Example.COM");
+	let login_email = mixed_case_email.to_lowercase();
+
+	let create_body = json!({
+		"data": {
+			"organization_id": seed.org_id,
+			"email": mixed_case_email,
+			"username": format!("case_mix_{suffix}"),
+			"pwd_clear": "CaseMixPwd123!",
+			"role": "user"
+		}
+	});
+	let create_req = Request::builder()
+		.method("POST")
+		.uri("/api/users")
+		.header("cookie", cookie_header(&admin_token.to_string()))
+		.header("content-type", "application/json")
+		.body(Body::from(create_body.to_string()))?;
+	let create_res = app.clone().oneshot(create_req).await?;
+	assert_eq!(create_res.status(), StatusCode::CREATED);
+
+	let login_body = json!({ "email": login_email, "pwd": "CaseMixPwd123!" });
+	let login_req = Request::builder()
+		.method("POST")
+		.uri("/auth/v1/login")
+		.header("content-type", "application/json")
+		.body(Body::from(login_body.to_string()))?;
+	let login_res = app.oneshot(login_req).await?;
+	assert_eq!(login_res.status(), StatusCode::OK);
+	Ok(())
+}
+
+#[serial]
+#[tokio::test]
 async fn test_middleware_requires_auth() -> Result<()> {
 	let mm = init_test_mm().await?;
 	let _seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;

@@ -39,7 +39,7 @@ pub fn routes_cases(mm: ModelManager) -> Router {
 	rest_collection_item_routes(
 		"/cases",
 		"/cases/{id}",
-		get(case_rest::list_cases).post(case_rest::create_case),
+		get(case_rest::list_cases).post(case_rest::create_case_guarded),
 		get(case_rest::get_case)
 			.put(case_rest::update_case_guarded)
 			.delete(case_rest::delete_case),

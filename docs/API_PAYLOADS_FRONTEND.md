@@ -64,7 +64,15 @@ Response
 
 ### POST `/api/users`
 ```json
-{ "data": { "email": "user@example.com", "role": "user", "organization_id": "org-uuid" } }
+{
+  "data": {
+    "organization_id": "org-uuid",
+    "email": "user@example.com",
+    "username": "user01",
+    "pwd_clear": "TempPass123!",
+    "role": "user"
+  }
+}
 ```
 Response
 ```json

@@ -3,17 +3,22 @@ use axum::response::Response;
 use lib_core::model::acs::{
 	CASE_CREATE, CASE_DELETE, CASE_LIST, CASE_READ, CASE_UPDATE, XML_EXPORT,
 };
-use lib_core::model::case::{Case, CaseBmc, CaseFilter, CaseForCreate, CaseForUpdate};
+use lib_core::model::case::{
+	Case, CaseBmc, CaseFilter, CaseForCreate, CaseForUpdate,
+};
 use lib_core::model::drug::DrugInformationBmc;
 use lib_core::model::message_header::{MessageHeaderBmc, MessageHeaderForCreate};
-use lib_core::model::patient::{PatientIdentifierBmc, PatientIdentifierFilter, PatientInformationBmc};
-use lib_core::model::safety_report::{
-	PrimarySourceBmc, PrimarySourceFilter, SafetyReportIdentificationBmc,
-	SafetyReportIdentificationForCreate, StudyInformationBmc, StudyInformationFilter,
+use lib_core::model::patient::{
+	PatientIdentifierBmc, PatientIdentifierFilter, PatientInformationBmc,
 };
 use lib_core::model::reaction::ReactionBmc;
-use lib_core::xml::{export_case_xml, validate_e2b_xml};
+use lib_core::model::safety_report::{
+	PrimarySourceBmc, PrimarySourceFilter, SafetyReportIdentificationBmc,
+	SafetyReportIdentificationForCreate, StudyInformationBmc,
+	StudyInformationFilter,
+};
 use lib_core::xml::validate::ValidationProfile;
+use lib_core::xml::{export_case_xml, validate_e2b_xml};
 use lib_rest_core::prelude::*;
 use lib_rest_core::rest_params::{ParamsForCreate, ParamsForUpdate};
 use lib_rest_core::rest_result::DataRestResult;
@@ -47,6 +52,89 @@ generate_common_rest_fns! {
 	PermList: CASE_LIST
 }
 
+fn parse_validation_profile_or_bad_request(
+	value: &str,
+) -> Result<ValidationProfile> {
+	ValidationProfile::parse(value).ok_or_else(|| Error::BadRequest {
+		message: format!(
+			"invalid validation profile '{value}' (expected: ich, fda or mfds)"
+		),
+	})
+}
+
+fn is_valid_case_status(status: &str) -> bool {
+	matches!(
+		status.trim().to_ascii_lowercase().as_str(),
+		"draft" | "checked" | "validated" | "submitted" | "archived" | "nullified"
+	)
+}
+
+fn validate_case_create_payload(data: &CaseForCreate) -> Result<()> {
+	if data.safety_report_id.trim().is_empty() {
+		return Err(Error::BadRequest {
+			message: "safety_report_id is required".to_string(),
+		});
+	}
+
+	if let Some(status) = data.status.as_deref() {
+		if !is_valid_case_status(status) {
+			return Err(Error::BadRequest {
+				message: format!("invalid case status '{status}'"),
+			});
+		}
+		if status.eq_ignore_ascii_case("validated") {
+			return Err(Error::BadRequest {
+				message: "cannot set case to validated manually: status is managed by validator".to_string(),
+			});
+		}
+	}
+
+	if let Some(profile) = data.validation_profile.as_deref() {
+		let _ = parse_validation_profile_or_bad_request(profile)?;
+	}
+
+	Ok(())
+}
+
+fn validate_case_update_payload(data: &CaseForUpdate) -> Result<()> {
+	if let Some(safety_report_id) = data.safety_report_id.as_deref() {
+		if safety_report_id.trim().is_empty() {
+			return Err(Error::BadRequest {
+				message: "safety_report_id cannot be empty".to_string(),
+			});
+		}
+	}
+
+	if let Some(status) = data.status.as_deref() {
+		if !is_valid_case_status(status) {
+			return Err(Error::BadRequest {
+				message: format!("invalid case status '{status}'"),
+			});
+		}
+	}
+
+	if let Some(profile) = data.validation_profile.as_deref() {
+		let _ = parse_validation_profile_or_bad_request(profile)?;
+	}
+
+	Ok(())
+}
+
+pub async fn create_case_guarded(
+	State(mm): State<ModelManager>,
+	ctx_w: CtxW,
+	Json(params): Json<ParamsForCreate<CaseForCreate>>,
+) -> Result<(StatusCode, Json<DataRestResult<Case>>)> {
+	let ctx = ctx_w.0;
+	require_permission(&ctx, CASE_CREATE)?;
+	let ParamsForCreate { data } = params;
+	validate_case_create_payload(&data)?;
+
+	let id = CaseBmc::create(&ctx, &mm, data).await?;
+	let entity = CaseBmc::get(&ctx, &mm, id).await?;
+	Ok((StatusCode::CREATED, Json(DataRestResult { data: entity })))
+}
+
 pub async fn update_case_guarded(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,
@@ -56,6 +144,7 @@ pub async fn update_case_guarded(
 	let ctx = ctx_w.0;
 	require_permission(&ctx, CASE_UPDATE)?;
 	let ParamsForUpdate { data } = params;
+	validate_case_update_payload(&data)?;
 
 	let wants_validated = data
 		.status
@@ -83,13 +172,15 @@ pub async fn mark_case_validated_by_validator(
 	require_permission(&ctx, CASE_UPDATE)?;
 	if !ctx.is_admin() {
 		return Err(Error::BadRequest {
-			message: "only validator service/admin can mark case validated".to_string(),
+			message: "only validator service/admin can mark case validated"
+				.to_string(),
 		});
 	}
 
-	let required_token = std::env::var("E2BR3_VALIDATOR_TOKEN").map_err(|_| Error::BadRequest {
-		message: "validator token is not configured".to_string(),
-	})?;
+	let required_token =
+		std::env::var("E2BR3_VALIDATOR_TOKEN").map_err(|_| Error::BadRequest {
+			message: "validator token is not configured".to_string(),
+		})?;
 	let provided_token = headers
 		.get("x-validator-token")
 		.and_then(|value| value.to_str().ok())
@@ -234,22 +325,22 @@ async fn list_potential_duplicates(
 		.into_iter()
 		.filter(|case| case.safety_report_id == safety_report_id)
 	{
-		let safety = match SafetyReportIdentificationBmc::get_by_case(ctx, mm, case.id)
-			.await
-		{
-			Ok(data) => Some(data),
-			Err(lib_core::model::Error::EntityUuidNotFound { .. }) => None,
-			Err(err) => return Err(err.into()),
-		};
+		let safety =
+			match SafetyReportIdentificationBmc::get_by_case(ctx, mm, case.id).await
+			{
+				Ok(data) => Some(data),
+				Err(lib_core::model::Error::EntityUuidNotFound { .. }) => None,
+				Err(err) => return Err(err.into()),
+			};
 		let row_date = safety.as_ref().map(|s| s.date_of_most_recent_information);
 		let row_report = safety.as_ref().map(|s| s.report_type.clone());
 		let primary_sources = PrimarySourceBmc::list(
 			ctx,
 			mm,
 			Some(vec![PrimarySourceFilter {
-				case_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(
-					case.id.to_string()
-				))])),
+				case_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(case
+					.id
+					.to_string()))])),
 				..Default::default()
 			}]),
 			Some(ListOptions::default()),
@@ -263,9 +354,9 @@ async fn list_potential_duplicates(
 			ctx,
 			mm,
 			Some(vec![StudyInformationFilter {
-				case_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(
-					case.id.to_string()
-				))])),
+				case_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(case
+					.id
+					.to_string()))])),
 			}]),
 			Some(ListOptions::default()),
 		)
@@ -274,12 +365,14 @@ async fn list_potential_duplicates(
 			.into_iter()
 			.next()
 			.and_then(|row| row.sponsor_study_number);
-		let patient = match PatientInformationBmc::get_by_case(ctx, mm, case.id).await {
-			Ok(value) => Some(value),
-			Err(lib_core::model::Error::EntityUuidNotFound { .. }) => None,
-			Err(err) => return Err(err.into()),
-		};
-		let patient_initials = patient.as_ref().and_then(|p| p.patient_initials.clone());
+		let patient =
+			match PatientInformationBmc::get_by_case(ctx, mm, case.id).await {
+				Ok(value) => Some(value),
+				Err(lib_core::model::Error::EntityUuidNotFound { .. }) => None,
+				Err(err) => return Err(err.into()),
+			};
+		let patient_initials =
+			patient.as_ref().and_then(|p| p.patient_initials.clone());
 		let age_d2_2a = patient
 			.as_ref()
 			.and_then(|p| p.age_at_time_of_onset.map(|v| v.normalize().to_string()));
@@ -289,9 +382,9 @@ async fn list_potential_duplicates(
 				ctx,
 				mm,
 				Some(vec![PatientIdentifierFilter {
-					patient_id: Some(OpValsValue::from(vec![OpValValue::Eq(json!(
-						patient.id.to_string()
-					))])),
+					patient_id: Some(OpValsValue::from(vec![OpValValue::Eq(
+						json!(patient.id.to_string()),
+					)])),
 					..Default::default()
 				}]),
 				Some(ListOptions::default()),
@@ -301,9 +394,7 @@ async fn list_potential_duplicates(
 				.find(|id| id.identifier_type_code.trim() == "4")
 				.or_else(|| {
 					ids.iter().find(|id| {
-						id.identifier_type_code
-							.to_ascii_uppercase()
-							.contains("INV")
+						id.identifier_type_code.to_ascii_uppercase().contains("INV")
 					})
 				})
 				.or_else(|| ids.iter().min_by_key(|id| id.sequence_number))
@@ -322,10 +413,12 @@ async fn list_potential_duplicates(
 			.await?
 			.into_iter()
 			.min_by_key(|row| row.sequence_number);
-		let reaction_meddra_version =
-			reaction.as_ref().and_then(|r| r.reaction_meddra_version.clone());
-		let reaction_meddra_code =
-			reaction.as_ref().and_then(|r| r.reaction_meddra_code.clone());
+		let reaction_meddra_version = reaction
+			.as_ref()
+			.and_then(|r| r.reaction_meddra_version.clone());
+		let reaction_meddra_code = reaction
+			.as_ref()
+			.and_then(|r| r.reaction_meddra_code.clone());
 		let ae_start_date = reaction.as_ref().and_then(|r| r.start_date);
 
 		let date_ok = key
@@ -342,17 +435,27 @@ async fn list_potential_duplicates(
 					.unwrap_or(false)
 			})
 			.unwrap_or(true);
-		let reporter_ok =
-			matches_optional_text(key.reporter_organization.as_deref(), reporter_organization.as_deref());
-		let study_ok =
-			matches_optional_text(key.sponsor_study_number.as_deref(), sponsor_study_number.as_deref());
-		let initials_ok =
-			matches_optional_text(key.patient_initials.as_deref(), patient_initials.as_deref());
-		let investigation_ok =
-			matches_optional_text(key.investigation_number.as_deref(), investigation_number.as_deref());
-		let age_ok = matches_optional_decimal(key.age_d2_2a.as_deref(), age_d2_2a.as_deref());
+		let reporter_ok = matches_optional_text(
+			key.reporter_organization.as_deref(),
+			reporter_organization.as_deref(),
+		);
+		let study_ok = matches_optional_text(
+			key.sponsor_study_number.as_deref(),
+			sponsor_study_number.as_deref(),
+		);
+		let initials_ok = matches_optional_text(
+			key.patient_initials.as_deref(),
+			patient_initials.as_deref(),
+		);
+		let investigation_ok = matches_optional_text(
+			key.investigation_number.as_deref(),
+			investigation_number.as_deref(),
+		);
+		let age_ok =
+			matches_optional_decimal(key.age_d2_2a.as_deref(), age_d2_2a.as_deref());
 		let sex_ok = matches_optional_text(key.sex_d5.as_deref(), sex_d5.as_deref());
-		let dg_ok = matches_optional_text(key.dg_prd_key.as_deref(), dg_prd_key.as_deref());
+		let dg_ok =
+			matches_optional_text(key.dg_prd_key.as_deref(), dg_prd_key.as_deref());
 		let meddra_version_ok = matches_optional_text(
 			key.reaction_meddra_version.as_deref(),
 			reaction_meddra_version.as_deref(),
@@ -374,8 +477,7 @@ async fn list_potential_duplicates(
 			|| !investigation_ok
 			|| !age_ok
 			|| !sex_ok
-			|| !dg_ok
-			|| !meddra_version_ok
+			|| !dg_ok || !meddra_version_ok
 			|| !meddra_code_ok
 			|| !ae_start_date_ok
 		{
@@ -456,10 +558,14 @@ fn message_sender_identifier() -> String {
 
 fn message_receiver_identifier(profile: ValidationProfile) -> String {
 	match profile {
-		ValidationProfile::Fda => std::env::var("E2BR3_DEFAULT_MESSAGE_RECEIVER_FDA")
-			.unwrap_or_else(|_| "CDER".to_string()),
-		ValidationProfile::Ich => std::env::var("E2BR3_DEFAULT_MESSAGE_RECEIVER_ICH")
-			.unwrap_or_else(|_| "ICHTEST".to_string()),
+		ValidationProfile::Fda => {
+			std::env::var("E2BR3_DEFAULT_MESSAGE_RECEIVER_FDA")
+				.unwrap_or_else(|_| "CDER".to_string())
+		}
+		ValidationProfile::Ich => {
+			std::env::var("E2BR3_DEFAULT_MESSAGE_RECEIVER_ICH")
+				.unwrap_or_else(|_| "ICHTEST".to_string())
+		}
 		ValidationProfile::Mfds => {
 			std::env::var("E2BR3_DEFAULT_MESSAGE_RECEIVER_MFDS")
 				.unwrap_or_else(|_| "MFDS".to_string())
@@ -567,7 +673,9 @@ pub async fn create_case_from_intake(
 		&mm,
 		&CaseIntakeCheckInput {
 			safety_report_id: safety_report_id.to_string(),
-			date_of_most_recent_information: Some(data.date_of_most_recent_information),
+			date_of_most_recent_information: Some(
+				data.date_of_most_recent_information,
+			),
 			report_type: Some(data.report_type.clone()),
 			reporter_organization: data.reporter_organization.clone(),
 			sponsor_study_number: data.sponsor_study_number.clone(),
@@ -599,11 +707,12 @@ pub async fn create_case_from_intake(
 			.to_string(),
 		None => "fda".to_string(),
 	};
-	let profile_enum = ValidationProfile::parse(&profile).ok_or_else(|| Error::BadRequest {
-		message: format!(
+	let profile_enum =
+		ValidationProfile::parse(&profile).ok_or_else(|| Error::BadRequest {
+			message: format!(
 			"invalid validation profile '{profile}' (expected: ich, fda or mfds)"
 		),
-	})?;
+		})?;
 
 	let next_version = next_case_version(&ctx, &mm, safety_report_id).await?;
 	let case_id = CaseBmc::create(
@@ -613,10 +722,7 @@ pub async fn create_case_from_intake(
 			organization_id: ctx.organization_id(),
 			safety_report_id: safety_report_id.to_string(),
 			dg_prd_key: data.dg_prd_key.clone(),
-			status: Some(
-				data.status
-					.unwrap_or_else(|| "draft".to_string()),
-			),
+			status: Some(data.status.unwrap_or_else(|| "draft".to_string())),
 			validation_profile: Some(profile),
 			version: Some(next_version),
 		},
@@ -687,8 +793,10 @@ pub async fn export_case(
 	})??;
 
 	if should_validate_export_xml(profile) {
-		let report = validate_e2b_xml(xml.as_bytes(), None).map_err(|err| Error::BadRequest {
-			message: format!("export XML validation failed: {err}"),
+		let report = validate_e2b_xml(xml.as_bytes(), None).map_err(|err| {
+			Error::BadRequest {
+				message: format!("export XML validation failed: {err}"),
+			}
 		})?;
 		if !report.ok {
 			let first = report

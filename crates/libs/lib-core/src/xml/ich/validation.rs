@@ -8,11 +8,10 @@ use crate::model::reaction::Reaction;
 use crate::model::safety_report::{PrimarySource, SafetyReportIdentification};
 use crate::model::{ModelManager, Result};
 use crate::xml::validate::{
-	build_report, push_issue_by_code, CaseValidationReport,
-	ValidationIssue, ValidationProfile, has_patient_initials,
-	has_any_primary_source_content,
-	should_require_patient_initials, should_require_case_narrative,
-	push_issue_if_rule_invalid, RuleFacts,
+	build_report, has_any_primary_source_content, has_patient_initials,
+	push_issue_by_code, push_issue_if_rule_invalid, should_require_case_narrative,
+	should_require_patient_initials, CaseValidationReport, RuleFacts,
+	ValidationIssue, ValidationProfile,
 };
 use sqlx::types::Uuid;
 
@@ -95,7 +94,11 @@ pub async fn validate_case(
 	let mut issues: Vec<ValidationIssue> = Vec::new();
 
 	if report.is_none() {
-		push_issue_by_code(&mut issues, "ICH.C.1.REQUIRED", "safetyReportIdentification");
+		push_issue_by_code(
+			&mut issues,
+			"ICH.C.1.REQUIRED",
+			"safetyReportIdentification",
+		);
 	}
 
 	if header.is_none() {
@@ -180,8 +183,7 @@ pub async fn validate_case(
 	});
 
 	if let Some(narrative) = narrative.as_ref() {
-		if should_require_case_narrative(narrative)
-		{
+		if should_require_case_narrative(narrative) {
 			let _ = push_issue_if_rule_invalid(
 				&mut issues,
 				"ICH.H.1.REQUIRED",

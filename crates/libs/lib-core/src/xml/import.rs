@@ -242,7 +242,8 @@ pub async fn import_e2b_xml(
 		clamp_str(Some(safety_report_id_raw), 100, "cases.safety_report_id")
 			.unwrap_or_else(|| "UNKNOWN".to_string());
 	let header_extract = extract_message_header(&req.xml).ok();
-	let inferred_validation_profile = infer_validation_profile(header_extract.as_ref());
+	let inferred_validation_profile =
+		infer_validation_profile(header_extract.as_ref());
 
 	let next_version = {
 		let dbx = mm.dbx();
@@ -295,11 +296,11 @@ pub async fn import_e2b_xml(
 			.message_receiver
 			.clone()
 			.or_else(|| header.batch_receiver.clone());
-			let message_date = header
-				.message_date
-				.clone()
-				.or_else(|| header.batch_transmission.clone())
-				.and_then(normalize_message_date);
+		let message_date = header
+			.message_date
+			.clone()
+			.or_else(|| header.batch_transmission.clone())
+			.and_then(normalize_message_date);
 		let (msg_sender, msg_receiver, msg_date) = (
 			message_sender.clone(),
 			message_receiver.clone(),
@@ -308,27 +309,27 @@ pub async fn import_e2b_xml(
 		if let (Some(message_sender), Some(message_receiver), Some(message_date)) =
 			(msg_sender, msg_receiver, msg_date)
 		{
-				let has_header = MessageHeaderBmc::get_by_case(ctx, &mm, case_id)
-					.await
-					.is_ok();
-				if !has_header {
-					MessageHeaderBmc::create(
-						ctx,
-						&mm,
-						MessageHeaderForCreate {
+			let has_header = MessageHeaderBmc::get_by_case(ctx, &mm, case_id)
+				.await
+				.is_ok();
+			if !has_header {
+				MessageHeaderBmc::create(
+					ctx,
+					&mm,
+					MessageHeaderForCreate {
 						case_id,
 						message_number,
 						message_sender_identifier: message_sender,
 						message_receiver_identifier: message_receiver,
 						message_date,
 					},
-					)
-					.await?;
-				}
-				MessageHeaderBmc::update_by_case(
-					ctx,
-					&mm,
-					case_id,
+				)
+				.await?;
+			}
+			MessageHeaderBmc::update_by_case(
+				ctx,
+				&mm,
+				case_id,
 				MessageHeaderForUpdate {
 					batch_number: header.batch_number.clone(),
 					batch_sender_identifier: header.batch_sender.clone(),
@@ -338,9 +339,9 @@ pub async fn import_e2b_xml(
 					message_sender_identifier: None,
 					message_receiver_identifier: None,
 				},
-				)
-				.await?;
-			} else {
+			)
+			.await?;
+		} else {
 			tracing::warn!(
 				message_sender = ?message_sender,
 				message_receiver = ?message_receiver,
@@ -3407,7 +3408,11 @@ fn parse_patient_information(xml: &[u8]) -> Result<Option<PatientImport>> {
 		patient_given_name.as_deref(),
 		patient_family_name.as_deref(),
 	)
-	.or_else(|| patient_name_text.as_deref().and_then(initials_from_name_text));
+	.or_else(|| {
+		patient_name_text
+			.as_deref()
+			.and_then(initials_from_name_text)
+	});
 	let sex = normalize_sex_code(first_value_root(
 		&mut xpath,
 		"//hl7:administrativeGenderCode/@code",

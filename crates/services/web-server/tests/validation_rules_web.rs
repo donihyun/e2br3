@@ -75,9 +75,9 @@ async fn test_admin_can_list_validation_rules() -> Result<()> {
 		.and_then(Value::as_array)
 		.ok_or("missing data array for profile query")?;
 	assert!(!rules.is_empty(), "expected non-empty filtered rule list");
-	let contains_mfds = rules.iter().any(|rule| {
-		rule.get("profile").and_then(Value::as_str) == Some("mfds")
-	});
+	let contains_mfds = rules
+		.iter()
+		.any(|rule| rule.get("profile").and_then(Value::as_str) == Some("mfds"));
 	assert!(!contains_mfds, "profile=fda should not include mfds rules");
 
 	let req = Request::builder()

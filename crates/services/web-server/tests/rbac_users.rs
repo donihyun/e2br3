@@ -78,6 +78,100 @@ async fn test_viewer_cannot_create_user() -> Result<()> {
 
 #[serial]
 #[tokio::test]
+async fn test_create_user_missing_required_fields_fails() -> Result<()> {
+	let mm = init_test_mm().await?;
+	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
+	let token = generate_web_token(&seed.admin.email, seed.admin.token_salt)?;
+
+	let app = web_server::app(mm);
+	// Mirrors the currently documented frontend payload shape that omits
+	// required fields for backend UserForCreate.
+	let body = json!({
+		"data": {
+			"organization_id": seed.org_id,
+			"email": "missing-fields@example.com",
+			"role": "user"
+		}
+	});
+	let req = Request::builder()
+		.method("POST")
+		.uri("/api/users")
+		.header("cookie", cookie_header(&token.to_string()))
+		.header("content-type", "application/json")
+		.body(Body::from(body.to_string()))?;
+	let res = app.oneshot(req).await?;
+
+	assert_eq!(res.status(), StatusCode::UNPROCESSABLE_ENTITY);
+	Ok(())
+}
+
+#[serial]
+#[tokio::test]
+async fn test_create_user_duplicate_email_returns_conflict_with_detail() -> Result<()> {
+	let mm = init_test_mm().await?;
+	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
+	let token = generate_web_token(&seed.admin.email, seed.admin.token_salt)?;
+
+	let app = web_server::app(mm);
+	let suffix = Uuid::new_v4();
+	let email = format!("rbac-dup-email-{suffix}@example.com");
+
+	let body1 = json!({
+		"data": {
+			"organization_id": seed.org_id,
+			"email": email,
+			"username": format!("rbac_dup_email_1_{suffix}"),
+			"pwd_clear": "p@ssw0rd",
+			"role": "user"
+		}
+	});
+	let req1 = Request::builder()
+		.method("POST")
+		.uri("/api/users")
+		.header("cookie", cookie_header(&token.to_string()))
+		.header("content-type", "application/json")
+		.body(Body::from(body1.to_string()))?;
+	let res1 = app.clone().oneshot(req1).await?;
+	assert_eq!(res1.status(), StatusCode::CREATED);
+
+	let body2 = json!({
+		"data": {
+			"organization_id": seed.org_id,
+			"email": email,
+			"username": format!("rbac_dup_email_2_{suffix}"),
+			"pwd_clear": "p@ssw0rd",
+			"role": "user"
+		}
+	});
+	let req2 = Request::builder()
+		.method("POST")
+		.uri("/api/users")
+		.header("cookie", cookie_header(&token.to_string()))
+		.header("content-type", "application/json")
+		.body(Body::from(body2.to_string()))?;
+	let res2 = app.oneshot(req2).await?;
+	assert_eq!(res2.status(), StatusCode::CONFLICT);
+
+	let body = axum::body::to_bytes(res2.into_body(), usize::MAX).await?;
+	let json: serde_json::Value = serde_json::from_slice(&body)?;
+	assert!(
+		json["error"]["data"]["detail"]
+			.as_str()
+			.unwrap_or_default()
+			.to_ascii_lowercase()
+			.contains("already exists")
+			|| json["error"]["data"]["detail"]
+				.as_str()
+				.unwrap_or_default()
+				.to_ascii_lowercase()
+				.contains("duplicate"),
+		"expected safe conflict detail, body={json}"
+	);
+	Ok(())
+}
+
+#[serial]
+#[tokio::test]
 async fn test_admin_can_update_user() -> Result<()> {
 	let mm = init_test_mm().await?;
 	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;

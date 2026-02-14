@@ -57,4 +57,3 @@ mod tests {
 		assert!(has_test_payload(&test));
 	}
 }
-

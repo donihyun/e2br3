@@ -861,12 +861,8 @@ impl ExportDirective {
 			}
 			Self::RemoveRaceNiNodes => "remove_race_ni_nodes",
 			Self::RemoveRaceEmptyNodes => "remove_race_empty_nodes",
-			Self::RemoveEmptyGk11Relationships => {
-				"remove_empty_gk11_relationships"
-			}
-			Self::RemoveOptionalPathEmptyNodes => {
-				"remove_optional_path_empty_nodes"
-			}
+			Self::RemoveEmptyGk11Relationships => "remove_empty_gk11_relationships",
+			Self::RemoveOptionalPathEmptyNodes => "remove_optional_path_empty_nodes",
 			Self::RemoveEmptyStructuralNodes => "remove_empty_structural_nodes",
 		}
 	}
@@ -935,9 +931,7 @@ impl RuleCondition {
 			Self::FdaPremarketReportTypeMustBeTwo => {
 				"fda_premarket_report_type_must_be_two"
 			}
-			Self::MfdsRelatednessSourcePresent => {
-				"mfds_relatedness_source_present"
-			}
+			Self::MfdsRelatednessSourcePresent => "mfds_relatedness_source_present",
 			Self::MfdsRelatednessMethodOrResultPresent => {
 				"mfds_relatedness_method_or_result_present"
 			}
@@ -1047,20 +1041,15 @@ fn condition_for_code(code: &str) -> RuleCondition {
 			RuleCondition::FdaReactionOtherMedicallyImportantTrue
 		}
 		"MFDS.C.3.1.KR.1.REQUIRED" => RuleCondition::MfdsSenderTypeDisallowed,
-		"MFDS.G.k.9.i.2.r.2.KR.1.REQUIRED"
-		| "MFDS.G.k.9.i.2.r.3.KR.1.REQUIRED" => {
+		"MFDS.G.k.9.i.2.r.2.KR.1.REQUIRED" | "MFDS.G.k.9.i.2.r.3.KR.1.REQUIRED" => {
 			RuleCondition::MfdsRelatednessSourcePresent
 		}
 		"MFDS.G.k.9.i.2.r.1.REQUIRED" => {
 			RuleCondition::MfdsRelatednessMethodOrResultPresent
 		}
 		"MFDS.KR.DOMESTIC.PRODUCTCODE.REQUIRED"
-		| "MFDS.KR.DOMESTIC.INGREDIENTCODE.REQUIRED" => {
-			RuleCondition::MfdsDrugDomesticKr
-		}
-		"MFDS.KR.FOREIGN.WHOMPID.RECOMMENDED" => {
-			RuleCondition::MfdsDrugForeignNonKr
-		}
+		| "MFDS.KR.DOMESTIC.INGREDIENTCODE.REQUIRED" => RuleCondition::MfdsDrugDomesticKr,
+		"MFDS.KR.FOREIGN.WHOMPID.RECOMMENDED" => RuleCondition::MfdsDrugForeignNonKr,
 		_ => RuleCondition::Always,
 	}
 }
@@ -1090,8 +1079,7 @@ pub fn canonical_rules_for_profile(
 	CANONICAL_RULES
 		.iter()
 		.filter(|rule| {
-			matches!(rule.profile, ValidationProfile::Ich)
-				|| rule.profile == profile
+			matches!(rule.profile, ValidationProfile::Ich) || rule.profile == profile
 		})
 		.map(to_canonical_rule)
 		.collect()
@@ -1149,15 +1137,15 @@ pub fn is_rule_condition_satisfied(code: &str, facts: RuleFacts) -> bool {
 		RuleCondition::IchCaseHistoryTrueMissingPriorIds => facts
 			.ich_case_history_true_missing_prior_ids
 			.unwrap_or(false),
-		RuleCondition::IchMedicalHistoryMissingD72Text => facts
-			.ich_medical_history_missing_d72_text
-			.unwrap_or(false),
+		RuleCondition::IchMedicalHistoryMissingD72Text => {
+			facts.ich_medical_history_missing_d72_text.unwrap_or(false)
+		}
 		RuleCondition::FdaFulfilExpeditedCriteriaTrue => {
 			facts.fda_fulfil_expedited_criteria.unwrap_or(false)
 		}
-		RuleCondition::FdaReactionOtherMedicallyImportantTrue => {
-			facts.fda_reaction_other_medically_important.unwrap_or(false)
-		}
+		RuleCondition::FdaReactionOtherMedicallyImportantTrue => facts
+			.fda_reaction_other_medically_important
+			.unwrap_or(false),
 		RuleCondition::FdaPrimarySourcePresent => {
 			facts.fda_primary_source_present.unwrap_or(false)
 		}
@@ -1217,15 +1205,14 @@ pub fn is_rule_value_valid(
 		| "ICH.E.i.7.REQUIRED"
 		| "ICH.G.k.1.REQUIRED"
 		| "ICH.G.k.2.2.REQUIRED"
-		| "ICH.H.1.REQUIRED" => {
-			value_code.map(|v| !v.trim().is_empty()).unwrap_or(false)
-		}
+		| "ICH.H.1.REQUIRED" => value_code.map(|v| !v.trim().is_empty()).unwrap_or(false),
 		"FDA.C.1.12.REQUIRED"
 		| "FDA.C.1.7.1.REQUIRED.MISSING_CODE"
 		| "FDA.D.11.REQUIRED"
 		| "FDA.D.12.REQUIRED"
 		| "FDA.E.i.3.2h.REQUIRED" => {
-			let has_value = value_code.map(|v| !v.trim().is_empty()).unwrap_or(false);
+			let has_value =
+				value_code.map(|v| !v.trim().is_empty()).unwrap_or(false);
 			has_value || null_flavor.is_some()
 		}
 		"FDA.G.k.10a.REQUIRED" => {
@@ -1245,10 +1232,13 @@ pub fn is_rule_value_valid(
 			} else {
 				&["2"]
 			};
-			value_code.map(|code| allowed.contains(&code)).unwrap_or(false)
+			value_code
+				.map(|code| allowed.contains(&code))
+				.unwrap_or(false)
 		}
 		"ICH.C.1.3.CONDITIONAL" => {
-			let applies = is_rule_condition_satisfied("ICH.C.1.3.CONDITIONAL", facts);
+			let applies =
+				is_rule_condition_satisfied("ICH.C.1.3.CONDITIONAL", facts);
 			if !applies {
 				return true;
 			}
@@ -1266,11 +1256,7 @@ pub fn is_rule_value_valid(
 	}
 }
 
-pub fn is_rule_presence_valid(
-	code: &str,
-	present: bool,
-	_facts: RuleFacts,
-) -> bool {
+pub fn is_rule_presence_valid(code: &str, present: bool, _facts: RuleFacts) -> bool {
 	match code {
 		"FDA.N.1.4.REQUIRED" | "FDA.C.2.r.2.EMAIL.REQUIRED" => present,
 		_ => true,
@@ -1429,17 +1415,15 @@ mod tests {
 	#[test]
 	fn canonical_profile_rules_include_ich_plus_profile_specific() {
 		let fda_rules = canonical_rules_for_profile(ValidationProfile::Fda);
-		assert!(fda_rules.iter().any(|rule| rule.code == "ICH.E.i.7.REQUIRED"));
-		assert!(
-			fda_rules
-				.iter()
-				.any(|rule| rule.code == "FDA.E.i.3.2h.REQUIRED")
-		);
-		assert!(
-			!fda_rules
-				.iter()
-				.any(|rule| rule.code == "MFDS.C.1.7.1.REQUIRED")
-		);
+		assert!(fda_rules
+			.iter()
+			.any(|rule| rule.code == "ICH.E.i.7.REQUIRED"));
+		assert!(fda_rules
+			.iter()
+			.any(|rule| rule.code == "FDA.E.i.3.2h.REQUIRED"));
+		assert!(!fda_rules
+			.iter()
+			.any(|rule| rule.code == "MFDS.C.1.7.1.REQUIRED"));
 	}
 
 	#[test]

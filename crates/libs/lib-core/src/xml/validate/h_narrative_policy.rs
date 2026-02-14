@@ -51,4 +51,3 @@ mod tests {
 		assert!(!should_require_case_narrative(&n));
 	}
 }
-

@@ -1,15 +1,13 @@
 use crate::xml::error::Error;
 use crate::xml::types::{XmlValidationError, XmlValidationReport};
 use crate::xml::validate::{
-	find_canonical_rule, is_rule_condition_satisfied, is_rule_value_valid,
-	is_rule_presence_valid, ExportNormalizeKind, ExportNormalizationSpec,
-	RuleFacts,
+	find_canonical_rule, is_rule_condition_satisfied, is_rule_presence_valid,
+	is_rule_value_valid, ExportNormalizationSpec, ExportNormalizeKind, RuleFacts,
 };
 use crate::xml::xml_validation_fda::collect_fda_profile_errors;
 use crate::xml::xml_validation_ich::{
-	collect_ich_case_history_errors,
-	collect_ich_identity_text_errors, collect_ich_profile_value_presence_errors,
-	collect_ich_structural_value_errors,
+	collect_ich_case_history_errors, collect_ich_identity_text_errors,
+	collect_ich_profile_value_presence_errors, collect_ich_structural_value_errors,
 };
 use crate::xml::Result;
 use libxml::parser::Parser;
@@ -553,16 +551,17 @@ pub(crate) fn validate_attr_prefix_on_nodes(
 		if value.trim().is_empty() {
 			return;
 		}
-		if allowed_prefixes.iter().any(|prefix| value.starts_with(prefix)) {
+		if allowed_prefixes
+			.iter()
+			.any(|prefix| value.starts_with(prefix))
+		{
 			return;
 		}
 		let expected = allowed_prefixes.join(", ");
 		push_rule_error(
 			errors,
 			rule_code,
-			&format!(
-				"{value_label} must start with {expected}, got '{value}'"
-			),
+			&format!("{value_label} must start with {expected}, got '{value}'"),
 		);
 	});
 }

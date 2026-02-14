@@ -2,8 +2,8 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use lib_core::ctx::Ctx;
-use lib_core::model::case::CaseBmc;
 use lib_core::model::acs::CASE_READ;
+use lib_core::model::case::CaseBmc;
 use lib_core::model::message_header::MessageHeaderBmc;
 use lib_core::model::ModelManager;
 use lib_core::xml::validate::{CaseValidationReport, ValidationProfile};
@@ -29,7 +29,7 @@ async fn resolve_profile(
 			message: format!(
 				"invalid validation profile '{value}' (expected: ich, fda or mfds)"
 			),
-			});
+		});
 	}
 
 	if let Ok(case) = CaseBmc::get(ctx, mm, case_id).await {
@@ -79,7 +79,8 @@ pub async fn validate_case(
 	let ctx = ctx_w.0;
 	require_permission(&ctx, CASE_READ)?;
 
-	let profile = resolve_profile(&ctx, &mm, case_id, query.profile.as_deref()).await?;
+	let profile =
+		resolve_profile(&ctx, &mm, case_id, query.profile.as_deref()).await?;
 
 	let report = match profile {
 		ValidationProfile::Ich => {

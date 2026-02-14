@@ -128,10 +128,7 @@ fn patch_g_drug_normalizes_characterization_for_causality() {
 	xpath.register_namespace("hl7", "urn:hl7-org:v3").unwrap();
 
 	let role_code = xpath
-		.findvalue(
-			"//hl7:causalityAssessment/hl7:value[@code='2']/@code",
-			None,
-		)
+		.findvalue("//hl7:causalityAssessment/hl7:value[@code='2']/@code", None)
 		.unwrap();
 	assert_eq!(role_code, "2");
 }

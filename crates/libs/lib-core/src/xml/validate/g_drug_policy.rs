@@ -19,7 +19,11 @@ pub fn normalize_drug_characterization(value: &str) -> &'static str {
 				"ICH.G.k.1.REQUIRED",
 				ExportDirective::DrugRoleDefaultConcomitant,
 			);
-			if default_is_concomitant { "2" } else { "1" }
+			if default_is_concomitant {
+				"2"
+			} else {
+				"1"
+			}
 		}
 	}
 }

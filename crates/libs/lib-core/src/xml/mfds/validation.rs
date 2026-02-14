@@ -3,9 +3,9 @@ use crate::model::drug::{DrugActiveSubstance, DrugInformation};
 use crate::model::safety_report::SenderInformation;
 use crate::model::{ModelManager, Result};
 use crate::xml::validate::{
-	build_report, has_text, CaseValidationReport,
-	ValidationIssue, ValidationProfile, RuleFacts,
-	push_issue_if_conditioned_value_invalid, push_issue_if_condition_violated,
+	build_report, has_text, push_issue_if_condition_violated,
+	push_issue_if_conditioned_value_invalid, CaseValidationReport, RuleFacts,
+	ValidationIssue, ValidationProfile,
 };
 use sqlx::types::Uuid;
 
@@ -61,7 +61,8 @@ async fn list_senders_by_case(
 	mm: &ModelManager,
 	case_id: Uuid,
 ) -> Result<Vec<SenderInformation>> {
-	let sql = "SELECT * FROM sender_information WHERE case_id = $1 ORDER BY created_at";
+	let sql =
+		"SELECT * FROM sender_information WHERE case_id = $1 ORDER BY created_at";
 	mm.dbx()
 		.fetch_all(sqlx::query_as::<_, SenderInformation>(sql).bind(case_id))
 		.await
@@ -93,7 +94,8 @@ pub async fn validate_case(
 	mm: &ModelManager,
 	case_id: Uuid,
 ) -> Result<CaseValidationReport> {
-	let ich_report = crate::xml::ich::validation::validate_case(ctx, mm, case_id).await?;
+	let ich_report =
+		crate::xml::ich::validation::validate_case(ctx, mm, case_id).await?;
 	let drugs: Vec<DrugInformation> =
 		crate::model::drug::DrugInformationBmc::list_by_case(ctx, mm, case_id)
 			.await?;
@@ -123,7 +125,8 @@ pub async fn validate_case(
 		drug_index_by_id.insert(drug.id, idx);
 		let country = drug.obtain_drug_country.as_deref().map(str::trim);
 		let is_domestic_kr = matches!(country, Some("KR"));
-		let is_foreign_non_kr = matches!(country, Some(other) if !other.is_empty() && other != "KR");
+		let is_foreign_non_kr =
+			matches!(country, Some(other) if !other.is_empty() && other != "KR");
 		match country {
 			Some("KR") => {
 				domestic_drug_ids.insert(drug.id);
@@ -216,8 +219,7 @@ pub async fn validate_case(
 				..RuleFacts::default()
 			},
 		);
-		if !has_source
-		{
+		if !has_source {
 			push_mfds_required_issue(
 				&mut issues,
 				"MFDS.G.k.9.i.2.r.1.REQUIRED",

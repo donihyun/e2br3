@@ -22,8 +22,8 @@ pub fn has_any_primary_source_content(source: &PrimarySource) -> bool {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use sqlx::types::Uuid;
 	use sqlx::types::time::OffsetDateTime;
+	use sqlx::types::Uuid;
 
 	#[test]
 	fn primary_source_payload_false_when_all_empty() {

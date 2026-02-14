@@ -132,6 +132,10 @@ impl DbBmc for UserBmc {
 }
 
 impl UserBmc {
+	fn normalize_email(email: &str) -> String {
+		email.trim().to_ascii_lowercase()
+	}
+
 	pub async fn create(
 		ctx: &Ctx,
 		mm: &ModelManager,
@@ -146,6 +150,7 @@ impl UserBmc {
 			first_name,
 			last_name,
 		} = user_c;
+		let email = Self::normalize_email(&email);
 
 		// -- Create the user row
 		let user_fi = UserForInsert {
@@ -213,8 +218,11 @@ impl UserBmc {
 		ctx: &Ctx,
 		mm: &ModelManager,
 		id: Uuid,
-		user_u: UserForUpdate,
+		mut user_u: UserForUpdate,
 	) -> Result<()> {
+		if let Some(email) = user_u.email.take() {
+			user_u.email = Some(Self::normalize_email(&email));
+		}
 		base_uuid::update::<Self, _>(ctx, mm, id, user_u).await
 	}
 
@@ -303,6 +311,42 @@ impl UserBmc {
 		mm: &ModelManager,
 		email: &str,
 	) -> Result<Option<UserForAuth>> {
+		// Keep exact lookup first for backwards compatibility with mixed-case
+		// legacy records, then retry using canonicalized email.
+		if let Some(user) = Self::auth_by_email_exact(mm, email).await? {
+			return Ok(Some(user));
+		}
+
+		let normalized = Self::normalize_email(email);
+		if normalized == email {
+			return Ok(None);
+		}
+
+		Self::auth_by_email_exact(mm, &normalized).await
+	}
+
+	pub async fn auth_login_by_email(
+		mm: &ModelManager,
+		email: &str,
+	) -> Result<Option<UserForLogin>> {
+		// Keep exact lookup first for backwards compatibility with mixed-case
+		// legacy records, then retry using canonicalized email.
+		if let Some(user) = Self::auth_login_by_email_exact(mm, email).await? {
+			return Ok(Some(user));
+		}
+
+		let normalized = Self::normalize_email(email);
+		if normalized == email {
+			return Ok(None);
+		}
+
+		Self::auth_login_by_email_exact(mm, &normalized).await
+	}
+
+	async fn auth_by_email_exact(
+		mm: &ModelManager,
+		email: &str,
+	) -> Result<Option<UserForAuth>> {
 		let mm = mm.new_with_txn()?;
 		mm.dbx().begin_txn().await.map_err(Error::Dbx)?;
 		if let Err(err) = mm
@@ -329,7 +373,7 @@ impl UserBmc {
 		Ok(user)
 	}
 
-	pub async fn auth_login_by_email(
+	async fn auth_login_by_email_exact(
 		mm: &ModelManager,
 		email: &str,
 	) -> Result<Option<UserForLogin>> {

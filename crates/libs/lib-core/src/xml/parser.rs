@@ -4,7 +4,8 @@ use serde_json::json;
 
 pub fn parse_e2b_xml(xml: &[u8]) -> Result<ParsedE2b> {
 	// Import performs validation before parse; keep parser focused on parsing metadata.
-	let root = extract_root_element_name(xml).unwrap_or_else(|| "ichicsr".to_string());
+	let root =
+		extract_root_element_name(xml).unwrap_or_else(|| "ichicsr".to_string());
 	let json = json!({
 		"root": root,
 		"size_bytes": xml.len(),

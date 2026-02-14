@@ -58,7 +58,11 @@ pub(crate) fn reaction_fragment(reaction: &Reaction) -> String {
 		out.push_str("</effectiveTime>");
 	}
 
-	let meddracode = reaction.reaction_meddra_code.as_deref().unwrap_or("").trim();
+	let meddracode = reaction
+		.reaction_meddra_code
+		.as_deref()
+		.unwrap_or("")
+		.trim();
 	if !meddracode.is_empty() {
 		out.push_str("<value xsi:type=\"CE\" code=\"");
 		out.push_str(&xml_escape(meddracode));
@@ -96,7 +100,10 @@ pub(crate) fn reaction_fragment(reaction: &Reaction) -> String {
 		"33",
 		reaction.criteria_hospitalization,
 	));
-	out.push_str(&observation_rel_bool_or_ni("35", reaction.criteria_disabling));
+	out.push_str(&observation_rel_bool_or_ni(
+		"35",
+		reaction.criteria_disabling,
+	));
 	out.push_str(&observation_rel_bool_or_ni(
 		"12",
 		reaction.criteria_congenital_anomaly,

@@ -1,26 +1,21 @@
 use crate::xml::types::XmlValidationError;
-use crate::xml::validate::{
-	export_normalization_spec_for_rule, RuleFacts,
-};
+use crate::xml::validate::{export_normalization_spec_for_rule, RuleFacts};
 use libxml::tree::Node;
 use libxml::xpath::Context;
 
 use super::xml_validation::{
-	validate_condition_rule_violation,
-	validate_attr_prefix_on_nodes,
-	validate_normalized_code_format_on_nodes,
 	push_rule_error, validate_attr_null_flavor_pair_on_nodes,
 	validate_attr_or_null_flavor_required_on_nodes,
-	validate_attr_or_text_or_null_required_on_nodes,
-	validate_code_or_codesystem_or_text_required_with_nullflavor_forbidden_on_nodes,
+	validate_attr_or_text_or_null_required_on_nodes, validate_attr_prefix_on_nodes,
 	validate_code_or_codesystem_or_text_or_null_required_on_nodes,
+	validate_code_or_codesystem_or_text_required_with_nullflavor_forbidden_on_nodes,
+	validate_condition_rule_violation, validate_normalized_code_format_on_nodes,
 	validate_required_attrs_on_nodes, validate_required_child_on_nodes,
-	validate_supported_xsi_types_on_nodes,
+	validate_supported_xsi_types_on_nodes, validate_text_null_flavor_pair_on_nodes,
 	validate_typed_children_attrs_or_nullflavor_on_nodes,
 	validate_when_attr_equals_require_any_children,
-	validate_when_child_present_require_any_children,
-	validate_text_null_flavor_pair_on_nodes,
-	xpath_any_node, xpath_has_nodes,
+	validate_when_child_present_require_any_children, xpath_any_node,
+	xpath_has_nodes,
 };
 
 pub(crate) fn collect_ich_identity_text_errors(
@@ -508,16 +503,16 @@ pub(crate) fn collect_ich_structural_value_errors(
 			}
 			_ => "Invalid coded value".to_string(),
 		};
-		let extra_required_attr = if rule_code == "ICH.XML.MEDDRA.CODE.FORMAT.REQUIRED"
-		{
-			Some((
-				"codeSystemVersion",
-				"ICH.XML.MEDDRA.VERSION.REQUIRED",
-				"MedDRA code missing codeSystemVersion",
-			))
-		} else {
-			None
-		};
+		let extra_required_attr =
+			if rule_code == "ICH.XML.MEDDRA.CODE.FORMAT.REQUIRED" {
+				Some((
+					"codeSystemVersion",
+					"ICH.XML.MEDDRA.VERSION.REQUIRED",
+					"MedDRA code missing codeSystemVersion",
+				))
+			} else {
+				None
+			};
 		validate_normalized_code_format_on_nodes(
 			xpath,
 			errors,

@@ -97,4 +97,8 @@ jobs:
               echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
             fi
             echo "Deploying image: ${IMAGE_REF}"
-            sh -lc "${DEPLOY_COMMAND}"
+            if command -v bash >/dev/null 2>&1; then
+              bash -lc "${DEPLOY_COMMAND}"
+            else
+              sh -c "${DEPLOY_COMMAND}"
+            fi

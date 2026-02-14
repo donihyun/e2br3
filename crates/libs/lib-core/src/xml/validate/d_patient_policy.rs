@@ -1,5 +1,5 @@
-use crate::model::patient::PatientInformation;
 use super::{is_rule_condition_satisfied, RuleFacts};
+use crate::model::patient::PatientInformation;
 
 // Shared Section D policy used by exporter + case validators.
 

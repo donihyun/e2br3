@@ -33,7 +33,7 @@ fn main() {
 		.collect();
 	out.sort_by(|a, b| a.code.cmp(&b.code));
 
-	let json = serde_json::to_string_pretty(&out)
-		.expect("serialize validation rules");
+	let json =
+		serde_json::to_string_pretty(&out).expect("serialize validation rules");
 	println!("{json}");
 }

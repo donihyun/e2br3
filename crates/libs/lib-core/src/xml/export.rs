@@ -9,8 +9,8 @@ use crate::model::message_header::MessageHeader;
 use crate::model::narrative::NarrativeInformationBmc;
 use crate::model::patient::PatientInformationBmc;
 use crate::model::reaction::Reaction;
-use crate::model::safety_report::{StudyInformation, StudyRegistrationNumber};
 use crate::model::safety_report::SafetyReportIdentificationBmc;
+use crate::model::safety_report::{StudyInformation, StudyRegistrationNumber};
 use crate::model::test_result::TestResult;
 use crate::model::ModelManager;
 use crate::xml::error::Error;
@@ -796,22 +796,24 @@ async fn apply_study_section(
 	);
 	let xml = doc.to_string();
 	if let Some(injected) = inject_study_fragment_in_primary_role(&xml, &fragment) {
-		let new_doc = parser.parse_string(&injected).map_err(|err| Error::InvalidXml {
-			message: format!("XML parse error after study injection: {err}"),
-			line: None,
-			column: None,
-		})?;
+		let new_doc =
+			parser
+				.parse_string(&injected)
+				.map_err(|err| Error::InvalidXml {
+					message: format!("XML parse error after study injection: {err}"),
+					line: None,
+					column: None,
+				})?;
 		*doc = new_doc;
 		*xpath = Context::new(doc).map_err(|_| Error::InvalidXml {
-			message: "Failed to initialize XPath context after study injection".to_string(),
+			message: "Failed to initialize XPath context after study injection"
+				.to_string(),
 			line: None,
 			column: None,
 		})?;
 		let _ = xpath.register_namespace("hl7", "urn:hl7-org:v3");
-		let _ = xpath.register_namespace(
-			"xsi",
-			"http://www.w3.org/2001/XMLSchema-instance",
-		);
+		let _ = xpath
+			.register_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
 	}
 	Ok(())
 }
@@ -858,7 +860,10 @@ fn xml_escape(input: &str) -> String {
 		.replace('\'', "&apos;")
 }
 
-fn inject_study_fragment_in_primary_role(xml: &str, fragment: &str) -> Option<String> {
+fn inject_study_fragment_in_primary_role(
+	xml: &str,
+	fragment: &str,
+) -> Option<String> {
 	let primary_start = xml.find("<primaryRole")?;
 	let primary_end = xml[primary_start..].find("</primaryRole>")? + primary_start;
 	let body_start = xml[primary_start..].find('>')? + primary_start + 1;

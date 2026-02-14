@@ -47,6 +47,24 @@ async fn create_case(
 	Ok(Uuid::parse_str(id)?)
 }
 
+async fn create_case_with_payload(
+	app: &axum::Router,
+	cookie: &str,
+	payload: Value,
+) -> Result<(StatusCode, Value)> {
+	let req = Request::builder()
+		.method("POST")
+		.uri("/api/cases")
+		.header("cookie", cookie)
+		.header("content-type", "application/json")
+		.body(Body::from(payload.to_string()))?;
+	let res = app.clone().oneshot(req).await?;
+	let status = res.status();
+	let body = to_bytes(res.into_body(), usize::MAX).await?;
+	let value = serde_json::from_slice::<Value>(&body)?;
+	Ok((status, value))
+}
+
 async fn create_safety_report(
 	app: &axum::Router,
 	cookie: &str,
@@ -324,6 +342,46 @@ async fn test_validation_rejects_unknown_profile() -> Result<()> {
 
 #[serial]
 #[tokio::test]
+async fn test_create_case_rejects_invalid_profile() -> Result<()> {
+	let mm = init_test_mm().await?;
+	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
+	let token = generate_web_token(&seed.admin.email, seed.admin.token_salt)?;
+	let cookie = cookie_header(&token.to_string());
+	let app = web_server::app(mm);
+
+	let body = json!({
+		"data": {
+			"organization_id": seed.org_id,
+			"safety_report_id": format!("SR-{}", Uuid::new_v4()),
+			"status": "draft",
+			"validation_profile": "nope"
+		}
+	});
+	let (status, body) = create_case_with_payload(&app, &cookie, body).await?;
+	assert_eq!(status, StatusCode::BAD_REQUEST, "{body:?}");
+	assert!(body.to_string().contains("invalid validation profile"));
+	Ok(())
+}
+
+#[serial]
+#[tokio::test]
+async fn test_update_case_rejects_invalid_status() -> Result<()> {
+	let mm = init_test_mm().await?;
+	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
+	let token = generate_web_token(&seed.admin.email, seed.admin.token_salt)?;
+	let cookie = cookie_header(&token.to_string());
+	let app = web_server::app(mm);
+
+	let case_id = create_case(&app, &cookie, seed.org_id).await?;
+	let (status, body) =
+		update_case_status(&app, &cookie, case_id, "not-a-status").await?;
+	assert_eq!(status, StatusCode::BAD_REQUEST, "{body:?}");
+	assert!(body.to_string().contains("invalid case status"));
+	Ok(())
+}
+
+#[serial]
+#[tokio::test]
 async fn test_case_cannot_be_marked_validated_with_blocking_issues() -> Result<()> {
 	let mm = init_test_mm().await?;
 	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
@@ -332,7 +390,8 @@ async fn test_case_cannot_be_marked_validated_with_blocking_issues() -> Result<(
 	let app = web_server::app(mm);
 
 	let case_id = create_case(&app, &cookie, seed.org_id).await?;
-	let (status, body) = update_case_status(&app, &cookie, case_id, "validated").await?;
+	let (status, body) =
+		update_case_status(&app, &cookie, case_id, "validated").await?;
 	assert_eq!(status, StatusCode::BAD_REQUEST, "{body:?}");
 	assert!(body["error"]["data"]["detail"]
 		.as_str()
@@ -353,7 +412,8 @@ async fn test_validator_endpoint_requires_token() -> Result<()> {
 	let app = web_server::app(mm);
 
 	let case_id = create_case(&app, &cookie, seed.org_id).await?;
-	let (status, body) = validator_mark_validated(&app, &cookie, case_id, None).await?;
+	let (status, body) =
+		validator_mark_validated(&app, &cookie, case_id, None).await?;
 	assert_eq!(status, StatusCode::BAD_REQUEST, "{body:?}");
 	assert!(body["error"]["data"]["detail"]
 		.as_str()
@@ -417,7 +477,8 @@ async fn test_case_can_be_marked_checked() -> Result<()> {
 	let app = web_server::app(mm);
 
 	let case_id = create_case(&app, &cookie, seed.org_id).await?;
-	let (status, body) = update_case_status(&app, &cookie, case_id, "checked").await?;
+	let (status, body) =
+		update_case_status(&app, &cookie, case_id, "checked").await?;
 	assert_eq!(status, StatusCode::OK, "{body:?}");
 	assert_eq!(body["data"]["status"].as_str(), Some("checked"));
 

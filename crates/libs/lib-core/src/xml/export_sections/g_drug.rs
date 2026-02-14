@@ -152,8 +152,8 @@ pub(crate) fn drug_fragment(
 				out.push_str("/>");
 			}
 			out.push_str("</ingredientSubstance>");
-				if sub.strength_value.is_some() || sub.strength_unit.is_some() {
-					out.push_str("<quantity><numerator");
+			if sub.strength_value.is_some() || sub.strength_unit.is_some() {
+				out.push_str("<quantity><numerator");
 				if let Some(val) = sub.strength_value.as_ref() {
 					out.push_str(" value=\"");
 					out.push_str(&xml_escape(&val.to_string()));
@@ -164,8 +164,8 @@ pub(crate) fn drug_fragment(
 					out.push_str(&xml_escape(unit));
 					out.push_str("\"");
 				}
-					out.push_str("/><denominator value=\"1\" unit=\"1\"/></quantity>");
-				}
+				out.push_str("/><denominator value=\"1\" unit=\"1\"/></quantity>");
+			}
 			out.push_str("</ingredient>");
 		}
 	}
@@ -267,7 +267,9 @@ pub(crate) fn drug_fragment(
 		if let Some(text) = drug.parent_route.as_deref() {
 			out.push_str(&xml_escape(text));
 		}
-		out.push_str("</originalText></value></observation></outboundRelationship2>");
+		out.push_str(
+			"</originalText></value></observation></outboundRelationship2>",
+		);
 	}
 	if let Some(text) = drug.parent_dosage_text.as_deref() {
 		out.push_str("<outboundRelationship2 typeCode=\"REFR\"><observation classCode=\"OBS\" moodCode=\"EVN\"><code code=\"2\"/><value xsi:type=\"ED\">");

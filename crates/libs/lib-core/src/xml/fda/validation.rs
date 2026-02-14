@@ -4,10 +4,10 @@ use crate::model::reaction::Reaction;
 use crate::model::safety_report::{PrimarySource, SafetyReportIdentification};
 use crate::model::{ModelManager, Result};
 use crate::xml::validate::{
-	build_report, CaseValidationReport, ValidationIssue, ValidationProfile,
-	has_any_primary_source_content,
-	should_case_validator_require_required_intervention,
-	push_issue_if_conditioned_value_invalid, RuleFacts,
+	build_report, has_any_primary_source_content,
+	push_issue_if_conditioned_value_invalid,
+	should_case_validator_require_required_intervention, CaseValidationReport,
+	RuleFacts, ValidationIssue, ValidationProfile,
 };
 use sqlx::types::Uuid;
 
@@ -52,7 +52,8 @@ pub async fn validate_case(
 	mm: &ModelManager,
 	case_id: Uuid,
 ) -> Result<CaseValidationReport> {
-	let ich_report = crate::xml::ich::validation::validate_case(ctx, mm, case_id).await?;
+	let ich_report =
+		crate::xml::ich::validation::validate_case(ctx, mm, case_id).await?;
 
 	let report = get_safety_report_optional(mm, case_id).await?;
 	let patient = get_patient_optional(mm, case_id).await?;

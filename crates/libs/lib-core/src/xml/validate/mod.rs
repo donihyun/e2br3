@@ -1,7 +1,7 @@
 // Case-level validation contract shared by regional validators.
 
-mod c_safety_report_policy;
 mod c_reporter_policy;
+mod c_safety_report_policy;
 mod catalog;
 mod d_patient_policy;
 mod e_reaction_policy;
@@ -9,44 +9,43 @@ mod f_test_result_policy;
 mod g_drug_policy;
 mod h_narrative_policy;
 
-use serde::{Deserialize, Serialize};
-use sqlx::types::Uuid;
-pub use e_reaction_policy::{
-	normalize_outcome_code, outcome_display_name,
-	should_case_validator_require_required_intervention,
-	should_emit_required_intervention_null_flavor_ni,
-};
-pub use c_safety_report_policy::{
-	has_report_type, should_require_fda_local_criteria_report_type,
-	should_warn_fda_combination_product_indicator_missing,
-	should_clear_local_criteria_null_flavor_on_value,
-	should_clear_combination_product_null_flavor_on_value,
-};
 pub use c_reporter_policy::has_any_primary_source_content;
+pub use c_safety_report_policy::{
+	has_report_type, should_clear_combination_product_null_flavor_on_value,
+	should_clear_local_criteria_null_flavor_on_value,
+	should_require_fda_local_criteria_report_type,
+	should_warn_fda_combination_product_indicator_missing,
+};
 pub use catalog::{
 	canonical_rules_all, canonical_rules_for_profile, canonical_rules_version,
-	find_canonical_rule, CanonicalRule, ExportDirective, RuleCondition,
-	RuleFacts, ValidationRuleMetadata, VALIDATION_RULES, CANONICAL_RULES,
-	export_directive_for_rule, export_normalization_spec_for_rule,
-	export_xpath_for_rule, export_xpaths_for_rule,
-	export_attribute_strip_spec_for_rule, ExportAttributeStripSpec,
-	ExportNormalizeKind, ExportNormalizationSpec, has_export_directive,
+	export_attribute_strip_spec_for_rule, export_directive_for_rule,
+	export_normalization_spec_for_rule, export_xpath_for_rule,
+	export_xpaths_for_rule, find_canonical_rule, has_export_directive,
 	is_rule_condition_satisfied, is_rule_presence_valid, is_rule_value_valid,
-	should_clear_null_flavor_on_value,
+	should_clear_null_flavor_on_value, CanonicalRule, ExportAttributeStripSpec,
+	ExportDirective, ExportNormalizationSpec, ExportNormalizeKind, RuleCondition,
+	RuleFacts, ValidationRuleMetadata, CANONICAL_RULES, VALIDATION_RULES,
 };
 pub use d_patient_policy::{
 	has_fda_ethnicity, has_fda_race, has_patient_initials, has_patient_payload,
 	should_require_fda_ethnicity, should_require_fda_race,
 	should_require_patient_initials,
 };
+pub use e_reaction_policy::{
+	normalize_outcome_code, outcome_display_name,
+	should_case_validator_require_required_intervention,
+	should_emit_required_intervention_null_flavor_ni,
+};
+pub use f_test_result_policy::{has_test_name, has_test_payload};
 pub use g_drug_policy::{
 	drug_characterization_display_name, has_drug_characterization,
 	has_medicinal_product, normalize_drug_characterization,
 };
-pub use f_test_result_policy::{has_test_name, has_test_payload};
 pub use h_narrative_policy::{
 	has_case_narrative, has_narrative_payload, should_require_case_narrative,
 };
+use serde::{Deserialize, Serialize};
+use sqlx::types::Uuid;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -169,8 +168,12 @@ pub fn push_issue_if_conditioned_value_invalid(
 	value_facts: RuleFacts,
 ) -> bool {
 	if is_rule_condition_satisfied(condition_code, condition_facts)
-		&& !is_rule_value_valid(value_rule_code, value_code, null_flavor, value_facts)
-	{
+		&& !is_rule_value_valid(
+			value_rule_code,
+			value_code,
+			null_flavor,
+			value_facts,
+		) {
 		push_issue_by_code(issues, issue_code, path);
 		return true;
 	}

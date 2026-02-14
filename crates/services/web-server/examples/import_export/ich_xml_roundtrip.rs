@@ -7,26 +7,34 @@ use common::{FlowClient, Result};
 use std::path::PathBuf;
 
 fn default_xml_path() -> PathBuf {
-    std::env::var("E2BR3_IMPORT_XML_ICH")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("docs/refs/instances/FAERS2022Scenario2.xml"))
+	std::env::var("E2BR3_IMPORT_XML_ICH")
+		.map(PathBuf::from)
+		.unwrap_or_else(|_| {
+			PathBuf::from("docs/refs/instances/FAERS2022Scenario2.xml")
+		})
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let client = FlowClient::login_from_env().await?;
+	let client = FlowClient::login_from_env().await?;
 
-    let xml_path = default_xml_path();
-    let case_id = client.import_xml_file(&xml_path).await?;
-    println!("imported ICH XML from {} -> case_id={case_id}", xml_path.display());
+	let xml_path = default_xml_path();
+	let case_id = client.import_xml_file(&xml_path).await?;
+	println!(
+		"imported ICH XML from {} -> case_id={case_id}",
+		xml_path.display()
+	);
 
-    let validation = client.validate_case(&case_id, "ich").await?;
-    println!("validation(ich): {}", serde_json::to_string_pretty(&validation)?);
+	let validation = client.validate_case(&case_id, "ich").await?;
+	println!(
+		"validation(ich): {}",
+		serde_json::to_string_pretty(&validation)?
+	);
 
-    client.mark_case_validated(&case_id).await?;
-    let xml = client.export_xml(&case_id).await?;
-    let output = client.write_export_to_dir("ich_import_roundtrip", &xml)?;
-    println!("exported XML: {output}");
+	client.mark_case_validated(&case_id).await?;
+	let xml = client.export_xml(&case_id).await?;
+	let output = client.write_export_to_dir("ich_import_roundtrip", &xml)?;
+	println!("exported XML: {output}");
 
-    Ok(())
+	Ok(())
 }
