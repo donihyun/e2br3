@@ -10,6 +10,7 @@ use crate::model::narrative::NarrativeInformationBmc;
 use crate::model::patient::PatientInformationBmc;
 use crate::model::reaction::Reaction;
 use crate::model::safety_report::SafetyReportIdentificationBmc;
+use crate::model::safety_report::SenderInformation;
 use crate::model::safety_report::{StudyInformation, StudyRegistrationNumber};
 use crate::model::test_result::TestResult;
 use crate::model::ModelManager;
@@ -69,7 +70,18 @@ pub async fn export_case_xml(
 				SafetyReportIdentificationBmc::get_by_case(ctx, mm, case_id)
 					.await
 					.map_err(Error::from)?;
-			return export_c_safety_report_patch(raw_xml, &case, &report);
+			let sender = mm
+				.dbx()
+				.fetch_optional(
+					sqlx::query_as::<_, SenderInformation>(
+						"SELECT * FROM sender_information WHERE case_id = $1 ORDER BY created_at LIMIT 1",
+					)
+					.bind(case_id),
+				)
+				.await
+				.map_err(model::Error::from)
+				.map_err(Error::from)?;
+			return export_c_safety_report_patch(raw_xml, &case, &report, sender.as_ref());
 		}
 
 		let only_d_dirty = case.dirty_d
@@ -230,15 +242,26 @@ pub async fn export_case_xml(
 			&& !case.dirty_f
 			&& !case.dirty_g
 			&& !case.dirty_h;
-		if only_c_dirty
-			&& std::env::var("XML_V2_EXPORT_C").unwrap_or_default() == "1"
-		{
-			let report =
-				SafetyReportIdentificationBmc::get_by_case(ctx, mm, case_id)
+			if only_c_dirty
+				&& std::env::var("XML_V2_EXPORT_C").unwrap_or_default() == "1"
+			{
+				let report =
+					SafetyReportIdentificationBmc::get_by_case(ctx, mm, case_id)
+						.await
+						.map_err(Error::from)?;
+				let sender = mm
+					.dbx()
+					.fetch_optional(
+						sqlx::query_as::<_, SenderInformation>(
+							"SELECT * FROM sender_information WHERE case_id = $1 ORDER BY created_at LIMIT 1",
+						)
+						.bind(case_id),
+					)
 					.await
+					.map_err(model::Error::from)
 					.map_err(Error::from)?;
-			return export_c_safety_report_xml(&case, &report);
-		}
+				return export_c_safety_report_xml(&case, &report, sender.as_ref());
+			}
 
 		let only_d_dirty = case.dirty_d
 			&& !case.dirty_c
@@ -425,7 +448,18 @@ async fn export_case_xml_from_db(
 		let report = SafetyReportIdentificationBmc::get_by_case(ctx, mm, case_id)
 			.await
 			.map_err(Error::from)?;
-		xml = export_c_safety_report_patch(xml.as_bytes(), &case, &report)?;
+		let sender = mm
+			.dbx()
+			.fetch_optional(
+				sqlx::query_as::<_, SenderInformation>(
+					"SELECT * FROM sender_information WHERE case_id = $1 ORDER BY created_at LIMIT 1",
+				)
+				.bind(case_id),
+			)
+			.await
+			.map_err(model::Error::from)
+			.map_err(Error::from)?;
+		xml = export_c_safety_report_patch(xml.as_bytes(), &case, &report, sender.as_ref())?;
 	}
 	if case.dirty_d {
 		let patient = PatientInformationBmc::get_by_case(ctx, mm, case_id)

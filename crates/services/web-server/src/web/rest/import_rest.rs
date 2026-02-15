@@ -6,6 +6,7 @@ use lib_core::model::ModelManager;
 use lib_core::xml::{
 	import_e2b_xml, validate_e2b_xml, XmlImportRequest, XmlValidationReport,
 };
+use lib_core::xml::xml_validation::{should_skip_xml_validation, validate_e2b_xml_basic};
 use lib_rest_core::rest_result::DataRestResult;
 use lib_rest_core::{require_permission, Error, Result};
 use lib_web::middleware::mw_auth::CtxW;
@@ -43,7 +44,12 @@ pub async fn validate_xml(
 	require_permission(&ctx, XML_IMPORT)?;
 
 	let xml = read_xml_multipart(multipart).await?;
-	let report = validate_e2b_xml(&xml, None)?;
+	let report = if should_skip_xml_validation() {
+		// Keep local dev usable even when XSD files are not mounted/available.
+		validate_e2b_xml_basic(&xml, None)?
+	} else {
+		validate_e2b_xml(&xml, None)?
+	};
 
 	Ok((StatusCode::OK, Json(DataRestResult { data: report })))
 }

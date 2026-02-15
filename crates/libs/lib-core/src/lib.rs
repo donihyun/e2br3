@@ -1,6 +1,7 @@
 pub mod config;
 pub mod ctx;
 pub mod model;
+pub mod serde;
 pub mod xml;
 
 // #[cfg(test)] // Commented during early development.

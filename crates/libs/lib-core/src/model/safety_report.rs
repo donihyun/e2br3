@@ -64,17 +64,26 @@ pub struct SafetyReportIdentification {
 #[derive(Fields, Deserialize)]
 pub struct SafetyReportIdentificationForCreate {
 	pub case_id: Uuid,
+	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_date")]
 	pub transmission_date: Date,
 	pub report_type: String,
+	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_date")]
 	pub date_first_received_from_source: Date,
+	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_date")]
 	pub date_of_most_recent_information: Date,
 	pub fulfil_expedited_criteria: bool,
 }
 
 #[derive(Fields, Deserialize)]
 pub struct SafetyReportIdentificationForUpdate {
+	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
 	pub transmission_date: Option<Date>,
 	pub report_type: Option<String>,
+	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	pub date_first_received_from_source: Option<Date>,
+	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	pub date_of_most_recent_information: Option<Date>,
+	pub fulfil_expedited_criteria: Option<bool>,
 	pub local_criteria_report_type: Option<String>,
 	pub combination_product_report_indicator: Option<String>,
 	pub worldwide_unique_id: Option<String>,
@@ -472,14 +481,17 @@ impl SafetyReportIdentificationBmc {
 			"UPDATE {}
 			 SET transmission_date = COALESCE($2, transmission_date),
 			     report_type = COALESCE($3, report_type),
-			     local_criteria_report_type = COALESCE($4, local_criteria_report_type),
-			     combination_product_report_indicator = COALESCE($5, combination_product_report_indicator),
-			     worldwide_unique_id = COALESCE($6, worldwide_unique_id),
-			     nullification_code = COALESCE($7, nullification_code),
-			     nullification_reason = COALESCE($8, nullification_reason),
-			     receiver_organization = COALESCE($9, receiver_organization),
+			     date_first_received_from_source = COALESCE($4, date_first_received_from_source),
+			     date_of_most_recent_information = COALESCE($5, date_of_most_recent_information),
+			     fulfil_expedited_criteria = COALESCE($6, fulfil_expedited_criteria),
+			     local_criteria_report_type = COALESCE($7, local_criteria_report_type),
+			     combination_product_report_indicator = COALESCE($8, combination_product_report_indicator),
+			     worldwide_unique_id = COALESCE($9, worldwide_unique_id),
+			     nullification_code = COALESCE($10, nullification_code),
+			     nullification_reason = COALESCE($11, nullification_reason),
+			     receiver_organization = COALESCE($12, receiver_organization),
 			     updated_at = now(),
-			     updated_by = $10
+			     updated_by = $13
 			 WHERE case_id = $1",
 			Self::TABLE
 		);
@@ -490,6 +502,9 @@ impl SafetyReportIdentificationBmc {
 					.bind(case_id)
 					.bind(data.transmission_date)
 					.bind(data.report_type)
+					.bind(data.date_first_received_from_source)
+					.bind(data.date_of_most_recent_information)
+					.bind(data.fulfil_expedited_criteria)
 					.bind(data.local_criteria_report_type)
 					.bind(data.combination_product_report_indicator)
 					.bind(data.worldwide_unique_id)

@@ -90,7 +90,9 @@ pub struct ReactionForUpdate {
 	pub criteria_congenital_anomaly: Option<bool>,
 	pub criteria_other_medically_important: Option<bool>,
 	pub required_intervention: Option<String>,
+	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
 	pub start_date: Option<Date>,
+	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
 	pub end_date: Option<Date>,
 	pub duration_value: Option<Decimal>,
 	pub duration_unit: Option<String>,

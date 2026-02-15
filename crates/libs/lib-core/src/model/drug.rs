@@ -224,8 +224,10 @@ pub struct DosageInformationForCreate {
 	pub number_of_units: Option<i32>,
 	pub frequency_value: Option<Decimal>,
 	pub frequency_unit: Option<String>,
+	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
 	pub first_administration_date: Option<Date>,
 	pub first_administration_time: Option<Time>,
+	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
 	pub last_administration_date: Option<Date>,
 	pub last_administration_time: Option<Time>,
 	pub duration_value: Option<Decimal>,
@@ -250,8 +252,10 @@ pub struct DosageInformationForUpdate {
 	pub number_of_units: Option<i32>,
 	pub frequency_value: Option<Decimal>,
 	pub frequency_unit: Option<String>,
+	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
 	pub first_administration_date: Option<Date>,
 	pub first_administration_time: Option<Time>,
+	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
 	pub last_administration_date: Option<Date>,
 	pub last_administration_time: Option<Time>,
 	pub duration_value: Option<Decimal>,

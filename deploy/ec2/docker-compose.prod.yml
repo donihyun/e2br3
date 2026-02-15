@@ -25,4 +25,6 @@ services:
       RUST_LOG: "${RUST_LOG:-web_server=info,lib_core=info,lib_web=info}"
       SKIP_DEV_INIT: "1"
     volumes:
-      - ./schemas:/app/schemas:ro
+      # If this is wrong/missing, you'll see:
+      # "XSD parse error: Failed to locate the main schema resource at '/app/schemas/...'"
+      - ${E2BR3_SCHEMAS_DIR:-./schemas}:/app/schemas:ro

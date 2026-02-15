@@ -140,6 +140,89 @@ pub fn validate_e2b_xml(
 	})
 }
 
+/// Lightweight validation:
+/// - max size
+/// - XML well-formedness (via quick_xml)
+/// - root element presence + allowed roots
+///
+/// Does not run XSD validation or business rules.
+pub fn validate_e2b_xml_basic(
+	xml: &[u8],
+	config: Option<XmlValidatorConfig>,
+) -> Result<XmlValidationReport> {
+	let config = config.unwrap_or_default();
+	if xml.len() > config.max_bytes {
+		return Ok(XmlValidationReport {
+			ok: false,
+			errors: vec![XmlValidationError {
+				message: format!(
+					"XML payload exceeds max size ({} bytes)",
+					config.max_bytes
+				),
+				line: None,
+				column: None,
+			}],
+			root_element: None,
+		});
+	}
+
+	let mut reader = Reader::from_reader(xml);
+	reader.trim_text(true);
+	let mut buf = Vec::new();
+	let mut root: Option<String> = None;
+	let mut errors: Vec<XmlValidationError> = Vec::new();
+
+	loop {
+		match reader.read_event_into(&mut buf) {
+			Ok(Event::Start(e)) => {
+				if root.is_none() {
+					let name_bytes = e.name().as_ref().to_vec();
+					root = Some(String::from_utf8_lossy(&name_bytes).to_string());
+				}
+			}
+			Ok(Event::Eof) => break,
+			Ok(_) => {}
+			Err(e) => {
+				let pos = reader.buffer_position();
+				errors.push(XmlValidationError {
+					message: format!("XML parse error: {e}"),
+					line: None,
+					column: Some(pos),
+				});
+				break;
+			}
+		}
+		buf.clear();
+	}
+
+	if root.is_none() {
+		errors.push(XmlValidationError {
+			message: "Missing root element".to_string(),
+			line: None,
+			column: None,
+		});
+	}
+
+	if let Some(root_name) = &root {
+		if !config.allowed_roots.iter().any(|v| *v == root_name) {
+			errors.push(XmlValidationError {
+				message: format!(
+					"Unexpected root element '{root_name}', expected one of [{}]",
+					config.allowed_roots.join(", ")
+				),
+				line: None,
+				column: None,
+			});
+		}
+	}
+
+	Ok(XmlValidationReport {
+		ok: errors.is_empty(),
+		errors,
+		root_element: root,
+	})
+}
+
 pub fn should_skip_xml_validation() -> bool {
 	match std::env::var("E2BR3_SKIP_XML_VALIDATE") {
 		Ok(value) => {
@@ -154,6 +237,16 @@ pub fn validate_e2b_xml_xsd(
 	xml: &[u8],
 	xsd_path: &Path,
 ) -> Result<Vec<XmlValidationError>> {
+	if !xsd_path.exists() {
+		return Err(Error::InvalidXml {
+			message: format!(
+				"XSD file not found at '{}'. Set E2BR3_XSD_PATH to a valid local path or set E2BR3_SKIP_XML_VALIDATE=1 for dev.",
+				xsd_path.display()
+			),
+			line: None,
+			column: None,
+		});
+	}
 	let xml_str = std::str::from_utf8(xml).map_err(|err| Error::InvalidXml {
 		message: format!("XML not valid UTF-8: {err}"),
 		line: None,

@@ -32,6 +32,21 @@ pub struct CSafetyReportPatch<'a> {
 	pub combination_product_indicator: Option<&'a str>,
 	pub nullification_code: Option<&'a str>,
 	pub nullification_reason: Option<&'a str>,
+	// C.3 Sender information (best-effort; patch only when values are provided)
+	pub sender_type: Option<&'a str>,
+	pub sender_org_name: Option<&'a str>,
+	pub sender_department: Option<&'a str>,
+	pub sender_street_address: Option<&'a str>,
+	pub sender_city: Option<&'a str>,
+	pub sender_state: Option<&'a str>,
+	pub sender_postcode: Option<&'a str>,
+	pub sender_country_code: Option<&'a str>,
+	pub sender_person_title: Option<&'a str>,
+	pub sender_person_given_name: Option<&'a str>,
+	pub sender_person_family_name: Option<&'a str>,
+	pub sender_telephone: Option<&'a str>,
+	pub sender_fax: Option<&'a str>,
+	pub sender_email: Option<&'a str>,
 }
 
 pub struct DPatientPatch<'a> {
@@ -239,6 +254,107 @@ pub fn patch_c_safety_report(
 			&mut xpath,
 			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='4' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.23']]/hl7:value/hl7:originalText",
 			reason,
+		);
+	}
+
+	// C.3 Sender information (best-effort)
+	let sender_base = "//hl7:investigationEvent/hl7:subjectOf1/hl7:controlActEvent/hl7:author/hl7:assignedEntity";
+	if let Some(v) = patch.sender_type {
+		set_attr_first(
+			&mut xpath,
+			&format!("{sender_base}/hl7:code"),
+			"code",
+			v,
+		);
+	}
+	if let Some(v) = patch.sender_street_address {
+		set_text_first(
+			&mut xpath,
+			&format!("{sender_base}/hl7:addr/hl7:streetAddressLine"),
+			v,
+		);
+	}
+	if let Some(v) = patch.sender_city {
+		set_text_first(&mut xpath, &format!("{sender_base}/hl7:addr/hl7:city"), v);
+	}
+	if let Some(v) = patch.sender_state {
+		set_text_first(&mut xpath, &format!("{sender_base}/hl7:addr/hl7:state"), v);
+	}
+	if let Some(v) = patch.sender_postcode {
+		set_text_first(
+			&mut xpath,
+			&format!("{sender_base}/hl7:addr/hl7:postalCode"),
+			v,
+		);
+	}
+	if let Some(v) = patch.sender_country_code {
+		set_attr_first(
+			&mut xpath,
+			&format!("{sender_base}//hl7:assignedPerson/hl7:asLocatedEntity/hl7:location/hl7:code"),
+			"code",
+			v,
+		);
+	}
+	if let Some(v) = patch.sender_person_title {
+		set_text_first(
+			&mut xpath,
+			&format!("{sender_base}//hl7:assignedPerson/hl7:name/hl7:prefix"),
+			v,
+		);
+	}
+	if let Some(v) = patch.sender_person_given_name {
+		set_text_first(
+			&mut xpath,
+			&format!("{sender_base}//hl7:assignedPerson/hl7:name/hl7:given"),
+			v,
+		);
+	}
+	if let Some(v) = patch.sender_person_family_name {
+		set_text_first(
+			&mut xpath,
+			&format!("{sender_base}//hl7:assignedPerson/hl7:name/hl7:family"),
+			v,
+		);
+	}
+	if let Some(v) = patch.sender_department {
+		set_text_first(
+			&mut xpath,
+			&format!("{sender_base}/hl7:representedOrganization/hl7:name"),
+			v,
+		);
+	}
+	if let Some(v) = patch.sender_org_name {
+		set_text_first(
+			&mut xpath,
+			&format!("{sender_base}/hl7:representedOrganization/hl7:assignedEntity/hl7:representedOrganization/hl7:name"),
+			v,
+		);
+	}
+	if let Some(v) = patch.sender_telephone {
+		let value = if v.contains(':') { v.to_string() } else { format!("tel:{v}") };
+		set_attr_first(
+			&mut xpath,
+			&format!("{sender_base}/hl7:telecom[starts-with(@value,'tel:')]"),
+			"value",
+			&value,
+		);
+	}
+	if let Some(v) = patch.sender_fax {
+		let value = if v.contains(':') { v.to_string() } else { format!("fax:{v}") };
+		set_attr_first(
+			&mut xpath,
+			&format!("{sender_base}/hl7:telecom[starts-with(@value,'fax:')]"),
+			"value",
+			&value,
+		);
+	}
+	if let Some(v) = patch.sender_email {
+		let value = if v.contains(':') { v.to_string() } else { format!("mailto:{v}") };
+		set_attr_first(
+			&mut xpath,
+			&format!("{sender_base}/hl7:telecom[starts-with(@value,'mailto:')]"),
+			"value",
+			&value,
 		);
 	}
 

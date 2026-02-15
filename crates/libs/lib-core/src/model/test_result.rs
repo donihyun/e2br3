@@ -68,6 +68,7 @@ pub struct TestResultForCreate {
 #[derive(Fields, Deserialize)]
 pub struct TestResultForUpdate {
 	pub test_name: Option<String>,
+	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
 	pub test_date: Option<Date>,
 	pub test_meddra_version: Option<String>,
 	pub test_meddra_code: Option<String>,

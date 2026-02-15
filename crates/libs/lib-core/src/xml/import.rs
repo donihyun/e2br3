@@ -536,6 +536,9 @@ async fn import_safety_report(
 	let report_u = SafetyReportIdentificationForUpdate {
 		transmission_date: None,
 		report_type: Some(report.report_type),
+		date_first_received_from_source: None,
+		date_of_most_recent_information: None,
+		fulfil_expedited_criteria: None,
 		local_criteria_report_type: report.local_criteria_report_type,
 		combination_product_report_indicator: report
 			.combination_product_report_indicator,

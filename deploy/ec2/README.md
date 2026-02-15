@@ -20,6 +20,8 @@
    - `chmod +x /opt/e2br3/deploy.sh`
 5. Fill `/opt/e2br3/.env.prod` with real secrets and RDS URL.
 6. Put XSD files under `/opt/e2br3/schemas/multicacheschemas/...`.
+   - Ensure `/opt/e2br3/.env.prod` has `E2BR3_SCHEMAS_DIR=/opt/e2br3/schemas`
+     so the container bind-mount includes `/app/schemas/multicacheschemas/...`.
 
 ## One-time RDS bootstrap
 

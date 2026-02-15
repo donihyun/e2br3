@@ -28,6 +28,7 @@ services:
       - ./docs/dev_initial/11-terminology.sql:/docker-entrypoint-initdb.d/09-terminology.sql:ro
       - ./docs/dev_initial/12-triggers.sql:/docker-entrypoint-initdb.d/10-triggers.sql:ro
       - ./docs/dev_initial/13-e2br3-seed.sql:/docker-entrypoint-initdb.d/11-seed.sql:ro
+      - ./docs/dev_initial/14-presave-templates.sql:/docker-entrypoint-initdb.d/12-presave-templates.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U app_user -d app_db"]
       interval: 10s
@@ -69,6 +70,8 @@ services:
       E2BR3_DEFAULT_MESSAGE_RECEIVER_MFDS: "MFDS"
       E2BR3_EXAMPLES_DIR: "/app/docs/refs/instances"
       E2BR3_XSD_PATH: "/app/schemas/multicacheschemas/MCCI_IN200100UV01.xsd"
+      # Prefer patching raw imported XML for single-section edits (keeps export valid while XML v2 generator matures).
+      XML_V2_PATCH_C: "1"
     volumes:
       - /Users/hyundonghoon/Documents/4_ICH_ICSR_Schema_Files:/app/schemas:ro
     depends_on:

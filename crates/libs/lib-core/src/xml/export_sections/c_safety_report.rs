@@ -1,7 +1,7 @@
 // Section C exporter (Safety Report Identification) - FDA mapping.
 
 use crate::model::case::Case;
-use crate::model::safety_report::SafetyReportIdentification;
+use crate::model::safety_report::{SafetyReportIdentification, SenderInformation};
 use crate::xml::raw::patch::{patch_c_safety_report, CSafetyReportPatch};
 use crate::xml::Result;
 use libxml::parser::Parser;
@@ -10,6 +10,7 @@ pub fn export_c_safety_report_patch(
 	raw_xml: &[u8],
 	case: &Case,
 	report: &SafetyReportIdentification,
+	sender: Option<&SenderInformation>,
 ) -> Result<String> {
 	let patch = CSafetyReportPatch {
 		report_unique_id: &case.safety_report_id,
@@ -25,6 +26,20 @@ pub fn export_c_safety_report_patch(
 			.as_deref(),
 		nullification_code: report.nullification_code.as_deref(),
 		nullification_reason: report.nullification_reason.as_deref(),
+		sender_type: sender.and_then(|s| Some(s.sender_type.as_str())),
+		sender_org_name: sender.and_then(|s| Some(s.organization_name.as_str())),
+		sender_department: sender.and_then(|s| s.department.as_deref()),
+		sender_street_address: sender.and_then(|s| s.street_address.as_deref()),
+		sender_city: sender.and_then(|s| s.city.as_deref()),
+		sender_state: sender.and_then(|s| s.state.as_deref()),
+		sender_postcode: sender.and_then(|s| s.postcode.as_deref()),
+		sender_country_code: sender.and_then(|s| s.country_code.as_deref()),
+		sender_person_title: sender.and_then(|s| s.person_title.as_deref()),
+		sender_person_given_name: sender.and_then(|s| s.person_given_name.as_deref()),
+		sender_person_family_name: sender.and_then(|s| s.person_family_name.as_deref()),
+		sender_telephone: sender.and_then(|s| s.telephone.as_deref()),
+		sender_fax: sender.and_then(|s| s.fax.as_deref()),
+		sender_email: sender.and_then(|s| s.email.as_deref()),
 	};
 
 	patch_c_safety_report(raw_xml, &patch)
@@ -34,6 +49,7 @@ pub fn export_c_safety_report_patch(
 pub fn export_c_safety_report_xml(
 	case: &Case,
 	report: &SafetyReportIdentification,
+	sender: Option<&SenderInformation>,
 ) -> Result<String> {
 	let base_xml = base_icrs_skeleton();
 	let parser = Parser::default();
@@ -45,7 +61,7 @@ pub fn export_c_safety_report_xml(
 		}
 	})?;
 	let raw = doc.to_string();
-	export_c_safety_report_patch(raw.as_bytes(), case, report)
+	export_c_safety_report_patch(raw.as_bytes(), case, report, sender)
 }
 
 fn base_icrs_skeleton() -> &'static str {
