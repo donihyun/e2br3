@@ -139,9 +139,9 @@ pub const VALIDATION_RULES: &[ValidationRuleMetadata] = &[
 		code: "MFDS.KR.DOMESTIC.INGREDIENTCODE.REQUIRED",
 		profile: ValidationProfile::Mfds,
 		section: "drugs",
-		blocking: true,
+		blocking: false,
 		message:
-			"MFDS domestic cases require KR ingredient coding for each active substance.",
+			"MFDS domestic cases should provide KR ingredient coding for each active substance.",
 	},
 	ValidationRuleMetadata {
 		code: "MFDS.G.k.9.i.2.r.2.KR.1.REQUIRED",

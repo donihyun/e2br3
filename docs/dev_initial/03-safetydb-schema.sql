@@ -361,6 +361,7 @@ GRANT EXECUTE ON FUNCTION is_current_user_admin() TO e2br3_app_role;
 GRANT EXECUTE ON FUNCTION set_org_context(UUID, VARCHAR) TO e2br3_app_role;
 
 -- Grant table access for application role (RLS will still enforce isolation)
+GRANT USAGE ON SCHEMA public TO e2br3_app_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO e2br3_app_role;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO e2br3_app_role;
 

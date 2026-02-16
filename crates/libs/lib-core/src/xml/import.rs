@@ -2173,7 +2173,12 @@ fn parse_sender_information(
 			&mut xpath,
 			"//hl7:sender/hl7:device/hl7:asAgent/hl7:representedOrganization/hl7:code/@code",
 		)
-		.or_else(|| first_value_root(&mut xpath, "//hl7:assignedEntity/hl7:code/@code")),
+		.or_else(|| {
+			first_value_root(
+				&mut xpath,
+				"//hl7:investigationEvent/hl7:subjectOf1/hl7:controlActEvent/hl7:author/hl7:assignedEntity/hl7:code/@code",
+			)
+		}),
 		&["1", "2", "3", "4", "5", "6"],
 		"sender_information.sender_type",
 	)
@@ -5280,9 +5285,28 @@ fn parse_relatedness_assessments(xml: &[u8]) -> Result<Vec<RelatednessImport>> {
 			&mut xpath,
 			&node,
 			"hl7:causalityAssessment/hl7:methodCode/hl7:originalText",
-		);
-		let result_of_assessment =
-			first_text(&mut xpath, &node, "hl7:causalityAssessment/hl7:value");
+		)
+		.or_else(|| {
+			first_attr(
+				&mut xpath,
+				&node,
+				"hl7:causalityAssessment/hl7:methodCode",
+				"code",
+			)
+		});
+		let result_of_assessment = first_text(
+			&mut xpath,
+			&node,
+			"hl7:causalityAssessment/hl7:value",
+		)
+		.or_else(|| {
+			first_attr(
+				&mut xpath,
+				&node,
+				"hl7:causalityAssessment/hl7:value",
+				"code",
+			)
+		});
 		let reaction_xml_id = parse_uuid_opt(first_attr(
 			&mut xpath,
 			&node,

@@ -6,6 +6,7 @@ use crate::ctx::Ctx;
 use crate::model::user::UserBmc;
 use crate::model::ModelManager;
 use tokio::sync::OnceCell;
+use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 
 // endregion: --- Modules
@@ -53,13 +54,27 @@ async fn maybe_set_demo_pwd() {
 
 	let ctx = Ctx::root_ctx();
 	// Use auth_email-based lookup to bypass RLS when no org context is set.
-	let user = match UserBmc::auth_login_by_email(&mm, &email).await {
-		Ok(user) => user,
-		Err(err) => {
-			warn!("FOR-DEV-ONLY - demo pwd lookup failed: {err}");
-			return;
+	// On cold starts, schema may still be initializing; retry briefly on missing
+	// relation errors so we don't require a manual restart for demo login.
+	let mut user = None;
+	for attempt in 1..=10 {
+		match UserBmc::auth_login_by_email(&mm, &email).await {
+			Ok(value) => {
+				user = value;
+				break;
+			}
+			Err(err) if should_retry_demo_pwd_lookup(&err) && attempt < 10 => {
+				warn!(
+					"FOR-DEV-ONLY - demo pwd lookup retry {attempt}/10 (transient): {err}"
+				);
+				sleep(Duration::from_secs(1)).await;
+			}
+			Err(err) => {
+				warn!("FOR-DEV-ONLY - demo pwd lookup failed: {err}");
+				return;
+			}
 		}
-	};
+	}
 
 	let Some(user) = user else {
 		warn!("FOR-DEV-ONLY - demo pwd skipped; user not found: {email}");
@@ -72,6 +87,11 @@ async fn maybe_set_demo_pwd() {
 	}
 
 	info!("FOR-DEV-ONLY - demo pwd synced for {email}");
+}
+
+fn should_retry_demo_pwd_lookup(err: &crate::model::Error) -> bool {
+	let msg = err.to_string();
+	msg.contains("42P01") || msg.contains("relation \"users\" does not exist")
 }
 
 /// Initialize test environment.
