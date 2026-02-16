@@ -30,6 +30,20 @@ fn patch_c_section_updates_values() {
 		combination_product_indicator: Some("false"),
 		nullification_code: None,
 		nullification_reason: None,
+		sender_type: None,
+		sender_org_name: None,
+		sender_department: None,
+		sender_street_address: None,
+		sender_city: None,
+		sender_state: None,
+		sender_postcode: None,
+		sender_country_code: None,
+		sender_person_title: None,
+		sender_person_given_name: None,
+		sender_person_family_name: None,
+		sender_telephone: None,
+		sender_fax: None,
+		sender_email: None,
 	};
 
 	let patched = patch_c_safety_report(&xml, &patch).expect("patch xml");
