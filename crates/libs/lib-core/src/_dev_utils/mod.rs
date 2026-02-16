@@ -66,16 +66,12 @@ async fn maybe_set_demo_pwd() {
 		return;
 	};
 
-	if user.pwd.is_some() {
-		return;
-	}
-
 	if let Err(err) = UserBmc::update_pwd(&ctx, &mm, user.id, &pwd).await {
 		warn!("FOR-DEV-ONLY - demo pwd update failed: {err}");
 		return;
 	}
 
-	info!("FOR-DEV-ONLY - demo pwd set for {email}");
+	info!("FOR-DEV-ONLY - demo pwd synced for {email}");
 }
 
 /// Initialize test environment.
