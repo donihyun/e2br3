@@ -8,6 +8,14 @@ use serde_json::{json, Value};
 use serial_test::serial;
 use tower::ServiceExt;
 
+fn parse_json_or_raw(body: &[u8]) -> Value {
+	let raw = String::from_utf8_lossy(body).trim().to_string();
+	if raw.is_empty() {
+		return json!({});
+	}
+	serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({ "raw": raw }))
+}
+
 async fn post_json(
 	app: &axum::Router,
 	cookie: &str,
@@ -23,11 +31,7 @@ async fn post_json(
 	let res = app.clone().oneshot(req).await?;
 	let status = res.status();
 	let body = to_bytes(res.into_body(), usize::MAX).await?;
-	let value = if body.is_empty() {
-		json!({})
-	} else {
-		serde_json::from_slice::<Value>(&body)?
-	};
+	let value = parse_json_or_raw(&body);
 	Ok((status, value))
 }
 
@@ -46,11 +50,7 @@ async fn put_json(
 	let res = app.clone().oneshot(req).await?;
 	let status = res.status();
 	let body = to_bytes(res.into_body(), usize::MAX).await?;
-	let value = if body.is_empty() {
-		json!({})
-	} else {
-		serde_json::from_slice::<Value>(&body)?
-	};
+	let value = parse_json_or_raw(&body);
 	Ok((status, value))
 }
 
@@ -67,11 +67,7 @@ async fn get_json(
 	let res = app.clone().oneshot(req).await?;
 	let status = res.status();
 	let body = to_bytes(res.into_body(), usize::MAX).await?;
-	let value = if body.is_empty() {
-		json!({})
-	} else {
-		serde_json::from_slice::<Value>(&body)?
-	};
+	let value = parse_json_or_raw(&body);
 	Ok((status, value))
 }
 

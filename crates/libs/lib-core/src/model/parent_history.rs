@@ -59,10 +59,16 @@ pub struct ParentMedicalHistoryForCreate {
 pub struct ParentMedicalHistoryForUpdate {
 	pub meddra_version: Option<String>,
 	pub meddra_code: Option<String>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub start_date: Option<Date>,
 	pub continuing: Option<bool>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub end_date: Option<Date>,
 	pub comments: Option<String>,
 }
@@ -129,9 +135,15 @@ pub struct ParentPastDrugHistoryForUpdate {
 	pub mpid_version: Option<String>,
 	pub phpid: Option<String>,
 	pub phpid_version: Option<String>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub start_date: Option<Date>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub end_date: Option<Date>,
 	pub indication_meddra_version: Option<String>,
 	pub indication_meddra_code: Option<String>,

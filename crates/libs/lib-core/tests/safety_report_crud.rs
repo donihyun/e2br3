@@ -54,6 +54,9 @@ async fn test_safety_report_identification_crud() -> Result<()> {
 	let report_u = SafetyReportIdentificationForUpdate {
 		transmission_date: None,
 		report_type: Some("2".to_string()),
+		date_first_received_from_source: None,
+		date_of_most_recent_information: None,
+		fulfil_expedited_criteria: None,
 		worldwide_unique_id: Some("WUID-1".to_string()),
 		nullification_code: None,
 		nullification_reason: None,

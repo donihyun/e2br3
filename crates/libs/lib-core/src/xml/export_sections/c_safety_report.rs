@@ -35,8 +35,10 @@ pub fn export_c_safety_report_patch(
 		sender_postcode: sender.and_then(|s| s.postcode.as_deref()),
 		sender_country_code: sender.and_then(|s| s.country_code.as_deref()),
 		sender_person_title: sender.and_then(|s| s.person_title.as_deref()),
-		sender_person_given_name: sender.and_then(|s| s.person_given_name.as_deref()),
-		sender_person_family_name: sender.and_then(|s| s.person_family_name.as_deref()),
+		sender_person_given_name: sender
+			.and_then(|s| s.person_given_name.as_deref()),
+		sender_person_family_name: sender
+			.and_then(|s| s.person_family_name.as_deref()),
 		sender_telephone: sender.and_then(|s| s.telephone.as_deref()),
 		sender_fax: sender.and_then(|s| s.fax.as_deref()),
 		sender_email: sender.and_then(|s| s.email.as_deref()),

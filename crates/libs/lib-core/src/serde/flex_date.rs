@@ -47,13 +47,11 @@ where
 				"invalid date: expected YYYY-MM-DD or YYYYMMDD (or YYYYMMDDhhmmss)",
 			)
 		}),
-		FlexDateInput::YearOrdinal(year, ordinal) => Date::from_ordinal_date(
-			year,
-			u16::max(1, ordinal) as u16,
-		)
-		.map_err(|_| {
-			de::Error::custom("invalid date: expected [year, ordinal]")
-		}),
+		FlexDateInput::YearOrdinal(year, ordinal) => {
+			Date::from_ordinal_date(year, u16::max(1, ordinal) as u16).map_err(
+				|_| de::Error::custom("invalid date: expected [year, ordinal]"),
+			)
+		}
 		FlexDateInput::YearMonthDay(year, month, day) => {
 			let month = Month::try_from(month).map_err(|_| {
 				de::Error::custom("invalid date: expected [year, month, day]")
@@ -75,15 +73,12 @@ where
 	let Some(v) = opt else { return Ok(None) };
 	match v {
 		FlexDateInput::Str(s) => Ok(parse_flexible_date_str(&s)),
-		FlexDateInput::YearOrdinal(year, ordinal) => Ok(Date::from_ordinal_date(
-			year,
-			u16::max(1, ordinal) as u16,
-		)
-		.ok()),
+		FlexDateInput::YearOrdinal(year, ordinal) => {
+			Ok(Date::from_ordinal_date(year, u16::max(1, ordinal) as u16).ok())
+		}
 		FlexDateInput::YearMonthDay(year, month, day) => {
 			let month = Month::try_from(month).ok();
 			Ok(month.and_then(|m| Date::from_calendar_date(year, m, day).ok()))
 		}
 	}
 }
-

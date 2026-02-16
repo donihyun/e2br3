@@ -245,7 +245,10 @@ pub async fn mark_case_validated_by_validator(
 #[derive(Debug, Deserialize)]
 pub struct CaseIntakeCheckInput {
 	pub safety_report_id: String,
-	#[serde(deserialize_with = "lib_core::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "lib_core::serde::flex_date::deserialize_option_date"
+	)]
 	pub date_of_most_recent_information: Option<Date>,
 	pub report_type: Option<String>,
 	pub reporter_organization: Option<String>,
@@ -257,7 +260,10 @@ pub struct CaseIntakeCheckInput {
 	pub dg_prd_key: Option<String>,
 	pub reaction_meddra_version: Option<String>,
 	pub reaction_meddra_code: Option<String>,
-	#[serde(deserialize_with = "lib_core::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "lib_core::serde::flex_date::deserialize_option_date"
+	)]
 	pub ae_start_date: Option<Date>,
 }
 
@@ -306,7 +312,10 @@ pub struct CaseFromIntakeInput {
 	pub dg_prd_key: Option<String>,
 	pub reaction_meddra_version: Option<String>,
 	pub reaction_meddra_code: Option<String>,
-	#[serde(deserialize_with = "lib_core::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "lib_core::serde::flex_date::deserialize_option_date"
+	)]
 	pub ae_start_date: Option<Date>,
 }
 

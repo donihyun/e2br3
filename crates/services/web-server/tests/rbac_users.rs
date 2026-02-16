@@ -107,7 +107,8 @@ async fn test_create_user_missing_required_fields_fails() -> Result<()> {
 
 #[serial]
 #[tokio::test]
-async fn test_create_user_duplicate_email_returns_conflict_with_detail() -> Result<()> {
+async fn test_create_user_duplicate_email_returns_conflict_with_detail() -> Result<()>
+{
 	let mm = init_test_mm().await?;
 	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
 	let token = generate_web_token(&seed.admin.email, seed.admin.token_salt)?;

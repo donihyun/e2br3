@@ -34,8 +34,7 @@ fn map_pg_constraint(code: &str) -> Option<(StatusCode, String)> {
 		)),
 		"23502" => Some((
 			StatusCode::BAD_REQUEST,
-			"Missing required field: a required value was not provided."
-				.to_string(),
+			"Missing required field: a required value was not provided.".to_string(),
 		)),
 		"23514" => Some((
 			StatusCode::BAD_REQUEST,

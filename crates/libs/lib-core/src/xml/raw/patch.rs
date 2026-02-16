@@ -260,12 +260,7 @@ pub fn patch_c_safety_report(
 	// C.3 Sender information (best-effort)
 	let sender_base = "//hl7:investigationEvent/hl7:subjectOf1/hl7:controlActEvent/hl7:author/hl7:assignedEntity";
 	if let Some(v) = patch.sender_type {
-		set_attr_first(
-			&mut xpath,
-			&format!("{sender_base}/hl7:code"),
-			"code",
-			v,
-		);
+		set_attr_first(&mut xpath, &format!("{sender_base}/hl7:code"), "code", v);
 	}
 	if let Some(v) = patch.sender_street_address {
 		set_text_first(
@@ -331,7 +326,11 @@ pub fn patch_c_safety_report(
 		);
 	}
 	if let Some(v) = patch.sender_telephone {
-		let value = if v.contains(':') { v.to_string() } else { format!("tel:{v}") };
+		let value = if v.contains(':') {
+			v.to_string()
+		} else {
+			format!("tel:{v}")
+		};
 		set_attr_first(
 			&mut xpath,
 			&format!("{sender_base}/hl7:telecom[starts-with(@value,'tel:')]"),
@@ -340,7 +339,11 @@ pub fn patch_c_safety_report(
 		);
 	}
 	if let Some(v) = patch.sender_fax {
-		let value = if v.contains(':') { v.to_string() } else { format!("fax:{v}") };
+		let value = if v.contains(':') {
+			v.to_string()
+		} else {
+			format!("fax:{v}")
+		};
 		set_attr_first(
 			&mut xpath,
 			&format!("{sender_base}/hl7:telecom[starts-with(@value,'fax:')]"),
@@ -349,7 +352,11 @@ pub fn patch_c_safety_report(
 		);
 	}
 	if let Some(v) = patch.sender_email {
-		let value = if v.contains(':') { v.to_string() } else { format!("mailto:{v}") };
+		let value = if v.contains(':') {
+			v.to_string()
+		} else {
+			format!("mailto:{v}")
+		};
 		set_attr_first(
 			&mut xpath,
 			&format!("{sender_base}/hl7:telecom[starts-with(@value,'mailto:')]"),

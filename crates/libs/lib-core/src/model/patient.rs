@@ -72,7 +72,10 @@ pub struct PatientInformationForUpdate {
 	pub patient_initials: Option<String>,
 	pub patient_given_name: Option<String>,
 	pub patient_family_name: Option<String>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub birth_date: Option<Date>,
 	pub age_at_time_of_onset: Option<Decimal>,
 	pub age_unit: Option<String>,
@@ -84,7 +87,10 @@ pub struct PatientInformationForUpdate {
 	pub sex: Option<String>,
 	pub race_code: Option<String>,
 	pub ethnicity_code: Option<String>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub last_menstrual_period_date: Option<Date>,
 	pub medical_history_text: Option<String>,
 	pub concomitant_therapy: Option<bool>,
@@ -170,10 +176,16 @@ pub struct MedicalHistoryEpisodeForCreate {
 pub struct MedicalHistoryEpisodeForUpdate {
 	pub meddra_version: Option<String>,
 	pub meddra_code: Option<String>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub start_date: Option<Date>,
 	pub continuing: Option<bool>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub end_date: Option<Date>,
 	pub comments: Option<String>,
 	pub family_history: Option<bool>,
@@ -230,9 +242,15 @@ pub struct PastDrugHistoryForCreate {
 	pub mpid_version: Option<String>,
 	pub phpid: Option<String>,
 	pub phpid_version: Option<String>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub start_date: Option<Date>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub end_date: Option<Date>,
 	pub indication_meddra_version: Option<String>,
 	pub indication_meddra_code: Option<String>,
@@ -247,9 +265,15 @@ pub struct PastDrugHistoryForUpdate {
 	pub mpid_version: Option<String>,
 	pub phpid: Option<String>,
 	pub phpid_version: Option<String>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub start_date: Option<Date>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub end_date: Option<Date>,
 	pub indication_meddra_version: Option<String>,
 	pub indication_meddra_code: Option<String>,
@@ -286,14 +310,20 @@ pub struct PatientDeathInformation {
 #[derive(Fields, Deserialize)]
 pub struct PatientDeathInformationForCreate {
 	pub patient_id: Uuid,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub date_of_death: Option<Date>,
 	pub autopsy_performed: Option<bool>,
 }
 
 #[derive(Fields, Deserialize)]
 pub struct PatientDeathInformationForUpdate {
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub date_of_death: Option<Date>,
 	pub autopsy_performed: Option<bool>,
 }
@@ -407,11 +437,17 @@ pub struct ParentInformationForCreate {
 #[derive(Fields, Deserialize)]
 pub struct ParentInformationForUpdate {
 	pub parent_identification: Option<String>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub parent_birth_date: Option<Date>,
 	pub parent_age: Option<Decimal>,
 	pub parent_age_unit: Option<String>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub last_menstrual_period_date: Option<Date>,
 	pub weight_kg: Option<Decimal>,
 	pub height_cm: Option<Decimal>,

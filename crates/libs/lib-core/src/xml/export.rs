@@ -81,7 +81,12 @@ pub async fn export_case_xml(
 				.await
 				.map_err(model::Error::from)
 				.map_err(Error::from)?;
-			return export_c_safety_report_patch(raw_xml, &case, &report, sender.as_ref());
+			return export_c_safety_report_patch(
+				raw_xml,
+				&case,
+				&report,
+				sender.as_ref(),
+			);
 		}
 
 		let only_d_dirty = case.dirty_d
@@ -242,14 +247,14 @@ pub async fn export_case_xml(
 			&& !case.dirty_f
 			&& !case.dirty_g
 			&& !case.dirty_h;
-			if only_c_dirty
-				&& std::env::var("XML_V2_EXPORT_C").unwrap_or_default() == "1"
-			{
-				let report =
-					SafetyReportIdentificationBmc::get_by_case(ctx, mm, case_id)
-						.await
-						.map_err(Error::from)?;
-				let sender = mm
+		if only_c_dirty
+			&& std::env::var("XML_V2_EXPORT_C").unwrap_or_default() == "1"
+		{
+			let report =
+				SafetyReportIdentificationBmc::get_by_case(ctx, mm, case_id)
+					.await
+					.map_err(Error::from)?;
+			let sender = mm
 					.dbx()
 					.fetch_optional(
 						sqlx::query_as::<_, SenderInformation>(
@@ -260,8 +265,8 @@ pub async fn export_case_xml(
 					.await
 					.map_err(model::Error::from)
 					.map_err(Error::from)?;
-				return export_c_safety_report_xml(&case, &report, sender.as_ref());
-			}
+			return export_c_safety_report_xml(&case, &report, sender.as_ref());
+		}
 
 		let only_d_dirty = case.dirty_d
 			&& !case.dirty_c
@@ -459,7 +464,12 @@ async fn export_case_xml_from_db(
 			.await
 			.map_err(model::Error::from)
 			.map_err(Error::from)?;
-		xml = export_c_safety_report_patch(xml.as_bytes(), &case, &report, sender.as_ref())?;
+		xml = export_c_safety_report_patch(
+			xml.as_bytes(),
+			&case,
+			&report,
+			sender.as_ref(),
+		)?;
 	}
 	if case.dirty_d {
 		let patient = PatientInformationBmc::get_by_case(ctx, mm, case_id)

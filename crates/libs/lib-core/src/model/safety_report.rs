@@ -76,12 +76,21 @@ pub struct SafetyReportIdentificationForCreate {
 
 #[derive(Fields, Deserialize)]
 pub struct SafetyReportIdentificationForUpdate {
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub transmission_date: Option<Date>,
 	pub report_type: Option<String>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub date_first_received_from_source: Option<Date>,
-	#[serde(deserialize_with = "crate::serde::flex_date::deserialize_option_date")]
+	#[serde(
+		default,
+		deserialize_with = "crate::serde::flex_date::deserialize_option_date"
+	)]
 	pub date_of_most_recent_information: Option<Date>,
 	pub fulfil_expedited_criteria: Option<bool>,
 	pub local_criteria_report_type: Option<String>,

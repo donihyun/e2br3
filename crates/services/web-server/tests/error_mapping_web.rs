@@ -28,7 +28,7 @@ async fn test_bad_uuid_returns_400() -> Result<()> {
 
 #[serial]
 #[tokio::test]
-async fn test_not_found_returns_400() -> Result<()> {
+async fn test_not_found_returns_404() -> Result<()> {
 	let mm = init_test_mm().await?;
 	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
 	let token = generate_web_token(&seed.admin.email, seed.admin.token_salt)?;
@@ -41,6 +41,6 @@ async fn test_not_found_returns_400() -> Result<()> {
 		.header("cookie", cookie_header(&token.to_string()))
 		.body(Body::empty())?;
 	let res = app.oneshot(req).await?;
-	assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+	assert_eq!(res.status(), StatusCode::NOT_FOUND);
 	Ok(())
 }

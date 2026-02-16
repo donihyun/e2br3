@@ -32,6 +32,27 @@ DATABASE_URL='postgres://<user>:<pwd>@<rds-endpoint>:5432/app_db?sslmode=require
 ./deploy/ec2/init-rds.sh
 ```
 
+Optional: reset DB/user first (destructive, runs `00-recreate-db.sql`):
+
+```sh
+RESET_DB=1 \
+ROOT_DATABASE_URL='postgres://<admin-user>:<admin-pwd>@<rds-endpoint>:5432/postgres?sslmode=require' \
+DATABASE_URL='postgres://<app-user>:<app-pwd>@<rds-endpoint>:5432/app_db?sslmode=require' \
+./deploy/ec2/init-rds.sh
+```
+
+If you keep DB URLs in `/opt/e2br3/e2br3/deploy/ec2/.env.prod`, you can run:
+
+```sh
+cd /opt/e2br3/e2br3
+set -a
+. /opt/e2br3/e2br3/deploy/ec2/.env.prod
+set +a
+RESET_DB=1 DATABASE_URL="$SERVICE_DB_URL" ./deploy/ec2/init-rds.sh
+```
+
+`init-rds.sh` will use `SERVICE_DB_ROOT_URL` from the env file as `ROOT_DATABASE_URL`.
+
 To skip dev seed data (`13-e2br3-seed.sql`):
 
 ```sh
