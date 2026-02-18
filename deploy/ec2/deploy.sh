@@ -23,6 +23,19 @@ if [ ! -f "${COMPOSE_FILE}" ]; then
   exit 1
 fi
 
+# Load env file for preflight checks.
+set -a
+. "${ENV_FILE}"
+set +a
+
+SCHEMAS_DIR="${E2BR3_SCHEMAS_DIR:-${APP_DIR}/schemas}"
+if [ ! -f "${SCHEMAS_DIR}/multicacheschemas/MCCI_IN200100UV01.xsd" ] && \
+   [ ! -f "${SCHEMAS_DIR}/MCCI_IN200100UV01.xsd" ]; then
+  echo "Missing schema file under ${SCHEMAS_DIR}."
+  echo "Expected MCCI_IN200100UV01.xsd (either at root or multicacheschemas/)."
+  exit 1
+fi
+
 if [ -n "${GHCR_USERNAME:-}" ] && [ -n "${GHCR_TOKEN:-}" ]; then
   echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
 fi

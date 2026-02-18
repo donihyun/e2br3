@@ -15,6 +15,8 @@ use libxml::schemas::{SchemaParserContext, SchemaValidationContext};
 use libxml::xpath::Context;
 use quick_xml::events::Event;
 use quick_xml::Reader;
+use std::ffi::OsStr;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
@@ -238,10 +240,13 @@ pub fn validate_e2b_xml_xsd(
 	xsd_path: &Path,
 ) -> Result<Vec<XmlValidationError>> {
 	if !xsd_path.exists() {
+		let schema_dir_hint = std::env::var("E2BR3_SCHEMAS_DIR")
+			.unwrap_or_else(|_| "/opt/e2br3/schemas".to_string());
 		return Err(Error::InvalidXml {
 			message: format!(
-				"XSD file not found at '{}'. Set E2BR3_XSD_PATH to a valid local path or set E2BR3_SKIP_XML_VALIDATE=1 for dev.",
-				xsd_path.display()
+				"XSD file not found at '{}'. Set E2BR3_XSD_PATH to a valid in-container path (for example '/app/schemas/multicacheschemas/MCCI_IN200100UV01.xsd') and mount your schema package via E2BR3_SCHEMAS_DIR (for example '{}').",
+				xsd_path.display(),
+				schema_dir_hint
 			),
 			line: None,
 			column: None,
@@ -301,7 +306,76 @@ pub fn validate_e2b_xml_xsd(
 }
 
 fn xsd_path_from_env() -> Option<PathBuf> {
-	std::env::var("E2BR3_XSD_PATH").ok().map(PathBuf::from)
+	let configured = std::env::var("E2BR3_XSD_PATH").ok().map(PathBuf::from)?;
+	if configured.exists() {
+		return Some(configured);
+	}
+
+	let file_name = configured.file_name()?;
+	for root in schema_roots_from_env() {
+		if !root.exists() {
+			continue;
+		}
+
+		let direct = root.join(file_name);
+		if direct.exists() {
+			return Some(direct);
+		}
+
+		let multi_cache = root.join("multicacheschemas").join(file_name);
+		if multi_cache.exists() {
+			return Some(multi_cache);
+		}
+
+		if let Some(found) = find_named_file(&root, file_name, 5) {
+			return Some(found);
+		}
+	}
+
+	Some(configured)
+}
+
+fn schema_roots_from_env() -> Vec<PathBuf> {
+	let mut roots = Vec::new();
+	if let Ok(dir) = std::env::var("E2BR3_SCHEMAS_DIR") {
+		roots.push(PathBuf::from(dir));
+	}
+	roots.push(PathBuf::from("/app/schemas"));
+	roots
+}
+
+fn find_named_file(
+	base: &Path,
+	file_name: &OsStr,
+	max_depth: usize,
+) -> Option<PathBuf> {
+	find_named_file_inner(base, file_name, 0, max_depth)
+}
+
+fn find_named_file_inner(
+	base: &Path,
+	file_name: &OsStr,
+	depth: usize,
+	max_depth: usize,
+) -> Option<PathBuf> {
+	if depth > max_depth {
+		return None;
+	}
+	let entries = fs::read_dir(base).ok()?;
+	for entry in entries.flatten() {
+		let path = entry.path();
+		if path.is_file() && path.file_name() == Some(file_name) {
+			return Some(path);
+		}
+		if path.is_dir() {
+			if let Some(found) =
+				find_named_file_inner(&path, file_name, depth + 1, max_depth)
+			{
+				return Some(found);
+			}
+		}
+	}
+	None
 }
 
 fn validate_e2b_xml_rules(
