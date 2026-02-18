@@ -12,7 +12,8 @@ pub fn has_patient_payload(patient: &PatientInformation) -> bool {
 }
 
 pub fn should_require_patient_initials(patient: &PatientInformation) -> bool {
-	has_patient_payload(patient)
+	super::has_text(patient.patient_given_name.as_deref())
+		|| super::has_text(patient.patient_family_name.as_deref())
 }
 
 pub fn has_patient_initials(patient: &PatientInformation) -> bool {
@@ -89,10 +90,17 @@ mod tests {
 	}
 
 	#[test]
-	fn payload_detection_is_true_when_sex_present() {
+	fn payload_detection_is_false_when_only_sex_present() {
 		let mut patient = empty_patient();
 		patient.sex = Some("1".to_string());
 		assert!(has_patient_payload(&patient));
+		assert!(!should_require_patient_initials(&patient));
+	}
+
+	#[test]
+	fn initials_required_when_given_name_present() {
+		let mut patient = empty_patient();
+		patient.patient_given_name = Some("Jane".to_string());
 		assert!(should_require_patient_initials(&patient));
 	}
 }
