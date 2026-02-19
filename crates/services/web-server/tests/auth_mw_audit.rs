@@ -5,9 +5,15 @@ use axum::http::{Request, StatusCode};
 use common::{
 	cookie_header, init_test_mm, seed_org_with_users, system_org_id, Result,
 };
+use hmac::{Hmac, Mac};
 use lib_auth::token::generate_web_token;
+use lib_core::ctx::{Ctx, ROLE_ADMIN};
+use lib_core::model::store::set_full_context_dbx;
+use lib_utils::b64::{b64u_decode, b64u_encode};
 use serde_json::{json, Value};
 use serial_test::serial;
+use sha2::Sha512;
+use sqlx::query;
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -158,6 +164,77 @@ async fn test_auth_login_created_user_email_case_insensitive() -> Result<()> {
 	assert_eq!(create_res.status(), StatusCode::CREATED);
 
 	let login_body = json!({ "email": login_email, "pwd": "CaseMixPwd123!" });
+	let login_req = Request::builder()
+		.method("POST")
+		.uri("/auth/v1/login")
+		.header("content-type", "application/json")
+		.body(Body::from(login_body.to_string()))?;
+	let login_res = app.oneshot(login_req).await?;
+	assert_eq!(login_res.status(), StatusCode::OK);
+	Ok(())
+}
+
+#[serial]
+#[tokio::test]
+async fn test_auth_login_upgrades_legacy_hash_for_non_admin_user() -> Result<()> {
+	let mm = init_test_mm().await?;
+	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
+	let admin_token = generate_web_token(&seed.admin.email, seed.admin.token_salt)?;
+	let app = web_server::app(mm.clone());
+	let suffix = Uuid::new_v4();
+	let email = format!("legacy-user-{suffix}@example.com");
+	let password = "hello world";
+
+	let create_body = json!({
+		"data": {
+			"organization_id": seed.org_id,
+			"email": email,
+			"username": format!("legacy_user_{suffix}"),
+			"pwd_clear": password,
+			"role": "user"
+		}
+	});
+	let create_req = Request::builder()
+		.method("POST")
+		.uri("/api/users")
+		.header("cookie", cookie_header(&admin_token.to_string()))
+		.header("content-type", "application/json")
+		.body(Body::from(create_body.to_string()))?;
+	let create_res = app.clone().oneshot(create_req).await?;
+	assert_eq!(create_res.status(), StatusCode::CREATED);
+
+	// Force legacy scheme-01 hash for this user to exercise upgrade-on-login.
+	let legacy_salt =
+		Uuid::parse_str("f05e8961-d6ad-4086-9e78-a6de065e5453")?;
+	let pwd_key = std::env::var("SERVICE_PWD_KEY")?;
+	let pwd_key = b64u_decode(&pwd_key)?;
+	let mut hmac_sha512 = Hmac::<Sha512>::new_from_slice(&pwd_key)?;
+	hmac_sha512.update(password.as_bytes());
+	hmac_sha512.update(legacy_salt.as_bytes());
+	let legacy_hash = format!(
+		"#01#{}",
+		b64u_encode(hmac_sha512.finalize().into_bytes())
+	);
+	let dbx = mm.dbx();
+	dbx.begin_txn().await?;
+	let root_ctx = Ctx::root_ctx();
+	set_full_context_dbx(
+		dbx,
+		root_ctx.user_id(),
+		root_ctx.organization_id(),
+		ROLE_ADMIN,
+	)
+	.await?;
+	dbx.execute(
+		query("UPDATE users SET pwd = $1, pwd_salt = $2 WHERE email = $3")
+			.bind(legacy_hash)
+			.bind(legacy_salt)
+			.bind(&email),
+	)
+	.await?;
+	dbx.commit_txn().await?;
+
+	let login_body = json!({ "email": email, "pwd": password });
 	let login_req = Request::builder()
 		.method("POST")
 		.uri("/auth/v1/login")
