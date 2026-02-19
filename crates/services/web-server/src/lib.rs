@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 pub mod config;
+pub mod submission;
 pub mod web;
 
 use axum::middleware;

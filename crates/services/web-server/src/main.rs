@@ -4,6 +4,7 @@
 
 mod config;
 mod error;
+mod submission;
 mod web;
 
 pub use self::error::{Error, Result};

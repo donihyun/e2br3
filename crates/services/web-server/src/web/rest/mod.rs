@@ -26,6 +26,7 @@ pub mod presave_template_rest;
 pub mod receiver_rest;
 pub mod relatedness_assessment_rest;
 pub mod safety_report_sub_rest;
+pub mod submission_rest;
 pub mod terminology_rest;
 pub mod validation_rules_rest;
 
@@ -429,6 +430,14 @@ pub fn routes_cases(mm: ModelManager) -> Router {
 		get(case_validation_rest::validate_case),
 	)
 	.route("/cases/{id}/export/xml", get(case_rest::export_case))
+	.route(
+		"/cases/{id}/submissions/fda",
+		axum::routing::post(submission_rest::submit_case_to_fda),
+	)
+	.route(
+		"/cases/{id}/submissions",
+		get(submission_rest::list_case_submissions),
+	)
 	.with_state(mm)
 }
 
@@ -533,6 +542,20 @@ pub fn routes_validation(mm: ModelManager) -> Router {
 		.route(
 			"/validation/rules",
 			get(validation_rules_rest::list_validation_rules),
+		)
+		.with_state(mm)
+}
+
+/// Routes for /api/submissions
+pub fn routes_submissions(mm: ModelManager) -> Router {
+	Router::new()
+		.route(
+			"/submissions/{id}",
+			get(submission_rest::get_case_submission),
+		)
+		.route(
+			"/submissions/{id}/acks/mock",
+			axum::routing::post(submission_rest::post_mock_ack),
 		)
 		.with_state(mm)
 }
