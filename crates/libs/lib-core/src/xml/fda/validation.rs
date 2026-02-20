@@ -7,7 +7,11 @@ use crate::xml::validate::{
 	build_report, has_any_primary_source_content,
 	push_issue_if_conditioned_value_invalid,
 	should_case_validator_require_required_intervention, CaseValidationReport,
-	RuleFacts, ValidationIssue, ValidationProfile,
+	CASE_RULE_FDA_C112_RECOMMENDED, CASE_RULE_FDA_C112_REQUIRED,
+	CASE_RULE_FDA_C171_REQUIRED,
+	CASE_RULE_FDA_C2R2_EMAIL_REQUIRED, CASE_RULE_FDA_D11_REQUIRED,
+	CASE_RULE_FDA_D12_REQUIRED, CASE_RULE_FDA_EI32H_REQUIRED, RuleFacts,
+	ValidationIssue, ValidationProfile,
 };
 use sqlx::types::Uuid;
 
@@ -65,9 +69,9 @@ pub async fn validate_case(
 	if let Some(report) = report.as_ref() {
 		let _ = push_issue_if_conditioned_value_invalid(
 			&mut issues,
-			"FDA.C.1.7.1.REQUIRED",
-			"FDA.C.1.7.1.REQUIRED",
-			"FDA.C.1.7.1.REQUIRED",
+			CASE_RULE_FDA_C171_REQUIRED,
+			CASE_RULE_FDA_C171_REQUIRED,
+			CASE_RULE_FDA_C171_REQUIRED,
 			"safetyReportIdentification.localCriteriaReportType",
 			report.local_criteria_report_type.as_deref(),
 			None,
@@ -90,9 +94,9 @@ pub async fn validate_case(
 		);
 		let _ = push_issue_if_conditioned_value_invalid(
 			&mut issues,
-			"FDA.C.1.12.RECOMMENDED",
-			"FDA.C.1.12.REQUIRED",
-			"FDA.C.1.12.RECOMMENDED",
+			CASE_RULE_FDA_C112_RECOMMENDED,
+			CASE_RULE_FDA_C112_REQUIRED,
+			CASE_RULE_FDA_C112_RECOMMENDED,
 			"safetyReportIdentification.combinationProductReportIndicator",
 			report.combination_product_report_indicator.as_deref(),
 			None,
@@ -111,9 +115,9 @@ pub async fn validate_case(
 			}
 			let _ = push_issue_if_conditioned_value_invalid(
 				&mut issues,
-				"FDA.C.2.r.2.EMAIL.REQUIRED",
-				"FDA.C.2.r.2.EMAIL.REQUIRED",
-				"FDA.C.2.r.2.EMAIL.REQUIRED",
+				CASE_RULE_FDA_C2R2_EMAIL_REQUIRED,
+				CASE_RULE_FDA_C2R2_EMAIL_REQUIRED,
+				CASE_RULE_FDA_C2R2_EMAIL_REQUIRED,
 				&format!("primarySources.{idx}.reporterEmail"),
 				source.email.as_deref(),
 				None,
@@ -128,9 +132,9 @@ pub async fn validate_case(
 	if let Some(patient) = patient.as_ref() {
 		let _ = push_issue_if_conditioned_value_invalid(
 			&mut issues,
-			"FDA.D.11.REQUIRED",
-			"FDA.D.11.REQUIRED",
-			"FDA.D.11.REQUIRED",
+			CASE_RULE_FDA_D11_REQUIRED,
+			CASE_RULE_FDA_D11_REQUIRED,
+			CASE_RULE_FDA_D11_REQUIRED,
 			"patientInformation.raceCode",
 			patient.race_code.as_deref(),
 			None,
@@ -142,9 +146,9 @@ pub async fn validate_case(
 		);
 		let _ = push_issue_if_conditioned_value_invalid(
 			&mut issues,
-			"FDA.D.12.REQUIRED",
-			"FDA.D.12.REQUIRED",
-			"FDA.D.12.REQUIRED",
+			CASE_RULE_FDA_D12_REQUIRED,
+			CASE_RULE_FDA_D12_REQUIRED,
+			CASE_RULE_FDA_D12_REQUIRED,
 			"patientInformation.ethnicityCode",
 			patient.ethnicity_code.as_deref(),
 			None,
@@ -160,9 +164,9 @@ pub async fn validate_case(
 		reactions.iter().enumerate().for_each(|(idx, reaction)| {
 			let _ = push_issue_if_conditioned_value_invalid(
 				&mut issues,
-				"FDA.E.i.3.2h.REQUIRED",
-				"FDA.E.i.3.2h.REQUIRED",
-				"FDA.E.i.3.2h.REQUIRED",
+				CASE_RULE_FDA_EI32H_REQUIRED,
+				CASE_RULE_FDA_EI32H_REQUIRED,
+				CASE_RULE_FDA_EI32H_REQUIRED,
 				&format!("reactions.{idx}.requiredIntervention"),
 				reaction.required_intervention.as_deref(),
 				None,

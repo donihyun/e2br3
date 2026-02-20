@@ -5,7 +5,12 @@ use crate::model::{ModelManager, Result};
 use crate::xml::validate::{
 	build_report, has_text, push_issue_if_condition_violated,
 	push_issue_if_conditioned_value_invalid, CaseValidationReport, RuleFacts,
-	ValidationIssue, ValidationProfile,
+	ValidationIssue, ValidationProfile, CASE_RULE_MFDS_C31_KR1_REQUIRED,
+	CASE_RULE_MFDS_DOMESTIC_INGREDIENTCODE_REQUIRED,
+	CASE_RULE_MFDS_DOMESTIC_PRODUCTCODE_REQUIRED,
+	CASE_RULE_MFDS_FOREIGN_WHOMPID_RECOMMENDED,
+	CASE_RULE_MFDS_GK9I2R1_REQUIRED, CASE_RULE_MFDS_GK9I2R2_KR1_REQUIRED,
+	CASE_RULE_MFDS_GK9I2R3_KR1_REQUIRED,
 };
 use sqlx::types::Uuid;
 
@@ -109,7 +114,7 @@ pub async fn validate_case(
 	senders.iter().enumerate().for_each(|(idx, sender)| {
 		let _ = push_issue_if_condition_violated(
 			&mut issues,
-			"MFDS.C.3.1.KR.1.REQUIRED",
+			CASE_RULE_MFDS_C31_KR1_REQUIRED,
 			format!("senderInformation.{idx}.senderType"),
 			RuleFacts {
 				mfds_sender_type_disallowed: Some(sender.sender_type.trim() == "3"),
@@ -132,7 +137,7 @@ pub async fn validate_case(
 				domestic_drug_ids.insert(drug.id);
 				push_mfds_required_issue(
 					&mut issues,
-					"MFDS.KR.DOMESTIC.PRODUCTCODE.REQUIRED",
+					CASE_RULE_MFDS_DOMESTIC_PRODUCTCODE_REQUIRED,
 					format!("drugs.{idx}.mpid"),
 					drug.mpid.as_deref(),
 					RuleFacts {
@@ -144,7 +149,7 @@ pub async fn validate_case(
 			Some(other) if !other.is_empty() => {
 				push_mfds_required_issue(
 					&mut issues,
-					"MFDS.KR.FOREIGN.WHOMPID.RECOMMENDED",
+					CASE_RULE_MFDS_FOREIGN_WHOMPID_RECOMMENDED,
 					format!("drugs.{idx}.mpid"),
 					drug.mpid.as_deref(),
 					RuleFacts {
@@ -171,7 +176,7 @@ pub async fn validate_case(
 		};
 		push_mfds_required_issue(
 			&mut issues,
-			"MFDS.KR.DOMESTIC.INGREDIENTCODE.REQUIRED",
+			CASE_RULE_MFDS_DOMESTIC_INGREDIENTCODE_REQUIRED,
 			path,
 			substance.substance_termid.as_deref(),
 			RuleFacts {
@@ -201,7 +206,7 @@ pub async fn validate_case(
 
 		push_mfds_required_issue(
 			&mut issues,
-			"MFDS.G.k.9.i.2.r.2.KR.1.REQUIRED",
+			CASE_RULE_MFDS_GK9I2R2_KR1_REQUIRED,
 			path_for("methodOfAssessment"),
 			r.method_of_assessment.as_deref(),
 			RuleFacts {
@@ -211,7 +216,7 @@ pub async fn validate_case(
 		);
 		push_mfds_required_issue(
 			&mut issues,
-			"MFDS.G.k.9.i.2.r.3.KR.1.REQUIRED",
+			CASE_RULE_MFDS_GK9I2R3_KR1_REQUIRED,
 			path_for("resultOfAssessment"),
 			r.result_of_assessment.as_deref(),
 			RuleFacts {
@@ -222,7 +227,7 @@ pub async fn validate_case(
 		if !has_source {
 			push_mfds_required_issue(
 				&mut issues,
-				"MFDS.G.k.9.i.2.r.1.REQUIRED",
+				CASE_RULE_MFDS_GK9I2R1_REQUIRED,
 				path_for("sourceOfAssessment"),
 				r.source_of_assessment.as_deref(),
 				RuleFacts {

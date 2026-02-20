@@ -1,4 +1,4 @@
-use crate::ctx::Ctx;
+use crate::ctx::{Ctx, ROLE_USER};
 use crate::model::base::base_uuid;
 use crate::model::base::{prep_fields_for_update, DbBmc};
 use crate::model::store::set_full_context_dbx_or_rollback;
@@ -151,13 +151,16 @@ impl UserBmc {
 			last_name,
 		} = user_c;
 		let email = Self::normalize_email(&email);
+		let role = role
+			.map(|role| role.trim().to_ascii_lowercase())
+			.unwrap_or_else(|| ROLE_USER.to_string());
 
 		// -- Create the user row
 		let user_fi = UserForInsert {
 			organization_id,
 			email: email.clone(),
 			username,
-			role,
+			role: Some(role),
 			first_name,
 			last_name,
 		};
@@ -222,6 +225,9 @@ impl UserBmc {
 	) -> Result<()> {
 		if let Some(email) = user_u.email.take() {
 			user_u.email = Some(Self::normalize_email(&email));
+		}
+		if let Some(role) = user_u.role.take() {
+			user_u.role = Some(role.trim().to_ascii_lowercase());
 		}
 		base_uuid::update::<Self, _>(ctx, mm, id, user_u).await
 	}
@@ -359,16 +365,32 @@ impl UserBmc {
 			mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
 			return Err(err.into());
 		}
-		let user =
-			match Self::first_by_email::<UserForAuth>(&Ctx::root_ctx(), &mm, email)
-				.await
-			{
-				Ok(user) => user,
-				Err(err) => {
-					mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
-					return Err(err);
-				}
-			};
+		let query = sqlx::query_as::<_, UserForAuth>(
+			r#"
+			SELECT
+				id,
+				organization_id,
+				email,
+				username,
+				CASE
+					WHEN lower(trim(role)) IN ('admin', 'manager', 'user', 'viewer')
+						THEN lower(trim(role))
+					ELSE 'user'
+				END AS role,
+				token_salt
+			FROM users
+			WHERE email = $1
+			LIMIT 1
+			"#,
+		)
+		.bind(email);
+		let user = match mm.dbx().fetch_optional(query).await {
+			Ok(user) => user,
+			Err(err) => {
+				mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
+				return Err(err.into());
+			}
+		};
 		mm.dbx().commit_txn().await.map_err(Error::Dbx)?;
 		Ok(user)
 	}
@@ -389,16 +411,34 @@ impl UserBmc {
 			mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
 			return Err(err.into());
 		}
-		let user =
-			match Self::first_by_email::<UserForLogin>(&Ctx::root_ctx(), &mm, email)
-				.await
-			{
-				Ok(user) => user,
-				Err(err) => {
-					mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
-					return Err(err);
-				}
-			};
+		let query = sqlx::query_as::<_, UserForLogin>(
+			r#"
+			SELECT
+				id,
+				organization_id,
+				email,
+				username,
+				CASE
+					WHEN lower(trim(role)) IN ('admin', 'manager', 'user', 'viewer')
+						THEN lower(trim(role))
+					ELSE 'user'
+				END AS role,
+				pwd,
+				pwd_salt,
+				token_salt
+			FROM users
+			WHERE email = $1
+			LIMIT 1
+			"#,
+		)
+		.bind(email);
+		let user = match mm.dbx().fetch_optional(query).await {
+			Ok(user) => user,
+			Err(err) => {
+				mm.dbx().rollback_txn().await.map_err(Error::Dbx)?;
+				return Err(err.into());
+			}
+		};
 		mm.dbx().commit_txn().await.map_err(Error::Dbx)?;
 		Ok(user)
 	}

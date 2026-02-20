@@ -293,12 +293,17 @@ fn looks_placeholder(value: &str) -> bool {
 	if v.is_empty() {
 		return true;
 	}
-	if let Some(first) = v.chars().next() {
-		if first.is_ascii_uppercase() && v.contains('.') {
-			return true;
-		}
+	let Some(first) = v.chars().next() else {
+		return false;
+	};
+	if !first.is_ascii_uppercase() || !v.contains('.') {
+		return false;
 	}
-	false
+	if !v.chars().any(|c| c.is_ascii_digit()) {
+		return false;
+	}
+	v.chars()
+		.all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-')
 }
 
 fn required_intervention_rule_applies(value_node: &Node) -> bool {

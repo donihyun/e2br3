@@ -2,12 +2,14 @@
 
 mod c_reporter_policy;
 mod c_safety_report_policy;
+mod case_detector_registry;
 mod catalog;
 mod d_patient_policy;
 mod e_reaction_policy;
 mod f_test_result_policy;
 mod g_drug_policy;
 mod h_narrative_policy;
+mod xml_detector_registry;
 
 pub use c_reporter_policy::has_any_primary_source_content;
 pub use c_safety_report_policy::{
@@ -16,15 +18,18 @@ pub use c_safety_report_policy::{
 	should_require_fda_local_criteria_report_type,
 	should_warn_fda_combination_product_indicator_missing,
 };
+pub use case_detector_registry::*;
 pub use catalog::{
-	canonical_rules_all, canonical_rules_for_profile, canonical_rules_version,
+	canonical_rules_all, canonical_rules_for_phase, canonical_rules_for_profile,
+	canonical_rules_for_profile_phase, canonical_rules_version,
 	export_attribute_strip_spec_for_rule, export_directive_for_rule,
 	export_normalization_spec_for_rule, export_xpath_for_rule,
-	export_xpaths_for_rule, find_canonical_rule, has_export_directive,
-	is_rule_condition_satisfied, is_rule_presence_valid, is_rule_value_valid,
-	should_clear_null_flavor_on_value, CanonicalRule, ExportAttributeStripSpec,
-	ExportDirective, ExportNormalizationSpec, ExportNormalizeKind, RuleCondition,
-	RuleFacts, ValidationRuleMetadata, CANONICAL_RULES, VALIDATION_RULES,
+	export_xpaths_for_rule, find_canonical_rule, find_canonical_rule_for_phase,
+	has_export_directive, is_rule_condition_satisfied, is_rule_presence_valid,
+	is_rule_value_valid, should_clear_null_flavor_on_value, CanonicalRule,
+	ExportAttributeStripSpec, ExportDirective, ExportNormalizationSpec,
+	ExportNormalizeKind, RuleCategory, RuleCondition, RuleFacts, RuleSeverity,
+	ValidationPhase, ValidationRuleMetadata, CANONICAL_RULES, VALIDATION_RULES,
 };
 pub use d_patient_policy::{
 	has_fda_ethnicity, has_fda_race, has_patient_initials, has_patient_payload,
@@ -36,6 +41,7 @@ pub use e_reaction_policy::{
 	should_case_validator_require_required_intervention,
 	should_emit_required_intervention_null_flavor_ni,
 };
+pub use xml_detector_registry::*;
 pub use f_test_result_policy::{has_test_name, has_test_payload};
 pub use g_drug_policy::{
 	drug_characterization_display_name, has_drug_characterization,
@@ -120,7 +126,9 @@ pub fn push_issue_by_code(
 	path: impl Into<String>,
 ) {
 	let path = path.into();
-	if let Some(rule) = find_canonical_rule(code) {
+	if let Some(rule) =
+		find_canonical_rule_for_phase(code, ValidationPhase::CaseValidate)
+	{
 		issues.push(ValidationIssue {
 			code: rule.code.to_string(),
 			message: rule.message.to_string(),

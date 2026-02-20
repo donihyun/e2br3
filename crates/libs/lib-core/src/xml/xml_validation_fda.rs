@@ -1,5 +1,21 @@
 use crate::xml::types::XmlValidationError;
-use crate::xml::validate::{has_text, RuleFacts};
+use crate::xml::validate::{
+	has_text, RuleFacts, FDA_BATCH_RECEIVER_RULE_CODE,
+	FDA_BATCH_RECEIVER_RULE_MESSAGE, FDA_GK10A_REQUIRED_MESSAGE,
+	FDA_FACT_BATCH_RECEIVER_XPATH, FDA_FACT_COMBINATION_PRODUCT_XPATH,
+	FDA_FACT_FULFIL_EXPEDITED_XPATH, FDA_FACT_MSG_RECEIVER_XPATH,
+	FDA_FACT_PREANDA_XPATH, FDA_FACT_PRIMARY_SOURCE_EMAIL_XPATH,
+	FDA_FACT_PRIMARY_SOURCE_NODE_XPATH, FDA_FACT_STUDY_TYPE_XPATH,
+	FDA_FACT_TYPE_OF_REPORT_XPATH,
+	FDA_GK10A_RULE_CODE, FDA_GK10A_VALUE_MESSAGE, FDA_GK10A_VALUE_XPATH,
+	FDA_ICH_C13_CONDITIONAL_RULE_CODE, FDA_ICH_C13_CONDITIONAL_RULE_MESSAGE,
+	FDA_LOCAL_CRITERIA_CONDITIONAL_RULE_CODE,
+	FDA_LOCAL_CRITERIA_CONDITIONAL_RULE_MESSAGE, FDA_LOCAL_CRITERIA_VALUE_XPATH,
+	FDA_PREANDA_FORBIDDEN_RULE_CODE, FDA_PREANDA_FORBIDDEN_RULE_MESSAGE,
+	FDA_PREANDA_REQUIRED_RULE_CODE, FDA_PREANDA_REQUIRED_RULE_MESSAGE,
+	FDA_REPORTER_EMAIL_RULE_CODE, FDA_REPORTER_EMAIL_RULE_MESSAGE,
+	FDA_REPORT_TYPE_VALUE_XPATH, FDA_STATIC_VALUE_NODE_RULES,
+};
 use libxml::xpath::Context;
 
 use super::xml_validation::{
@@ -92,50 +108,6 @@ impl FdaXmlFacts {
 	}
 }
 
-struct FdaValueNodeRule {
-	xpath: &'static str,
-	value_attr: &'static str,
-	rule_code: &'static str,
-	fallback_message: &'static str,
-}
-
-const FDA_STATIC_VALUE_NODE_RULES: &[FdaValueNodeRule] = &[
-	FdaValueNodeRule {
-		xpath: "//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.5.1.2.2.1.3']]/hl7:value",
-		value_attr: "value",
-		rule_code: "FDA.C.1.12.REQUIRED",
-		fallback_message:
-			"FDA.C.1.12 combination product indicator missing value; nullFlavor is required",
-	},
-	FdaValueNodeRule {
-		xpath: "//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='2' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]/hl7:value",
-		value_attr: "code",
-		rule_code: "FDA.C.1.7.1.REQUIRED.MISSING_CODE",
-		fallback_message:
-			"FDA.C.1.7.1 local criteria report type missing code; nullFlavor is required",
-	},
-	FdaValueNodeRule {
-		xpath: "//hl7:primaryRole/hl7:subjectOf2/hl7:observation[hl7:code[@code='C17049' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
-		value_attr: "code",
-		rule_code: "FDA.D.11.REQUIRED",
-		fallback_message: "FDA.D.11 patient race missing code; nullFlavor is required",
-	},
-	FdaValueNodeRule {
-		xpath: "//hl7:primaryRole/hl7:subjectOf2/hl7:observation[hl7:code[@code='C16564' and @codeSystem='2.16.840.1.113883.3.26.1.1']]/hl7:value",
-		value_attr: "code",
-		rule_code: "FDA.D.12.REQUIRED",
-		fallback_message:
-			"FDA.D.12 patient ethnicity missing code; nullFlavor is required",
-	},
-	FdaValueNodeRule {
-		xpath: "//hl7:observation[hl7:code[@code='29' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]//hl7:outboundRelationship2/hl7:observation[hl7:code[@code='726' and @codeSystem='2.16.840.1.113883.3.989.5.1.2.2.1.32']]/hl7:value",
-		value_attr: "value",
-		rule_code: "FDA.E.i.3.2h.REQUIRED",
-		fallback_message:
-			"FDA.E.i.3.2h required intervention missing value; nullFlavor is required",
-	},
-];
-
 pub(crate) fn collect_fda_profile_errors(
 	xpath: &mut Context,
 	errors: &mut Vec<XmlValidationError>,
@@ -147,10 +119,10 @@ pub(crate) fn collect_fda_profile_errors(
 
 	validate_presence_rule(
 		errors,
-		"FDA.N.1.4.REQUIRED",
+		FDA_BATCH_RECEIVER_RULE_CODE,
 		facts.has_batch_receiver(),
 		RuleFacts::default(),
-		"FDA.N.1.4 batch receiver identifier missing",
+		FDA_BATCH_RECEIVER_RULE_MESSAGE,
 	);
 
 	for rule in FDA_STATIC_VALUE_NODE_RULES {
@@ -168,15 +140,15 @@ pub(crate) fn collect_fda_profile_errors(
 	validate_value_rule_on_nodes(
 		xpath,
 		errors,
-		"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='2' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]/hl7:value",
+		FDA_LOCAL_CRITERIA_VALUE_XPATH,
 		"code",
-		"FDA.C.1.7.1.REQUIRED",
+		FDA_LOCAL_CRITERIA_CONDITIONAL_RULE_CODE,
 		RuleFacts {
 			fda_combination_product_true: Some(facts.combination_product_true()),
 			fda_fulfil_expedited_criteria: Some(facts.fulfil_expedited_true()),
 			..RuleFacts::default()
 		},
-		"FDA.C.1.7.1 local criteria report type is invalid for current expedited/combination product facts",
+		FDA_LOCAL_CRITERIA_CONDITIONAL_RULE_MESSAGE,
 	);
 
 	let gk10a_rule_facts = RuleFacts {
@@ -185,33 +157,30 @@ pub(crate) fn collect_fda_profile_errors(
 	};
 	validate_presence_rule(
 		errors,
-		"FDA.G.k.10a.REQUIRED",
-		xpath_has_nodes(
-			xpath,
-			"//hl7:organizer[hl7:code[@code='4' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.20']]/hl7:component/hl7:substanceAdministration/hl7:outboundRelationship2[@typeCode='REFR']/hl7:observation[hl7:code[@code='9']]/hl7:value",
-		),
+		FDA_GK10A_RULE_CODE,
+		xpath_has_nodes(xpath, FDA_GK10A_VALUE_XPATH),
 		gk10a_rule_facts,
-		"FDA.G.k.10a missing: required when FDA.C.5.5b is present",
+		FDA_GK10A_REQUIRED_MESSAGE,
 	);
 	validate_value_rule_on_nodes(
 		xpath,
 		errors,
-		"//hl7:organizer[hl7:code[@code='4' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.20']]/hl7:component/hl7:substanceAdministration/hl7:outboundRelationship2[@typeCode='REFR']/hl7:observation[hl7:code[@code='9']]/hl7:value",
+		FDA_GK10A_VALUE_XPATH,
 		"code",
-		"FDA.G.k.10a.REQUIRED",
+		FDA_GK10A_RULE_CODE,
 		gk10a_rule_facts,
-		"FDA.G.k.10a must be code 1/2 or nullFlavor NA when FDA.C.5.5b is present",
+		FDA_GK10A_VALUE_MESSAGE,
 	);
 
 	validate_presence_rule(
 		errors,
-		"FDA.C.2.r.2.EMAIL.REQUIRED",
+		FDA_REPORTER_EMAIL_RULE_CODE,
 		facts.has_primary_source_email,
 		RuleFacts {
 			fda_primary_source_present: Some(facts.has_primary_source),
 			..RuleFacts::default()
 		},
-		"FDA requires reporter email when primary source is present",
+		FDA_REPORTER_EMAIL_RULE_MESSAGE,
 	);
 
 	let report_type_rule_facts = RuleFacts {
@@ -226,16 +195,16 @@ pub(crate) fn collect_fda_profile_errors(
 	validate_value_rule_on_nodes(
 		xpath,
 		errors,
-		"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.23']]/hl7:value",
+		FDA_REPORT_TYPE_VALUE_XPATH,
 		"code",
-		"ICH.C.1.3.CONDITIONAL",
+		FDA_ICH_C13_CONDITIONAL_RULE_CODE,
 		report_type_rule_facts,
-		"C.1.3 must be 2 when premarket receiver and FDA.C.5.5b present with study type 1/2/3",
+		FDA_ICH_C13_CONDITIONAL_RULE_MESSAGE,
 	);
 
 	validate_condition_rule_violation(
 		errors,
-		"FDA.C.5.5b.REQUIRED",
+		FDA_PREANDA_REQUIRED_RULE_CODE,
 		RuleFacts {
 			fda_type_of_report_is_two: Some(facts.type_of_report_is_two()),
 			fda_msg_receiver_is_cder_ind_exempt_ba_be: Some(
@@ -244,12 +213,12 @@ pub(crate) fn collect_fda_profile_errors(
 			fda_has_pre_anda: Some(facts.has_pre_anda()),
 			..RuleFacts::default()
 		},
-		"FDA.C.5.5b required when C.1.3=2 and N.2.r.3=CDER_IND_EXEMPT_BA_BE",
+		FDA_PREANDA_REQUIRED_RULE_MESSAGE,
 	);
 
 	validate_condition_rule_violation(
 		errors,
-		"FDA.C.5.5b.FORBIDDEN",
+		FDA_PREANDA_FORBIDDEN_RULE_CODE,
 		RuleFacts {
 			fda_has_pre_anda: Some(facts.has_pre_anda()),
 			fda_batch_receiver_is_zzfda: Some(facts.batch_receiver_is_zzfda()),
@@ -258,44 +227,29 @@ pub(crate) fn collect_fda_profile_errors(
 			),
 			..RuleFacts::default()
 		},
-		"FDA.C.5.5b must not be provided for postmarket (N.1.4=ZZFDA, N.2.r.3=CDER/CBER)",
+		FDA_PREANDA_FORBIDDEN_RULE_MESSAGE,
 	);
 }
 
 fn collect_fda_xml_facts(xpath: &mut Context) -> FdaXmlFacts {
 	FdaXmlFacts {
-		batch_receiver: first_xpath_value(
-			xpath,
-			"/hl7:MCCI_IN200100UV01/hl7:receiver/hl7:device/hl7:id/@extension",
-		),
-		msg_receiver: first_xpath_value(
-			xpath,
-			"/hl7:MCCI_IN200100UV01/hl7:PORR_IN049016UV/hl7:receiver/hl7:device/hl7:id/@extension",
-		),
+		batch_receiver: first_xpath_value(xpath, FDA_FACT_BATCH_RECEIVER_XPATH),
+		msg_receiver: first_xpath_value(xpath, FDA_FACT_MSG_RECEIVER_XPATH),
 		combination_product_indicator: first_xpath_value(
 			xpath,
-			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.5.1.2.2.1.3']]/hl7:value/@value",
+			FDA_FACT_COMBINATION_PRODUCT_XPATH,
 		),
 		fulfil_expedited_criteria: first_xpath_value(
 			xpath,
-			"//hl7:component/hl7:observationEvent[hl7:code[@code='23' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]/hl7:value/@value",
+			FDA_FACT_FULFIL_EXPEDITED_XPATH,
 		),
-		pre_anda: first_xpath_value(
-			xpath,
-			"//hl7:researchStudy/hl7:authorization/hl7:studyRegistration/hl7:id[@root='2.16.840.1.113883.3.989.5.1.2.2.1.2.2']/@extension",
-		),
-		study_type: first_xpath_value(xpath, "//hl7:researchStudy/hl7:code/@code"),
-		type_of_report: first_xpath_value(
-			xpath,
-			"//hl7:investigationEvent/hl7:subjectOf2/hl7:investigationCharacteristic[hl7:code[@code='1' and @codeSystem='2.16.840.1.113883.3.989.2.1.1.23']]/hl7:value/@code",
-		),
-		has_primary_source: xpath_has_nodes(
-			xpath,
-			"//hl7:outboundRelationship[@typeCode='SPRT']/hl7:relatedInvestigation/hl7:subjectOf2/hl7:controlActEvent/hl7:author/hl7:assignedEntity",
-		),
+		pre_anda: first_xpath_value(xpath, FDA_FACT_PREANDA_XPATH),
+		study_type: first_xpath_value(xpath, FDA_FACT_STUDY_TYPE_XPATH),
+		type_of_report: first_xpath_value(xpath, FDA_FACT_TYPE_OF_REPORT_XPATH),
+		has_primary_source: xpath_has_nodes(xpath, FDA_FACT_PRIMARY_SOURCE_NODE_XPATH),
 		has_primary_source_email: xpath_any_value_prefix(
 			xpath,
-			"//hl7:outboundRelationship[@typeCode='SPRT']/hl7:relatedInvestigation/hl7:subjectOf2/hl7:controlActEvent/hl7:author/hl7:assignedEntity/hl7:telecom/@value",
+			FDA_FACT_PRIMARY_SOURCE_EMAIL_XPATH,
 			"mailto:",
 		),
 	}

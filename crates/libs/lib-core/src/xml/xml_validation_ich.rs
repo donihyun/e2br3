@@ -1,5 +1,28 @@
 use crate::xml::types::XmlValidationError;
-use crate::xml::validate::{export_normalization_spec_for_rule, RuleFacts};
+use crate::xml::validate::{
+	export_normalization_spec_for_rule, AttrNullFlavorPairRuleSpec,
+	AttrOrNullFlavorRequiredRuleSpec, AttrOrTextOrNullRequiredRuleSpec,
+	AttrPrefixRuleSpec, CodeOrCodeSystemOrTextOrNullRequiredRuleSpec,
+	CodeOrCodeSystemOrTextRequiredForbiddenRuleSpec, NormalizedCodeRuleSpec,
+	RequiredAttrsRuleSpec, RequiredChildRuleSpec, RuleFacts,
+	SupportedXsiTypesRuleSpec, TextNullFlavorPairRuleSpec,
+	TypedChildrenAttrsOrNullFlavorRuleSpec,
+	WhenAttrEqualsRequireAnyChildrenRuleSpec,
+	WhenChildPresentRequireAnyChildrenRuleSpec, ICH_IDENTITY_ATTR_NULL_FLAVOR_RULES,
+	ICH_IDENTITY_ATTR_OR_NULL_RULES, ICH_IDENTITY_ATTR_PREFIX_RULES,
+	ICH_IDENTITY_TEXT_NULL_FLAVOR_RULES, ICH_PROFILE_ATTR_NULL_FLAVOR_RULES,
+	ICH_PROFILE_ATTR_OR_NULL_RULES, ICH_PROFILE_ATTR_OR_TEXT_OR_NULL_RULES,
+	ICH_PROFILE_CODE_OR_CODESYSTEM_OR_TEXT_OR_NULL_RULES,
+	ICH_PROFILE_CODE_OR_CODESYSTEM_OR_TEXT_REQUIRED_WITH_FORBIDDEN_NULLFLAVOR_RULES,
+	ICH_PROFILE_TEXT_NULL_FLAVOR_RULES, ICH_STRUCTURAL_NORMALIZED_CODE_RULES,
+	ICH_CASE_HISTORY_RULE_CODE, ICH_CASE_HISTORY_RULE_MESSAGE,
+	ICH_DRUG_TEMPORAL_RULE_CODE, ICH_DRUG_TEMPORAL_RULE_MESSAGE,
+	ICH_MEDICAL_HISTORY_RULE_CODE, ICH_MEDICAL_HISTORY_RULE_MESSAGE,
+	ICH_REACTION_TEMPORAL_RULE_CODE, ICH_REACTION_TEMPORAL_RULE_MESSAGE,
+	ICH_STRUCTURAL_REQUIRED_ATTRS_RULES, ICH_STRUCTURAL_REQUIRED_CHILD_RULES,
+	ICH_STRUCTURAL_SUPPORTED_XSI_TYPES_RULES, ICH_STRUCTURAL_TYPED_CHILDREN_RULES,
+	ICH_STRUCTURAL_WHEN_ATTR_EQUALS_RULES, ICH_STRUCTURAL_WHEN_CHILD_PRESENT_RULES,
+};
 use libxml::tree::Node;
 use libxml::xpath::Context;
 
@@ -18,113 +41,279 @@ use super::xml_validation::{
 	xpath_has_nodes,
 };
 
+fn apply_attr_prefix_rules(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	rules: &[AttrPrefixRuleSpec],
+) {
+	for rule in rules {
+		validate_attr_prefix_on_nodes(
+			xpath,
+			errors,
+			rule.node_xpath,
+			rule.value_attr,
+			rule.allowed_prefixes,
+			rule.rule_code,
+			rule.value_label,
+		);
+	}
+}
+
+fn apply_attr_null_flavor_pair_rules(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	rules: &[AttrNullFlavorPairRuleSpec],
+) {
+	for rule in rules {
+		validate_attr_null_flavor_pair_on_nodes(
+			xpath,
+			errors,
+			rule.node_xpath,
+			rule.value_attr,
+			rule.required_code,
+			rule.required_message,
+			rule.forbidden_code,
+			rule.forbidden_message,
+		);
+	}
+}
+
+fn apply_text_null_flavor_pair_rules(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	rules: &[TextNullFlavorPairRuleSpec],
+) {
+	for rule in rules {
+		validate_text_null_flavor_pair_on_nodes(
+			xpath,
+			errors,
+			rule.node_xpath,
+			rule.required_code,
+			rule.required_message,
+			rule.forbidden_code,
+			rule.forbidden_message,
+		);
+	}
+}
+
+fn apply_attr_or_null_flavor_required_rules(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	rules: &[AttrOrNullFlavorRequiredRuleSpec],
+) {
+	for rule in rules {
+		validate_attr_or_null_flavor_required_on_nodes(
+			xpath,
+			errors,
+			rule.node_xpath,
+			rule.value_attr,
+			rule.required_code,
+			rule.required_message,
+		);
+	}
+}
+
+fn apply_attr_or_text_or_null_required_rules(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	rules: &[AttrOrTextOrNullRequiredRuleSpec],
+) {
+	for rule in rules {
+		validate_attr_or_text_or_null_required_on_nodes(
+			xpath,
+			errors,
+			rule.node_xpath,
+			rule.value_attr,
+			rule.required_code,
+			rule.required_message,
+		);
+	}
+}
+
+fn apply_code_or_codesystem_or_text_or_null_required_rules(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	rules: &[CodeOrCodeSystemOrTextOrNullRequiredRuleSpec],
+) {
+	for rule in rules {
+		validate_code_or_codesystem_or_text_or_null_required_on_nodes(
+			xpath,
+			errors,
+			rule.node_xpath,
+			rule.required_code,
+			rule.required_message,
+		);
+	}
+}
+
+fn apply_code_or_codesystem_or_text_required_with_nullflavor_forbidden_rules(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	rules: &[CodeOrCodeSystemOrTextRequiredForbiddenRuleSpec],
+) {
+	for rule in rules {
+		validate_code_or_codesystem_or_text_required_with_nullflavor_forbidden_on_nodes(
+			xpath,
+			errors,
+			rule.node_xpath,
+			rule.required_code,
+			rule.required_message,
+			rule.forbidden_code,
+			rule.forbidden_message,
+		);
+	}
+}
+
+fn apply_required_child_rules(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	rules: &[RequiredChildRuleSpec],
+) {
+	for rule in rules {
+		validate_required_child_on_nodes(
+			xpath,
+			errors,
+			rule.parent_xpath,
+			rule.required_child_name,
+			rule.rule_code,
+			rule.fallback_message,
+		);
+	}
+}
+
+fn apply_required_attrs_rules(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	rules: &[RequiredAttrsRuleSpec],
+) {
+	for rule in rules {
+		validate_required_attrs_on_nodes(
+			xpath,
+			errors,
+			rule.node_xpath,
+			rule.required_attrs,
+			rule.rule_code,
+			rule.fallback_message,
+		);
+	}
+}
+
+fn apply_when_child_present_require_any_children_rules(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	rules: &[WhenChildPresentRequireAnyChildrenRuleSpec],
+) {
+	for rule in rules {
+		validate_when_child_present_require_any_children(
+			xpath,
+			errors,
+			rule.node_xpath,
+			rule.trigger_child_name,
+			rule.required_child_names,
+			rule.rule_code,
+			rule.fallback_message,
+		);
+	}
+}
+
+fn apply_when_attr_equals_require_any_children_rules(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	rules: &[WhenAttrEqualsRequireAnyChildrenRuleSpec],
+) {
+	for rule in rules {
+		validate_when_attr_equals_require_any_children(
+			xpath,
+			errors,
+			rule.node_xpath,
+			rule.attr_name,
+			rule.expected_attr_value,
+			rule.required_child_names,
+			rule.rule_code,
+			rule.fallback_message,
+		);
+	}
+}
+
+fn apply_typed_children_attrs_or_nullflavor_rules(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	rules: &[TypedChildrenAttrsOrNullFlavorRuleSpec],
+) {
+	for rule in rules {
+		validate_typed_children_attrs_or_nullflavor_on_nodes(
+			xpath,
+			errors,
+			rule.node_xpath,
+			rule.required_xsi_type,
+			rule.child_names,
+			rule.required_attrs,
+			rule.component_required_rule_code,
+			rule.component_required_message,
+			rule.attr_rule_code,
+			rule.attr_rule_message,
+		);
+	}
+}
+
+fn apply_supported_xsi_types_rules(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	rules: &[SupportedXsiTypesRuleSpec],
+) {
+	for rule in rules {
+		validate_supported_xsi_types_on_nodes(
+			xpath,
+			errors,
+			rule.node_xpath,
+			rule.allowed_types,
+			rule.rule_code,
+			rule.fallback_message_prefix,
+		);
+	}
+}
+
+fn apply_normalized_code_rules(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	rules: &[NormalizedCodeRuleSpec],
+) {
+	for rule in rules {
+		let Some(spec) = export_normalization_spec_for_rule(rule.rule_code) else {
+			continue;
+		};
+		let prefix = rule.message_prefix;
+		let formatter = move |code: &str| format!("{prefix}, got '{code}'");
+		validate_normalized_code_format_on_nodes(
+			xpath,
+			errors,
+			rule.rule_code,
+			spec,
+			formatter,
+			rule.extra_required_attr,
+		);
+	}
+}
+
 pub(crate) fn collect_ich_identity_text_errors(
 	xpath: &mut Context,
 	errors: &mut Vec<XmlValidationError>,
 ) {
-	validate_attr_prefix_on_nodes(
+	apply_attr_prefix_rules(xpath, errors, ICH_IDENTITY_ATTR_PREFIX_RULES);
+	apply_attr_null_flavor_pair_rules(
 		xpath,
 		errors,
-		"//hl7:telecom",
-		"value",
-		&["tel:", "fax:", "mailto:"],
-		"ICH.XML.TELECOM.FORMAT.REQUIRED",
-		"telecom value",
+		ICH_IDENTITY_ATTR_NULL_FLAVOR_RULES,
 	);
-
-	validate_attr_null_flavor_pair_on_nodes(
+	apply_text_null_flavor_pair_rules(
 		xpath,
 		errors,
-		"//hl7:telecom",
-		"value",
-		"ICH.XML.TELECOM.NULLFLAVOR.REQUIRED",
-		"telecom missing value; nullFlavor is required",
-		Some("ICH.XML.TELECOM.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"telecom has value and nullFlavor; nullFlavor must be absent when value present",
-		),
+		ICH_IDENTITY_TEXT_NULL_FLAVOR_RULES,
 	);
-
-	validate_text_null_flavor_pair_on_nodes(
+	apply_attr_or_null_flavor_required_rules(
 		xpath,
 		errors,
-		"//hl7:ingredientSubstance/hl7:name",
-		"ICH.G.k.2.3.NAME.NULLFLAVOR.REQUIRED",
-		"ingredientSubstance/name is empty; nullFlavor is required",
-		Some("ICH.G.k.2.3.NAME.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"ingredientSubstance/name has value and nullFlavor; nullFlavor must be absent when value present",
-		),
-	);
-
-	validate_text_null_flavor_pair_on_nodes(
-		xpath,
-		errors,
-		"//hl7:primaryRole//hl7:name/*",
-		"ICH.C.2.r.2.NAME.NULLFLAVOR.REQUIRED",
-		"primaryRole name element is empty; nullFlavor is required",
-		Some("ICH.C.2.r.2.NAME.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"primaryRole name element has value and nullFlavor; nullFlavor must be absent when value present",
-		),
-	);
-
-	validate_text_null_flavor_pair_on_nodes(
-		xpath,
-		errors,
-		"//hl7:representedOrganization/hl7:name",
-		"ICH.C.2.r.3.ORG_NAME.NULLFLAVOR.REQUIRED",
-		"representedOrganization/name is empty; nullFlavor is required",
-		Some("ICH.C.2.r.3.ORG_NAME.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"representedOrganization/name has value and nullFlavor; nullFlavor must be absent when value present",
-		),
-	);
-
-	validate_attr_null_flavor_pair_on_nodes(
-		xpath,
-		errors,
-		"//hl7:primaryRole/hl7:id",
-		"extension",
-		"ICH.C.2.r.1.ID.NULLFLAVOR.REQUIRED",
-		"primaryRole/id missing extension; nullFlavor is required",
-		Some("ICH.C.2.r.1.ID.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"primaryRole/id has extension and nullFlavor; nullFlavor must be absent when value present",
-		),
-	);
-	validate_attr_or_null_flavor_required_on_nodes(
-		xpath,
-		errors,
-		"//hl7:primaryRole/hl7:id[@root='2.16.840.1.113883.3.989.2.1.3.6']",
-		"extension",
-		"ICH.C.2.r.1.ID.ROOT_3_6.NULLFLAVOR.REQUIRED",
-		"primaryRole/id with root 2.16.840.1.113883.3.989.2.1.3.6 requires extension or nullFlavor",
-	);
-
-	validate_attr_null_flavor_pair_on_nodes(
-		xpath,
-		errors,
-		"//hl7:primaryRole//hl7:birthTime",
-		"value",
-		"ICH.D.2.BIRTHTIME.NULLFLAVOR.REQUIRED",
-		"birthTime missing value; nullFlavor is required",
-		Some("ICH.D.2.BIRTHTIME.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"birthTime has value and nullFlavor; nullFlavor must be absent when value present",
-		),
-	);
-
-	validate_text_null_flavor_pair_on_nodes(
-		xpath,
-		errors,
-		"//hl7:text | //hl7:originalText",
-		"ICH.XML.TEXT.NULLFLAVOR.REQUIRED",
-		"text/originalText is empty; nullFlavor is required",
-		Some("ICH.XML.TEXT.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"text/originalText has value and nullFlavor; nullFlavor must be absent when value present",
-		),
+		ICH_IDENTITY_ATTR_OR_NULL_RULES,
 	);
 }
 
@@ -132,233 +321,23 @@ pub(crate) fn collect_ich_profile_value_presence_errors(
 	xpath: &mut Context,
 	errors: &mut Vec<XmlValidationError>,
 ) {
-	validate_text_null_flavor_pair_on_nodes(
+	apply_text_null_flavor_pair_rules(xpath, errors, ICH_PROFILE_TEXT_NULL_FLAVOR_RULES);
+	apply_attr_null_flavor_pair_rules(xpath, errors, ICH_PROFILE_ATTR_NULL_FLAVOR_RULES);
+	apply_attr_or_null_flavor_required_rules(xpath, errors, ICH_PROFILE_ATTR_OR_NULL_RULES);
+	apply_attr_or_text_or_null_required_rules(
 		xpath,
 		errors,
-		"//hl7:associatedPerson//hl7:name/*",
-		"ICH.D.PARENT.NAME.NULLFLAVOR.REQUIRED",
-		"associatedPerson name element is empty; nullFlavor is required",
-		Some("ICH.D.PARENT.NAME.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"associatedPerson name element has value and nullFlavor; nullFlavor must be absent when value present",
-		),
+		ICH_PROFILE_ATTR_OR_TEXT_OR_NULL_RULES,
 	);
-
-	// Rule: associatedPerson birthTime empty requires nullFlavor
-	validate_attr_null_flavor_pair_on_nodes(
+	apply_code_or_codesystem_or_text_or_null_required_rules(
 		xpath,
 		errors,
-		"//hl7:associatedPerson//hl7:birthTime",
-		"value",
-		"ICH.D.PARENT.BIRTHTIME.NULLFLAVOR.REQUIRED",
-		"associatedPerson birthTime missing value; nullFlavor is required",
-		Some("ICH.D.PARENT.BIRTHTIME.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"associatedPerson birthTime has value and nullFlavor; nullFlavor must be absent when value present",
-		),
+		ICH_PROFILE_CODE_OR_CODESYSTEM_OR_TEXT_OR_NULL_RULES,
 	);
-
-	// Rule: researchStudy/title empty requires nullFlavor
-	validate_text_null_flavor_pair_on_nodes(
+	apply_code_or_codesystem_or_text_required_with_nullflavor_forbidden_rules(
 		xpath,
 		errors,
-		"//hl7:researchStudy/hl7:title",
-		"ICH.C.5.TITLE.NULLFLAVOR.REQUIRED",
-		"researchStudy/title is empty; nullFlavor is required",
-		Some("ICH.C.5.TITLE.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"researchStudy/title has value and nullFlavor; nullFlavor must be absent when value present",
-		),
-	);
-
-	// Rule: adverseEventAssessment id missing extension requires nullFlavor
-	validate_attr_null_flavor_pair_on_nodes(
-		xpath,
-		errors,
-		"//hl7:adverseEventAssessment/hl7:id",
-		"extension",
-		"ICH.G.k.9.i.2.ID.NULLFLAVOR.REQUIRED",
-		"adverseEventAssessment/id missing extension; nullFlavor is required",
-		Some("ICH.G.k.9.i.2.ID.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"adverseEventAssessment/id has extension and nullFlavor; nullFlavor must be absent when value present",
-		),
-	);
-
-	// Rule: low/high without value must include nullFlavor
-	validate_attr_null_flavor_pair_on_nodes(
-		xpath,
-		errors,
-		"//hl7:low | //hl7:high",
-		"value",
-		"ICH.XML.LOW_HIGH.NULLFLAVOR.REQUIRED",
-		"low/high missing value; nullFlavor is required",
-		Some("ICH.XML.LOW_HIGH.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"low/high has value and nullFlavor; nullFlavor must be absent when value present",
-		),
-	);
-
-	// Rule: reaction effectiveTime low/high require value or nullFlavor
-	validate_attr_or_null_flavor_required_on_nodes(
-		xpath,
-		errors,
-		"//hl7:observation[hl7:code[@code='29']]/hl7:effectiveTime/hl7:low | //hl7:observation[hl7:code[@code='29']]/hl7:effectiveTime/hl7:high",
-		"value",
-		"ICH.E.i.4-5.LOW_HIGH.NULLFLAVOR.REQUIRED",
-		"reaction effectiveTime low/high missing value; nullFlavor is required",
-	);
-
-	// Rule: drug effectiveTime low/high require value or nullFlavor
-	validate_attr_or_null_flavor_required_on_nodes(
-		xpath,
-		errors,
-		"//hl7:substanceAdministration/hl7:effectiveTime//hl7:low | //hl7:substanceAdministration/hl7:effectiveTime//hl7:high",
-		"value",
-		"ICH.G.k.4.r.4-5.LOW_HIGH.NULLFLAVOR.REQUIRED",
-		"drug effectiveTime low/high missing value; nullFlavor is required",
-	);
-
-	// Rule: patient effectiveTime low/high require value or nullFlavor
-	validate_attr_or_null_flavor_required_on_nodes(
-		xpath,
-		errors,
-		"//hl7:primaryRole//hl7:effectiveTime//hl7:low | //hl7:primaryRole//hl7:effectiveTime//hl7:high",
-		"value",
-		"ICH.D.EFFECTIVETIME.LOW_HIGH.NULLFLAVOR.REQUIRED",
-		"patient effectiveTime low/high missing value; nullFlavor is required",
-	);
-
-	// Rule: BL values missing value must include nullFlavor
-	validate_attr_null_flavor_pair_on_nodes(
-		xpath,
-		errors,
-		"//hl7:value[@xsi:type='BL']",
-		"value",
-		"ICH.XML.BL.NULLFLAVOR.REQUIRED",
-		"BL value missing value; nullFlavor is required",
-		Some("ICH.XML.BL.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"BL value has value and nullFlavor; nullFlavor must be absent when value present",
-		),
-	);
-
-	validate_code_or_codesystem_or_text_required_with_nullflavor_forbidden_on_nodes(
-		xpath,
-		errors,
-		"//hl7:code",
-		"ICH.XML.CODE.NULLFLAVOR.REQUIRED",
-		"code missing code/codeSystem; nullFlavor is required when originalText is absent",
-		"ICH.XML.CODE.NULLFLAVOR.FORBIDDEN",
-		"code has value and nullFlavor; nullFlavor must be absent when value present",
-	);
-
-	// Rule: reaction investigation characteristic BL values missing value must include nullFlavor
-	validate_attr_null_flavor_pair_on_nodes(
-		xpath,
-		errors,
-		"//hl7:investigationCharacteristic/hl7:value[@xsi:type='BL']",
-		"value",
-		"ICH.XML.INV_CHAR_BL.NULLFLAVOR.REQUIRED",
-		"investigationCharacteristic BL missing value; nullFlavor is required",
-		Some("ICH.XML.INV_CHAR_BL.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"investigationCharacteristic BL has value and nullFlavor; nullFlavor must be absent when value present",
-		),
-	);
-
-	// Rule: reaction report linkage code nullFlavor when missing
-	validate_attr_null_flavor_pair_on_nodes(
-		xpath,
-		errors,
-		"//hl7:outboundRelationship[@typeCode='SPRT']/hl7:relatedInvestigation/hl7:code",
-		"code",
-		"ICH.E.i.0.RELATIONSHIP.CODE.NULLFLAVOR.REQUIRED",
-		"relatedInvestigation/code missing code; nullFlavor is required",
-		Some("ICH.E.i.0.RELATIONSHIP.CODE.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"relatedInvestigation/code has value and nullFlavor; nullFlavor must be absent when value present",
-		),
-	);
-
-	// Rule: reaction outcome value nullFlavor when missing
-	validate_attr_null_flavor_pair_on_nodes(
-		xpath,
-		errors,
-		"//hl7:observation[hl7:code[@code='27']]/hl7:value",
-		"code",
-		"ICH.E.i.7.NULLFLAVOR.REQUIRED",
-		"reaction outcome value missing code; nullFlavor is required",
-		Some("ICH.E.i.7.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"reaction outcome value has value and nullFlavor; nullFlavor must be absent when value present",
-		),
-	);
-
-	// Rule: reaction term (E.i.2) must have code or nullFlavor
-	validate_attr_null_flavor_pair_on_nodes(
-		xpath,
-		errors,
-		"//hl7:observation[hl7:code[@code='29']]/hl7:value",
-		"code",
-		"ICH.E.i.2.NULLFLAVOR.REQUIRED",
-		"reaction term missing code; nullFlavor is required",
-		Some("ICH.E.i.2.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"reaction term has code and nullFlavor; nullFlavor must be absent when value present",
-		),
-	);
-
-	// Rule: reaction translation (E.i.1.2) ED must have content or nullFlavor
-	validate_text_null_flavor_pair_on_nodes(
-		xpath,
-		errors,
-		"//hl7:observation[hl7:code[@code='30']]/hl7:value[@xsi:type='ED']",
-		"ICH.E.i.1.2.NULLFLAVOR.REQUIRED",
-		"reaction translation missing value; nullFlavor is required",
-		Some("ICH.E.i.1.2.NULLFLAVOR.FORBIDDEN"),
-		Some(
-			"reaction translation has value and nullFlavor; nullFlavor must be absent when value present",
-		),
-	);
-
-	// Rule: reaction country code must have code or nullFlavor
-	validate_attr_or_null_flavor_required_on_nodes(
-		xpath,
-		errors,
-		"//hl7:locatedPlace/hl7:code",
-		"code",
-		"ICH.E.i.9.COUNTRY.NULLFLAVOR.REQUIRED",
-		"reaction country missing code; nullFlavor is required",
-	);
-
-	// Rule: routeCode must have code or originalText or nullFlavor
-	validate_attr_or_text_or_null_required_on_nodes(
-		xpath,
-		errors,
-		"//hl7:routeCode",
-		"code",
-		"ICH.G.k.4.r.11.NULLFLAVOR.REQUIRED",
-		"routeCode missing code; originalText or nullFlavor is required",
-	);
-
-	// Rule: formCode must have code/codeSystem, originalText, or nullFlavor
-	validate_code_or_codesystem_or_text_or_null_required_on_nodes(
-		xpath,
-		errors,
-		"//hl7:formCode",
-		"ICH.G.k.4.r.10.NULLFLAVOR.REQUIRED",
-		"formCode missing code/codeSystem/originalText; nullFlavor is required",
-	);
-
-	// Rule: administrativeGenderCode must have code or nullFlavor
-	validate_attr_or_null_flavor_required_on_nodes(
-		xpath,
-		errors,
-		"//hl7:administrativeGenderCode",
-		"code",
-		"ICH.D.5.SEX.CONDITIONAL",
-		"administrativeGenderCode missing code; nullFlavor is required",
+		ICH_PROFILE_CODE_OR_CODESYSTEM_OR_TEXT_REQUIRED_WITH_FORBIDDEN_NULLFLAVOR_RULES,
 	);
 }
 
@@ -366,15 +345,10 @@ pub(crate) fn collect_ich_structural_value_errors(
 	xpath: &mut Context,
 	errors: &mut Vec<XmlValidationError>,
 ) {
-	// Rule: effectiveTime width must include low or high when present
-	validate_when_child_present_require_any_children(
+	apply_when_child_present_require_any_children_rules(
 		xpath,
 		errors,
-		"//hl7:effectiveTime",
-		"width",
-		&["low", "high"],
-		"ICH.XML.EFFECTIVETIME.WIDTH.REQUIRES_BOUND",
-		"effectiveTime has width but missing low/high",
+		ICH_STRUCTURAL_WHEN_CHILD_PRESENT_RULES,
 	);
 
 	// Rule: start/end/duration combos for reaction event (E.i.4/E.i.5/E.i.6)
@@ -382,8 +356,8 @@ pub(crate) fn collect_ich_structural_value_errors(
 		xpath,
 		errors,
 		"//hl7:observation[hl7:id and hl7:code[@code='29'] and hl7:code[@codeSystem='2.16.840.1.113883.3.989.2.1.1.19']]",
-		"ICH.E.i.4-6.CONDITIONAL",
-		"Reaction requires start, end, or duration",
+		ICH_REACTION_TEMPORAL_RULE_CODE,
+		ICH_REACTION_TEMPORAL_RULE_MESSAGE,
 		reaction_temporal_markers,
 	);
 
@@ -392,136 +366,34 @@ pub(crate) fn collect_ich_structural_value_errors(
 		xpath,
 		errors,
 		"//hl7:substanceAdministration/hl7:effectiveTime[@xsi:type='SXPR_TS' or @xsi:type='IVL_TS']",
-		"ICH.G.k.4.r.4-8.CONDITIONAL",
-		"Drug requires start, end, or duration",
+		ICH_DRUG_TEMPORAL_RULE_CODE,
+		ICH_DRUG_TEMPORAL_RULE_MESSAGE,
 		temporal_markers_from_children,
 	);
 
-	// Rule: SXPR_TS must have at least one comp (PIVL_TS or IVL_TS)
-	validate_required_child_on_nodes(
-		xpath,
-		errors,
-		"//hl7:effectiveTime[@xsi:type='SXPR_TS']",
-		"comp",
-		"ICH.XML.SXPR_TS.COMP.REQUIRED",
-		"SXPR_TS must include comp elements",
-	);
-
-	// Rule: PIVL_TS must include period with value/unit
-	validate_required_child_on_nodes(
-		xpath,
-		errors,
-		"//hl7:comp[@xsi:type='PIVL_TS']",
-		"period",
-		"ICH.XML.PIVL_TS.PERIOD.REQUIRED",
-		"PIVL_TS must include period",
-	);
-	validate_required_attrs_on_nodes(
-		xpath,
-		errors,
-		"//hl7:comp[@xsi:type='PIVL_TS']/hl7:period",
-		&["value", "unit"],
-		"ICH.XML.PIVL_TS.PERIOD.VALUE_UNIT.REQUIRED",
-		"PIVL_TS period must include value and unit",
-	);
+	apply_required_child_rules(xpath, errors, ICH_STRUCTURAL_REQUIRED_CHILD_RULES);
+	apply_required_attrs_rules(xpath, errors, ICH_STRUCTURAL_REQUIRED_ATTRS_RULES);
 
 	// Rule: IVL_TS with operator='A' must include low/high or width
-	validate_when_attr_equals_require_any_children(
+	apply_when_attr_equals_require_any_children_rules(
 		xpath,
 		errors,
-		"//hl7:comp[@xsi:type='IVL_TS']",
-		"operator",
-		"A",
-		&["low", "high", "width"],
-		"ICH.XML.IVL_TS.OPERATOR_A.BOUND_REQUIRED",
-		"IVL_TS operator='A' must include low, high, or width",
+		ICH_STRUCTURAL_WHEN_ATTR_EQUALS_RULES,
 	);
 
 	// Rule: test result values must be structurally valid
-	let test_result_value_xpath =
-		"//hl7:organizer[hl7:code[@code='3']]/hl7:component/hl7:observation/hl7:value";
-	validate_typed_children_attrs_or_nullflavor_on_nodes(
+	apply_typed_children_attrs_or_nullflavor_rules(
 		xpath,
 		errors,
-		test_result_value_xpath,
-		"IVL_PQ",
-		&["low", "high", "center"],
-		&["value", "unit"],
-		"ICH.XML.TESTRESULT.IVL_PQ.COMPONENT.REQUIRED",
-		"IVL_PQ must include low/high/center",
-		"ICH.XML.TESTRESULT.IVL_PQ.VALUE_UNIT.REQUIRED",
-		"IVL_PQ low/high/center must include value and unit",
+		ICH_STRUCTURAL_TYPED_CHILDREN_RULES,
 	);
-	validate_required_attrs_on_nodes(
+	apply_supported_xsi_types_rules(
 		xpath,
 		errors,
-		"//hl7:organizer[hl7:code[@code='3']]/hl7:component/hl7:observation/hl7:value[@xsi:type='PQ']",
-		&["value", "unit"],
-		"ICH.XML.TESTRESULT.PQ.VALUE_UNIT.REQUIRED",
-		"PQ must include value and unit",
-	);
-	validate_supported_xsi_types_on_nodes(
-		xpath,
-		errors,
-		test_result_value_xpath,
-		&["IVL_PQ", "PQ", "ED", "ST", "BL", "CE"],
-		"ICH.XML.TESTRESULT.XSI_TYPE.UNSUPPORTED",
-		"Unsupported test result xsi:type",
+		ICH_STRUCTURAL_SUPPORTED_XSI_TYPES_RULES,
 	);
 
-	// Rule: doseQuantity/period must include value/unit
-	validate_required_attrs_on_nodes(
-		xpath,
-		errors,
-		"//hl7:doseQuantity",
-		&["value", "unit"],
-		"ICH.XML.DOSE_QUANTITY.VALUE_UNIT.REQUIRED",
-		"doseQuantity must include value and unit",
-	);
-	validate_required_attrs_on_nodes(
-		xpath,
-		errors,
-		"//hl7:period",
-		&["value", "unit"],
-		"ICH.XML.PERIOD.VALUE_UNIT.REQUIRED",
-		"period must include value and unit",
-	);
-
-	for rule_code in [
-		"ICH.XML.MEDDRA.CODE.FORMAT.REQUIRED",
-		"ICH.XML.COUNTRY.CODE.FORMAT.REQUIRED",
-	] {
-		let Some(spec) = export_normalization_spec_for_rule(rule_code) else {
-			continue;
-		};
-		let formatter = |code: &str| match rule_code {
-			"ICH.XML.MEDDRA.CODE.FORMAT.REQUIRED" => {
-				format!("MedDRA code must be 8 digits, got '{code}'")
-			}
-			"ICH.XML.COUNTRY.CODE.FORMAT.REQUIRED" => {
-				format!("ISO country code must be 2 letters, got '{code}'")
-			}
-			_ => "Invalid coded value".to_string(),
-		};
-		let extra_required_attr =
-			if rule_code == "ICH.XML.MEDDRA.CODE.FORMAT.REQUIRED" {
-				Some((
-					"codeSystemVersion",
-					"ICH.XML.MEDDRA.VERSION.REQUIRED",
-					"MedDRA code missing codeSystemVersion",
-				))
-			} else {
-				None
-			};
-		validate_normalized_code_format_on_nodes(
-			xpath,
-			errors,
-			rule_code,
-			spec,
-			formatter,
-			extra_required_attr,
-		);
-	}
+	apply_normalized_code_rules(xpath, errors, ICH_STRUCTURAL_NORMALIZED_CODE_RULES);
 }
 
 pub(crate) fn collect_ich_case_history_errors(
@@ -553,12 +425,12 @@ pub(crate) fn collect_ich_case_history_errors(
 		);
 		validate_condition_rule_violation(
 			errors,
-			"ICH.C.1.9.1.CONDITIONAL",
+			ICH_CASE_HISTORY_RULE_CODE,
 			RuleFacts {
 				ich_case_history_true_missing_prior_ids: Some(!has_ids),
 				..RuleFacts::default()
 			},
-			"C.1.9.1 is true but C.1.9.1.r.1/.r.2 are missing",
+			ICH_CASE_HISTORY_RULE_MESSAGE,
 		);
 	}
 
@@ -580,13 +452,31 @@ pub(crate) fn collect_ich_case_history_errors(
 	);
 	validate_condition_rule_violation(
 		errors,
-		"ICH.D.7.2.CONDITIONAL",
+		ICH_MEDICAL_HISTORY_RULE_CODE,
 		RuleFacts {
 			ich_medical_history_missing_d72_text: Some(!has_text),
 			..RuleFacts::default()
 		},
-		"D.7.2 must be provided when D.7.1.r.1b is not provided",
+		ICH_MEDICAL_HISTORY_RULE_MESSAGE,
 	);
+}
+
+fn validate_temporal_markers_required_on_nodes(
+	xpath: &mut Context,
+	errors: &mut Vec<XmlValidationError>,
+	node_xpath: &str,
+	rule_code: &str,
+	message: &str,
+	detector: fn(&Node) -> (bool, bool, bool),
+) {
+	if let Ok(nodes) = xpath.findnodes(node_xpath, None) {
+		for node in nodes {
+			let (has_start, has_end, has_duration) = detector(&node);
+			if !has_start && !has_end && !has_duration {
+				push_rule_error(errors, rule_code, message);
+			}
+		}
+	}
 }
 
 fn reaction_temporal_markers(node: &Node) -> (bool, bool, bool) {
@@ -616,24 +506,6 @@ fn reaction_temporal_markers(node: &Node) -> (bool, bool, bool) {
 	}
 
 	(has_start, has_end, has_duration)
-}
-
-fn validate_temporal_markers_required_on_nodes(
-	xpath: &mut Context,
-	errors: &mut Vec<XmlValidationError>,
-	node_xpath: &str,
-	rule_code: &str,
-	message: &str,
-	detector: fn(&Node) -> (bool, bool, bool),
-) {
-	if let Ok(nodes) = xpath.findnodes(node_xpath, None) {
-		for node in nodes {
-			let (has_start, has_end, has_duration) = detector(&node);
-			if !has_start && !has_end && !has_duration {
-				push_rule_error(errors, rule_code, message);
-			}
-		}
-	}
 }
 
 fn temporal_markers_from_children(node: &Node) -> (bool, bool, bool) {
@@ -678,6 +550,9 @@ fn looks_placeholder(value: &str) -> bool {
 		return false;
 	}
 	if !v.contains('.') {
+		return false;
+	}
+	if !v.chars().any(|c| c.is_ascii_digit()) {
 		return false;
 	}
 	v.chars()

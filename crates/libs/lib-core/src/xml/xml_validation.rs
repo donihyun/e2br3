@@ -1,8 +1,9 @@
 use crate::xml::error::Error;
 use crate::xml::types::{XmlValidationError, XmlValidationReport};
 use crate::xml::validate::{
-	find_canonical_rule, is_rule_condition_satisfied, is_rule_presence_valid,
-	is_rule_value_valid, ExportNormalizationSpec, ExportNormalizeKind, RuleFacts,
+	find_canonical_rule_for_phase, is_rule_condition_satisfied,
+	is_rule_presence_valid, is_rule_value_valid, ExportNormalizationSpec,
+	ExportNormalizeKind, RuleFacts, ValidationPhase,
 };
 use crate::xml::xml_validation_fda::collect_fda_profile_errors;
 use crate::xml::xml_validation_ich::{
@@ -132,14 +133,28 @@ pub fn validate_e2b_xml(
 		});
 	}
 
-	let mut rule_errors = validate_e2b_xml_rules(xml, &config)?;
-	errors.append(&mut rule_errors);
-
 	Ok(XmlValidationReport {
 		ok: errors.is_empty(),
 		errors,
 		root_element: root,
 	})
+}
+
+/// Business/XML-structure validation only:
+/// - lightweight XML parse/root checks
+/// - catalog-driven XML structure/profile rules (ICH/FDA/MFDS overlays)
+///
+/// Does not run XSD validation.
+pub fn validate_e2b_xml_business(
+	xml: &[u8],
+	config: Option<XmlValidatorConfig>,
+) -> Result<XmlValidationReport> {
+	let config = config.unwrap_or_default();
+	let mut base = validate_e2b_xml_basic(xml, Some(config.clone()))?;
+	let mut rule_errors = validate_e2b_xml_rules(xml, &config)?;
+	base.errors.append(&mut rule_errors);
+	base.ok = base.errors.is_empty();
+	Ok(base)
 }
 
 /// Lightweight validation:
@@ -410,18 +425,16 @@ fn validate_e2b_xml_rules(
 	if let Some(req) = config.require_its_version {
 		match root.get_attribute("ITSVersion") {
 			Some(value) if value == req => {}
-			Some(value) => errors.push(XmlValidationError {
-				message: format!(
-					"ITSVersion '{value}' does not match required '{req}'"
-				),
-				line: None,
-				column: None,
-			}),
-			None => errors.push(XmlValidationError {
-				message: "Missing ITSVersion attribute on root".to_string(),
-				line: None,
-				column: None,
-			}),
+			Some(value) => push_rule_error_with_detail(
+				&mut errors,
+				"ICH.XML.ROOT.ITSVERSION.REQUIRED",
+				&format!("ITSVersion '{value}' does not match required '{req}'"),
+			),
+			None => push_rule_error_with_detail(
+				&mut errors,
+				"ICH.XML.ROOT.ITSVERSION.REQUIRED",
+				"Missing ITSVersion attribute on root",
+			),
 		}
 	}
 
@@ -437,20 +450,20 @@ fn validate_e2b_xml_rules(
 			Some(value) => {
 				let expected = format!("{root_name}.xsd");
 				if !value.contains(&expected) {
-					errors.push(XmlValidationError {
-						message: format!(
+					push_rule_error_with_detail(
+						&mut errors,
+						"ICH.XML.ROOT.SCHEMALOCATION.REQUIRED",
+						&format!(
 							"schemaLocation missing expected '{expected}'"
 						),
-						line: None,
-						column: None,
-					});
+					);
 				}
 			}
-			None => errors.push(XmlValidationError {
-				message: "Missing xsi:schemaLocation on root".to_string(),
-				line: None,
-				column: None,
-			}),
+			None => push_rule_error_with_detail(
+				&mut errors,
+				"ICH.XML.ROOT.SCHEMALOCATION.REQUIRED",
+				"Missing xsi:schemaLocation on root",
+			),
 		}
 	}
 
@@ -472,28 +485,31 @@ fn collect_placeholder_errors(
 	if root.get_type() == Some(libxml::tree::NodeType::ElementNode) {
 		let content = root.get_content();
 		if looks_placeholder(content.trim()) {
-			errors.push(XmlValidationError {
-				message: format!(
+			push_rule_error_with_detail(
+				errors,
+				"ICH.XML.PLACEHOLDER.VALUE.FORBIDDEN",
+				&format!(
 					"Placeholder value not allowed in <{}>: '{}'",
 					root.get_name(),
 					content.trim()
 				),
-				line: None,
-				column: None,
-			});
+			);
 		}
 		for (name, val) in root.get_attributes() {
+			if !is_placeholder_checked_attr(&name) {
+				continue;
+			}
 			if looks_placeholder(val.trim()) {
-				errors.push(XmlValidationError {
-					message: format!(
+				push_rule_error_with_detail(
+					errors,
+					"ICH.XML.PLACEHOLDER.VALUE.FORBIDDEN",
+					&format!(
 						"Placeholder value not allowed for <{}> attribute {}='{}'",
 						root.get_name(),
 						name,
 						val.trim()
 					),
-					line: None,
-					column: None,
-				});
+				);
 			}
 		}
 	}
@@ -503,19 +519,56 @@ fn collect_placeholder_errors(
 	}
 }
 
+fn is_placeholder_checked_attr(name: &str) -> bool {
+	!matches!(
+		name,
+		"classCode" | "moodCode" | "typeCode" | "determinerCode"
+	)
+}
+
 pub(crate) fn push_rule_error(
 	errors: &mut Vec<XmlValidationError>,
 	code: &str,
 	fallback_message: &str,
 ) {
-	let message = find_canonical_rule(code)
-		.map(|rule| format!("[{}] {}", rule.code, rule.message))
+	push_rule_error_internal(errors, code, fallback_message, None);
+}
+
+pub(crate) fn push_rule_error_with_detail(
+	errors: &mut Vec<XmlValidationError>,
+	code: &str,
+	fallback_message: &str,
+) {
+	push_rule_error_internal(errors, code, fallback_message, Some(fallback_message));
+}
+
+fn push_rule_error_internal(
+	errors: &mut Vec<XmlValidationError>,
+	code: &str,
+	fallback_message: &str,
+	detail: Option<&str>,
+) {
+	if !should_emit_rule_error(code) {
+		return;
+	}
+	let message = find_canonical_rule_for_phase(code, ValidationPhase::Import)
+		.map(|rule| match detail {
+			Some(detail) => format!("[{}] {} ({detail})", rule.code, rule.message),
+			None => format!("[{}] {}", rule.code, rule.message),
+		})
 		.unwrap_or_else(|| format!("[{code}] {fallback_message}"));
 	errors.push(XmlValidationError {
 		message,
 		line: None,
 		column: None,
 	});
+}
+
+fn should_emit_rule_error(code: &str) -> bool {
+	match find_canonical_rule_for_phase(code, ValidationPhase::Import) {
+		Some(rule) => rule.blocking,
+		None => true,
+	}
 }
 
 pub(crate) fn validate_value_rule_on_nodes(
@@ -1014,6 +1067,9 @@ fn looks_placeholder(value: &str) -> bool {
 		return false;
 	}
 	if !v.contains('.') {
+		return false;
+	}
+	if !v.chars().any(|c| c.is_ascii_digit()) {
 		return false;
 	}
 	v.chars()

@@ -10,6 +10,7 @@ use lib_core::xml::import_sections::e_reaction::parse_e_reactions;
 use lib_core::xml::import_sections::f_test_result::parse_f_test_results;
 use lib_core::xml::import_sections::g_drug::parse_g_drugs;
 use lib_core::xml::import_sections::h_narrative::parse_h_narrative;
+use lib_core::xml::validate_e2b_xml;
 use serde_json::Value;
 use serial_test::serial;
 use std::fs;
@@ -98,6 +99,28 @@ async fn request_json(
 	Ok((status, json))
 }
 
+async fn request_raw(
+	app: &axum::Router,
+	cookie: &str,
+	method: &str,
+	uri: &str,
+	content_type: Option<&str>,
+	body: Body,
+) -> Result<(StatusCode, Vec<u8>)> {
+	let mut builder = Request::builder()
+		.method(method)
+		.uri(uri)
+		.header("cookie", cookie);
+	if let Some(ct) = content_type {
+		builder = builder.header("content-type", ct);
+	}
+	let req = builder.body(body)?;
+	let res = app.clone().oneshot(req).await?;
+	let status = res.status();
+	let bytes = to_bytes(res.into_body(), usize::MAX).await?;
+	Ok((status, bytes.to_vec()))
+}
+
 fn get_data_array_len(body: &Value) -> Result<usize> {
 	Ok(body
 		.get("data")
@@ -119,6 +142,8 @@ async fn test_mfds_samples_import_and_validate() -> Result<()> {
 		eprintln!("E2BR3_XSD_PATH not set; skipping MFDS sample import test");
 		return Ok(());
 	}
+	// Force real validation even when cargo config sets demo skip.
+	std::env::set_var("E2BR3_SKIP_XML_VALIDATE", "0");
 
 	let xml_files = list_xml_files(&dir)?;
 	if xml_files.is_empty() {
@@ -286,6 +311,30 @@ async fn test_mfds_samples_import_and_validate() -> Result<()> {
 		if !ok {
 			failures.push(format!(
 				"{filename}: MFDS validation returned ok=false, body={validation_body}"
+			));
+		}
+
+		let (export_status, export_bytes) = request_raw(
+			&app,
+			&cookie,
+			"GET",
+			&format!("/api/cases/{case_id}/export/xml"),
+			None,
+			Body::empty(),
+		)
+		.await?;
+		if export_status != StatusCode::OK {
+			failures.push(format!(
+				"{filename}: export failed with status {export_status}, body={}",
+				String::from_utf8_lossy(&export_bytes)
+			));
+			continue;
+		}
+		let export_report = validate_e2b_xml(&export_bytes, None)?;
+		if !export_report.ok {
+			failures.push(format!(
+				"{filename}: exported XML failed validation: {:?}",
+				export_report.errors
 			));
 		}
 	}

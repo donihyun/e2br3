@@ -10,7 +10,12 @@ use crate::model::{ModelManager, Result};
 use crate::xml::validate::{
 	build_report, has_any_primary_source_content, has_patient_initials,
 	push_issue_by_code, push_issue_if_rule_invalid, should_require_case_narrative,
-	should_require_patient_initials, CaseValidationReport, RuleFacts,
+	should_require_patient_initials, CaseValidationReport,
+	CASE_RULE_ICH_C13_REQUIRED, CASE_RULE_ICH_C1_REQUIRED,
+	CASE_RULE_ICH_C2R4_REQUIRED, CASE_RULE_ICH_D1_REQUIRED,
+	CASE_RULE_ICH_EI11A_REQUIRED, CASE_RULE_ICH_EI7_REQUIRED,
+	CASE_RULE_ICH_GK1_REQUIRED, CASE_RULE_ICH_GK22_REQUIRED,
+	CASE_RULE_ICH_H1_REQUIRED, CASE_RULE_ICH_N_REQUIRED, RuleFacts,
 	ValidationIssue, ValidationProfile,
 };
 use sqlx::types::Uuid;
@@ -96,19 +101,19 @@ pub async fn validate_case(
 	if report.is_none() {
 		push_issue_by_code(
 			&mut issues,
-			"ICH.C.1.REQUIRED",
+			CASE_RULE_ICH_C1_REQUIRED,
 			"safetyReportIdentification",
 		);
 	}
 
 	if header.is_none() {
-		push_issue_by_code(&mut issues, "ICH.N.REQUIRED", "messageHeader");
+		push_issue_by_code(&mut issues, CASE_RULE_ICH_N_REQUIRED, "messageHeader");
 	}
 
 	if let Some(report) = report.as_ref() {
 		let _ = push_issue_if_rule_invalid(
 			&mut issues,
-			"ICH.C.1.3.REQUIRED",
+			CASE_RULE_ICH_C13_REQUIRED,
 			"safetyReportIdentification.reportType",
 			Some(report.report_type.as_str()),
 			None,
@@ -125,7 +130,7 @@ pub async fn validate_case(
 			}
 			let _ = push_issue_if_rule_invalid(
 				&mut issues,
-				"ICH.C.2.r.4.REQUIRED",
+				CASE_RULE_ICH_C2R4_REQUIRED,
 				format!("primarySources.{idx}.qualification"),
 				source.qualification.as_deref(),
 				None,
@@ -138,7 +143,7 @@ pub async fn validate_case(
 		{
 			push_issue_by_code(
 				&mut issues,
-				"ICH.D.1.REQUIRED",
+				CASE_RULE_ICH_D1_REQUIRED,
 				"patientInformation.patientInitials",
 			);
 		}
@@ -147,7 +152,7 @@ pub async fn validate_case(
 	reactions.iter().enumerate().for_each(|(idx, reaction)| {
 		let _ = push_issue_if_rule_invalid(
 			&mut issues,
-			"ICH.E.i.1.1a.REQUIRED",
+			CASE_RULE_ICH_EI11A_REQUIRED,
 			format!("reactions.{idx}.primarySourceReaction"),
 			Some(reaction.primary_source_reaction.as_str()),
 			None,
@@ -155,7 +160,7 @@ pub async fn validate_case(
 		);
 		let _ = push_issue_if_rule_invalid(
 			&mut issues,
-			"ICH.E.i.7.REQUIRED",
+			CASE_RULE_ICH_EI7_REQUIRED,
 			format!("reactions.{idx}.reactionOutcome"),
 			reaction.outcome.as_deref(),
 			None,
@@ -166,7 +171,7 @@ pub async fn validate_case(
 	drugs.iter().enumerate().for_each(|(idx, drug)| {
 		let _ = push_issue_if_rule_invalid(
 			&mut issues,
-			"ICH.G.k.1.REQUIRED",
+			CASE_RULE_ICH_GK1_REQUIRED,
 			format!("drugs.{idx}.drugCharacterization"),
 			Some(drug.drug_characterization.as_str()),
 			None,
@@ -174,7 +179,7 @@ pub async fn validate_case(
 		);
 		let _ = push_issue_if_rule_invalid(
 			&mut issues,
-			"ICH.G.k.2.2.REQUIRED",
+			CASE_RULE_ICH_GK22_REQUIRED,
 			format!("drugs.{idx}.medicinalProduct"),
 			Some(drug.medicinal_product.as_str()),
 			None,
@@ -186,7 +191,7 @@ pub async fn validate_case(
 		if should_require_case_narrative(narrative) {
 			let _ = push_issue_if_rule_invalid(
 				&mut issues,
-				"ICH.H.1.REQUIRED",
+				CASE_RULE_ICH_H1_REQUIRED,
 				"narrative.caseNarrative",
 				Some(narrative.case_narrative.as_str()),
 				None,

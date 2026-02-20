@@ -1,4 +1,4 @@
-use lib_core::xml::validate_e2b_xml;
+use lib_core::xml::{validate_e2b_xml, validate_e2b_xml_business};
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -29,8 +29,18 @@ fn test_examples_validate_ok() -> Result<(), Box<dyn Error>> {
 
 	for file in files {
 		let xml = read_example(&dir, file)?;
-		let report = validate_e2b_xml(xml.as_bytes(), None)?;
-		assert!(report.ok, "{file} failed validation: {:?}", report.errors);
+		let schema_report = validate_e2b_xml(xml.as_bytes(), None)?;
+		assert!(
+			schema_report.ok,
+			"{file} failed schema validation: {:?}",
+			schema_report.errors
+		);
+		let business_report = validate_e2b_xml_business(xml.as_bytes(), None)?;
+		assert!(
+			business_report.ok,
+			"{file} failed business validation: {:?}",
+			business_report.errors
+		);
 	}
 
 	Ok(())
@@ -45,7 +55,7 @@ fn test_invalid_telecom_fails() -> Result<(), Box<dyn Error>> {
 
 	let xml = read_example(&dir, "1-1_ExampleCase_literature_initial_v1_0.xml")?;
 	let broken = xml.replace("tel:", "phone:");
-	let report = validate_e2b_xml(broken.as_bytes(), None)?;
+	let report = validate_e2b_xml_business(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected telecom error");
 	let has_error = report
 		.errors
@@ -62,6 +72,36 @@ fn test_invalid_telecom_fails() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
+fn test_schema_stage_ignores_business_rule_failures() -> Result<(), Box<dyn Error>> {
+	let Some(dir) = examples_dir() else {
+		eprintln!("E2BR3_EXAMPLES_DIR not set; skipping XML validation examples");
+		return Ok(());
+	};
+
+	let xml = read_example(&dir, "1-1_ExampleCase_literature_initial_v1_0.xml")?;
+	let broken = xml.replace("tel:", "phone:");
+
+	let schema_report = validate_e2b_xml(broken.as_bytes(), None)?;
+	assert!(
+		schema_report.ok,
+		"schema stage should ignore business rules: {:?}",
+		schema_report.errors
+	);
+
+	let business_report = validate_e2b_xml_business(broken.as_bytes(), None)?;
+	assert!(
+		!business_report.ok,
+		"business stage should catch telecom rule violation"
+	);
+	assert!(business_report
+		.errors
+		.iter()
+		.any(|e| e.message.contains("[ICH.XML.TELECOM.FORMAT.REQUIRED]")));
+
+	Ok(())
+}
+
+#[test]
 fn test_invalid_reaction_term_fails() -> Result<(), Box<dyn Error>> {
 	let Some(dir) = examples_dir() else {
 		eprintln!("E2BR3_EXAMPLES_DIR not set; skipping XML validation examples");
@@ -70,7 +110,7 @@ fn test_invalid_reaction_term_fails() -> Result<(), Box<dyn Error>> {
 
 	let xml = read_example(&dir, "1-1_ExampleCase_literature_initial_v1_0.xml")?;
 	let broken = xml.replace("code=\"10022617\"", "");
-	let report = validate_e2b_xml(broken.as_bytes(), None)?;
+	let report = validate_e2b_xml_business(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected reaction term error");
 	let has_error = report
 		.errors
@@ -98,7 +138,7 @@ fn test_missing_schema_location_fails() -> Result<(), Box<dyn Error>> {
 		"xsi:schemaLocation=\"urn:hl7-org:v3 MCCI_IN200100UV01.xsd\"",
 		"",
 	);
-	let report = validate_e2b_xml(broken.as_bytes(), None)?;
+	let report = validate_e2b_xml_business(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected schemaLocation error");
 	let has_schema_error = report
 		.errors
@@ -108,6 +148,10 @@ fn test_missing_schema_location_fails() -> Result<(), Box<dyn Error>> {
 		has_schema_error,
 		"missing schemaLocation error not reported"
 	);
+	assert!(report
+		.errors
+		.iter()
+		.any(|e| e.message.contains("[ICH.XML.ROOT.SCHEMALOCATION.REQUIRED]")));
 
 	Ok(())
 }
@@ -144,7 +188,7 @@ fn test_fda_combination_product_requires_value_or_nullflavor(
 		1,
 	);
 	assert_ne!(broken, fda_xml, "failed to insert FDA.C.1.12 test node");
-	let report = validate_e2b_xml(broken.as_bytes(), None)?;
+	let report = validate_e2b_xml_business(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected FDA.C.1.12 error");
 	let has_error = report.errors.iter().any(|e| {
 		e.message
@@ -187,7 +231,7 @@ fn test_fda_local_criteria_requires_code_or_nullflavor() -> Result<(), Box<dyn E
 		1,
 	);
 	assert_ne!(broken, fda_xml, "failed to insert FDA.C.1.7.1 test node");
-	let report = validate_e2b_xml(broken.as_bytes(), None)?;
+	let report = validate_e2b_xml_business(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected FDA.C.1.7.1 error");
 	let has_error = report
 		.errors
@@ -226,7 +270,7 @@ fn test_fda_patient_race_requires_code_or_nullflavor() -> Result<(), Box<dyn Err
 		1,
 	);
 	assert_ne!(broken, fda_xml, "failed to insert FDA.D.11 test node");
-	let report = validate_e2b_xml(broken.as_bytes(), None)?;
+	let report = validate_e2b_xml_business(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected FDA.D.11 error");
 	let has_error = report
 		.errors
@@ -265,7 +309,7 @@ fn test_fda_patient_ethnicity_requires_code_or_nullflavor(
 </subjectOf2>";
 	let broken = fda_xml.replacen("<subjectOf2 typeCode=\"SBJ\">", insert, 1);
 	assert_ne!(broken, fda_xml, "failed to insert FDA.D.12 test node");
-	let report = validate_e2b_xml(broken.as_bytes(), None)?;
+	let report = validate_e2b_xml_business(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected FDA.D.12 error");
 	let has_error = report
 		.errors
@@ -308,7 +352,7 @@ fn test_fda_required_intervention_requires_value_or_nullflavor(
 		1,
 	);
 	assert_ne!(broken, fda_xml, "failed to insert FDA.E.i.3.2h test node");
-	let report = validate_e2b_xml(broken.as_bytes(), None)?;
+	let report = validate_e2b_xml_business(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected FDA.E.i.3.2h error");
 	let has_error = report
 		.errors
@@ -362,7 +406,7 @@ fn test_fda_gk10a_requires_code_or_na_when_pre_anda_present(
 		"failed to insert FDA.G.k.10a test node"
 	);
 
-	let report = validate_e2b_xml(broken.as_bytes(), None)?;
+	let report = validate_e2b_xml_business(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected FDA.G.k.10a error");
 	let has_error = report
 		.errors
@@ -394,7 +438,7 @@ fn test_fda_reporter_email_required_when_primary_source_present(
 			1,
 		);
 	let broken = fda_xml.replace("mailto:", "mail:");
-	let report = validate_e2b_xml(broken.as_bytes(), None)?;
+	let report = validate_e2b_xml_business(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected reporter email error");
 	let has_error = report
 		.errors
@@ -429,7 +473,7 @@ fn test_fda_pre_anda_required_for_ind_exempt() -> Result<(), Box<dyn Error>> {
 			"code=\"2\" codeSystem=\"2.16.840.1.113883.3.989.2.1.1.2\"",
 			1,
 		);
-	let report = validate_e2b_xml(broken.as_bytes(), None)?;
+	let report = validate_e2b_xml_business(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected FDA.C.5.5b required error");
 	let has_error = report
 		.errors
@@ -465,7 +509,7 @@ fn test_fda_pre_anda_not_allowed_postmarket() -> Result<(), Box<dyn Error>> {
 			"extension=\"ZZFDA\" root=\"2.16.840.1.113883.3.989.2.1.3.14\"",
 			1,
 		);
-	let report = validate_e2b_xml(broken.as_bytes(), None)?;
+	let report = validate_e2b_xml_business(broken.as_bytes(), None)?;
 	assert!(!report.ok, "expected FDA.C.5.5b not allowed error");
 	let has_error = report
 		.errors

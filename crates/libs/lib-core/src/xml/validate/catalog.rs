@@ -10,6 +10,64 @@ pub struct ValidationRuleMetadata {
 	pub message: &'static str,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RuleCategory {
+	Schema,
+	XmlStructure,
+	CaseBusiness,
+}
+
+impl RuleCategory {
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Schema => "schema",
+			Self::XmlStructure => "xml_structure",
+			Self::CaseBusiness => "case_business",
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ValidationPhase {
+	Import,
+	CaseValidate,
+	Export,
+}
+
+impl ValidationPhase {
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Import => "import",
+			Self::CaseValidate => "case_validate",
+			Self::Export => "export",
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RuleSeverity {
+	Blocking,
+	Warning,
+	Info,
+}
+
+impl RuleSeverity {
+	pub fn is_blocking(self) -> bool {
+		matches!(self, Self::Blocking)
+	}
+
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Blocking => "blocking",
+			Self::Warning => "warning",
+			Self::Info => "info",
+		}
+	}
+}
+
 pub const VALIDATION_RULES: &[ValidationRuleMetadata] = &[
 	// ICH core
 	ValidationRuleMetadata {
@@ -169,6 +227,28 @@ pub const VALIDATION_RULES: &[ValidationRuleMetadata] = &[
 	},
 	// XML-level coded checks
 	ValidationRuleMetadata {
+		code: "ICH.XML.ROOT.ITSVERSION.REQUIRED",
+		profile: ValidationProfile::Ich,
+		section: "xml",
+		blocking: true,
+		message: "Root ITSVersion must be present and set to XML_1.0.",
+	},
+	ValidationRuleMetadata {
+		code: "ICH.XML.ROOT.SCHEMALOCATION.REQUIRED",
+		profile: ValidationProfile::Ich,
+		section: "xml",
+		blocking: true,
+		message:
+			"Root xsi:schemaLocation must be present and reference the expected root schema.",
+	},
+	ValidationRuleMetadata {
+		code: "ICH.XML.PLACEHOLDER.VALUE.FORBIDDEN",
+		profile: ValidationProfile::Ich,
+		section: "xml",
+		blocking: true,
+		message: "Placeholder values are not allowed in XML content or attributes.",
+	},
+	ValidationRuleMetadata {
 		code: "FDA.N.1.4.REQUIRED",
 		profile: ValidationProfile::Fda,
 		section: "xml",
@@ -267,8 +347,8 @@ pub const VALIDATION_RULES: &[ValidationRuleMetadata] = &[
 		code: "ICH.E.i.4-6.CONDITIONAL",
 		profile: ValidationProfile::Ich,
 		section: "reactions",
-		blocking: true,
-		message: "Reaction requires start, end, or duration.",
+		blocking: false,
+		message: "Reaction should include start, end, or duration.",
 	},
 	ValidationRuleMetadata {
 		code: "ICH.G.k.4.r.4-8.CONDITIONAL",
@@ -973,10 +1053,219 @@ pub struct CanonicalRule<'a> {
 	pub profile: ValidationProfile,
 	pub section: &'a str,
 	pub blocking: bool,
+	pub category: RuleCategory,
+	pub phases: &'a [ValidationPhase],
+	pub severity: RuleSeverity,
 	pub message: &'a str,
 	pub condition: RuleCondition,
 	pub export_directive: Option<ExportDirective>,
 }
+
+const PHASES_IMPORT_AND_EXPORT: &[ValidationPhase] =
+	&[ValidationPhase::Import, ValidationPhase::Export];
+const PHASES_CASE_VALIDATE: &[ValidationPhase] = &[ValidationPhase::CaseValidate];
+const PHASES_EXPORT_ONLY: &[ValidationPhase] = &[ValidationPhase::Export];
+
+#[derive(Debug, Clone, Copy)]
+struct ConditionBinding {
+	code: &'static str,
+	condition: RuleCondition,
+}
+
+const CONDITION_BINDINGS: &[ConditionBinding] = &[
+	ConditionBinding {
+		code: "ICH.C.1.9.1.CONDITIONAL",
+		condition: RuleCondition::IchCaseHistoryTrueMissingPriorIds,
+	},
+	ConditionBinding {
+		code: "ICH.D.7.2.CONDITIONAL",
+		condition: RuleCondition::IchMedicalHistoryMissingD72Text,
+	},
+	ConditionBinding {
+		code: "FDA.C.1.7.1.REQUIRED",
+		condition: RuleCondition::FdaFulfilExpeditedCriteriaTrue,
+	},
+	ConditionBinding {
+		code: "FDA.C.2.r.2.EMAIL.REQUIRED",
+		condition: RuleCondition::FdaPrimarySourcePresent,
+	},
+	ConditionBinding {
+		code: "FDA.D.11.REQUIRED",
+		condition: RuleCondition::FdaPatientPayloadPresent,
+	},
+	ConditionBinding {
+		code: "FDA.D.12.REQUIRED",
+		condition: RuleCondition::FdaPatientPayloadPresent,
+	},
+	ConditionBinding {
+		code: "FDA.C.5.5b.REQUIRED",
+		condition: RuleCondition::FdaPreAndaRequired,
+	},
+	ConditionBinding {
+		code: "FDA.C.5.5b.FORBIDDEN",
+		condition: RuleCondition::FdaPreAndaForbidden,
+	},
+	ConditionBinding {
+		code: "FDA.G.k.10a.REQUIRED",
+		condition: RuleCondition::FdaGk10aRequired,
+	},
+	ConditionBinding {
+		code: "ICH.C.1.3.CONDITIONAL",
+		condition: RuleCondition::FdaPremarketReportTypeMustBeTwo,
+	},
+	ConditionBinding {
+		code: "FDA.E.i.3.2h.REQUIRED",
+		condition: RuleCondition::FdaReactionOtherMedicallyImportantTrue,
+	},
+	ConditionBinding {
+		code: "MFDS.C.3.1.KR.1.REQUIRED",
+		condition: RuleCondition::MfdsSenderTypeDisallowed,
+	},
+	ConditionBinding {
+		code: "MFDS.G.k.9.i.2.r.2.KR.1.REQUIRED",
+		condition: RuleCondition::MfdsRelatednessSourcePresent,
+	},
+	ConditionBinding {
+		code: "MFDS.G.k.9.i.2.r.3.KR.1.REQUIRED",
+		condition: RuleCondition::MfdsRelatednessSourcePresent,
+	},
+	ConditionBinding {
+		code: "MFDS.G.k.9.i.2.r.1.REQUIRED",
+		condition: RuleCondition::MfdsRelatednessMethodOrResultPresent,
+	},
+	ConditionBinding {
+		code: "MFDS.KR.DOMESTIC.PRODUCTCODE.REQUIRED",
+		condition: RuleCondition::MfdsDrugDomesticKr,
+	},
+	ConditionBinding {
+		code: "MFDS.KR.DOMESTIC.INGREDIENTCODE.REQUIRED",
+		condition: RuleCondition::MfdsDrugDomesticKr,
+	},
+	ConditionBinding {
+		code: "MFDS.KR.FOREIGN.WHOMPID.RECOMMENDED",
+		condition: RuleCondition::MfdsDrugForeignNonKr,
+	},
+];
+
+#[derive(Debug, Clone, Copy)]
+enum ValuePolicy {
+	NonEmpty,
+	NonEmptyOrNullFlavor,
+	FdaGk10aCodeOrNa,
+	FdaLocalCriteriaCodeByFacts,
+	IchC13ConditionalMustBeTwo,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ValuePolicyBinding {
+	code: &'static str,
+	policy: ValuePolicy,
+}
+
+const VALUE_POLICY_BINDINGS: &[ValuePolicyBinding] = &[
+	ValuePolicyBinding {
+		code: "ICH.C.1.3.REQUIRED",
+		policy: ValuePolicy::NonEmpty,
+	},
+	ValuePolicyBinding {
+		code: "ICH.C.2.r.4.REQUIRED",
+		policy: ValuePolicy::NonEmpty,
+	},
+	ValuePolicyBinding {
+		code: "ICH.D.1.REQUIRED",
+		policy: ValuePolicy::NonEmpty,
+	},
+	ValuePolicyBinding {
+		code: "ICH.E.i.1.1a.REQUIRED",
+		policy: ValuePolicy::NonEmpty,
+	},
+	ValuePolicyBinding {
+		code: "ICH.E.i.7.REQUIRED",
+		policy: ValuePolicy::NonEmpty,
+	},
+	ValuePolicyBinding {
+		code: "ICH.G.k.1.REQUIRED",
+		policy: ValuePolicy::NonEmpty,
+	},
+	ValuePolicyBinding {
+		code: "ICH.G.k.2.2.REQUIRED",
+		policy: ValuePolicy::NonEmpty,
+	},
+	ValuePolicyBinding {
+		code: "ICH.H.1.REQUIRED",
+		policy: ValuePolicy::NonEmpty,
+	},
+	ValuePolicyBinding {
+		code: "FDA.C.1.12.REQUIRED",
+		policy: ValuePolicy::NonEmptyOrNullFlavor,
+	},
+	ValuePolicyBinding {
+		code: "FDA.C.1.7.1.REQUIRED.MISSING_CODE",
+		policy: ValuePolicy::NonEmptyOrNullFlavor,
+	},
+	ValuePolicyBinding {
+		code: "FDA.D.11.REQUIRED",
+		policy: ValuePolicy::NonEmptyOrNullFlavor,
+	},
+	ValuePolicyBinding {
+		code: "FDA.D.12.REQUIRED",
+		policy: ValuePolicy::NonEmptyOrNullFlavor,
+	},
+	ValuePolicyBinding {
+		code: "FDA.E.i.3.2h.REQUIRED",
+		policy: ValuePolicy::NonEmptyOrNullFlavor,
+	},
+	ValuePolicyBinding {
+		code: "FDA.G.k.10a.REQUIRED",
+		policy: ValuePolicy::FdaGk10aCodeOrNa,
+	},
+	ValuePolicyBinding {
+		code: "FDA.C.1.7.1.REQUIRED",
+		policy: ValuePolicy::FdaLocalCriteriaCodeByFacts,
+	},
+	ValuePolicyBinding {
+		code: "ICH.C.1.3.CONDITIONAL",
+		policy: ValuePolicy::IchC13ConditionalMustBeTwo,
+	},
+	ValuePolicyBinding {
+		code: "MFDS.KR.DOMESTIC.PRODUCTCODE.REQUIRED",
+		policy: ValuePolicy::NonEmpty,
+	},
+	ValuePolicyBinding {
+		code: "MFDS.KR.FOREIGN.WHOMPID.RECOMMENDED",
+		policy: ValuePolicy::NonEmpty,
+	},
+	ValuePolicyBinding {
+		code: "MFDS.KR.DOMESTIC.INGREDIENTCODE.REQUIRED",
+		policy: ValuePolicy::NonEmpty,
+	},
+	ValuePolicyBinding {
+		code: "MFDS.G.k.9.i.2.r.1.REQUIRED",
+		policy: ValuePolicy::NonEmpty,
+	},
+	ValuePolicyBinding {
+		code: "MFDS.G.k.9.i.2.r.2.KR.1.REQUIRED",
+		policy: ValuePolicy::NonEmpty,
+	},
+	ValuePolicyBinding {
+		code: "MFDS.G.k.9.i.2.r.3.KR.1.REQUIRED",
+		policy: ValuePolicy::NonEmpty,
+	},
+];
+
+#[derive(Debug, Clone, Copy)]
+struct PresencePolicyBinding {
+	code: &'static str,
+}
+
+const REQUIRED_PRESENCE_BINDINGS: &[PresencePolicyBinding] = &[
+	PresencePolicyBinding {
+		code: "FDA.N.1.4.REQUIRED",
+	},
+	PresencePolicyBinding {
+		code: "FDA.C.2.r.2.EMAIL.REQUIRED",
+	},
+];
 
 fn export_directive_for_code(code: &str) -> Option<ExportDirective> {
 	match code {
@@ -1023,54 +1312,111 @@ fn export_directive_for_code(code: &str) -> Option<ExportDirective> {
 }
 
 fn condition_for_code(code: &str) -> RuleCondition {
-	match code {
-		"ICH.C.1.9.1.CONDITIONAL" => {
-			RuleCondition::IchCaseHistoryTrueMissingPriorIds
-		}
-		"ICH.D.7.2.CONDITIONAL" => RuleCondition::IchMedicalHistoryMissingD72Text,
-		"FDA.C.1.7.1.REQUIRED" => RuleCondition::FdaFulfilExpeditedCriteriaTrue,
-		"FDA.C.2.r.2.EMAIL.REQUIRED" => RuleCondition::FdaPrimarySourcePresent,
-		"FDA.D.11.REQUIRED" | "FDA.D.12.REQUIRED" => {
-			RuleCondition::FdaPatientPayloadPresent
-		}
-		"FDA.C.5.5b.REQUIRED" => RuleCondition::FdaPreAndaRequired,
-		"FDA.C.5.5b.FORBIDDEN" => RuleCondition::FdaPreAndaForbidden,
-		"FDA.G.k.10a.REQUIRED" => RuleCondition::FdaGk10aRequired,
-		"ICH.C.1.3.CONDITIONAL" => RuleCondition::FdaPremarketReportTypeMustBeTwo,
-		"FDA.E.i.3.2h.REQUIRED" => {
-			RuleCondition::FdaReactionOtherMedicallyImportantTrue
-		}
-		"MFDS.C.3.1.KR.1.REQUIRED" => RuleCondition::MfdsSenderTypeDisallowed,
-		"MFDS.G.k.9.i.2.r.2.KR.1.REQUIRED" | "MFDS.G.k.9.i.2.r.3.KR.1.REQUIRED" => {
-			RuleCondition::MfdsRelatednessSourcePresent
-		}
-		"MFDS.G.k.9.i.2.r.1.REQUIRED" => {
-			RuleCondition::MfdsRelatednessMethodOrResultPresent
-		}
-		"MFDS.KR.DOMESTIC.PRODUCTCODE.REQUIRED"
-		| "MFDS.KR.DOMESTIC.INGREDIENTCODE.REQUIRED" => RuleCondition::MfdsDrugDomesticKr,
-		"MFDS.KR.FOREIGN.WHOMPID.RECOMMENDED" => RuleCondition::MfdsDrugForeignNonKr,
-		_ => RuleCondition::Always,
-	}
+	CONDITION_BINDINGS
+		.iter()
+		.find(|binding| binding.code == code)
+		.map(|binding| binding.condition)
+		.unwrap_or(RuleCondition::Always)
 }
 
 fn to_canonical_rule<'a>(rule: &'a ValidationRuleMetadata) -> CanonicalRule<'a> {
+	let export_directive = export_directive_for_code(rule.code);
+	let category = category_for_rule(rule);
+	let phases = phases_for_rule(rule, export_directive);
+	let severity = severity_for_rule(rule);
 	CanonicalRule {
 		code: rule.code,
 		profile: rule.profile,
 		section: rule.section,
-		blocking: rule.blocking,
+		blocking: severity.is_blocking(),
+		category,
+		phases,
+		severity,
 		message: rule.message,
 		condition: condition_for_code(rule.code),
-		export_directive: export_directive_for_code(rule.code),
+		export_directive,
 	}
 }
 
-pub fn find_canonical_rule(code: &str) -> Option<CanonicalRule<'static>> {
+fn category_for_rule(rule: &ValidationRuleMetadata) -> RuleCategory {
+	if is_xml_structure_rule(rule) {
+		RuleCategory::XmlStructure
+	} else {
+		RuleCategory::CaseBusiness
+	}
+}
+
+fn phases_for_rule(
+	rule: &ValidationRuleMetadata,
+	export_directive: Option<ExportDirective>,
+) -> &'static [ValidationPhase] {
+	if export_directive.is_some() && is_export_only_rule(rule.code) {
+		return PHASES_EXPORT_ONLY;
+	}
+	if is_xml_structure_rule(rule) {
+		return PHASES_IMPORT_AND_EXPORT;
+	}
+	PHASES_CASE_VALIDATE
+}
+
+fn is_export_only_rule(code: &str) -> bool {
+	code.contains(".PRUNE") || code.contains(".NORMALIZE")
+}
+
+fn is_xml_structure_rule(rule: &ValidationRuleMetadata) -> bool {
+	if rule.section == "xml" {
+		return true;
+	}
+	if rule.code.contains(".NULLFLAVOR.") {
+		return true;
+	}
+	matches!(
+		rule.code,
+		"ICH.C.1.3.CONDITIONAL"
+			| "ICH.C.1.9.1.CONDITIONAL"
+			| "ICH.D.7.2.CONDITIONAL"
+			| "ICH.D.5.SEX.CONDITIONAL"
+			| "ICH.E.i.4-6.CONDITIONAL"
+			| "ICH.G.k.4.r.4-8.CONDITIONAL"
+	)
+}
+
+fn severity_for_rule(rule: &ValidationRuleMetadata) -> RuleSeverity {
+	if rule.code.ends_with(".RECOMMENDED")
+		|| rule.code.contains(".PRUNE")
+		|| rule.code.contains(".NORMALIZE")
+	{
+		return RuleSeverity::Info;
+	}
+	if rule.blocking {
+		RuleSeverity::Blocking
+	} else {
+		RuleSeverity::Warning
+	}
+}
+
+fn rule_applies_in_phase(rule: CanonicalRule<'_>, phase: ValidationPhase) -> bool {
+	rule.phases.contains(&phase)
+}
+
+pub fn find_canonical_rule_for_phase(
+	code: &str,
+	phase: ValidationPhase,
+) -> Option<CanonicalRule<'static>> {
 	CANONICAL_RULES
 		.iter()
-		.find(|rule| rule.code == code)
+		.filter(|rule| rule.code == code)
 		.map(to_canonical_rule)
+		.find(|rule| rule_applies_in_phase(*rule, phase))
+}
+
+pub fn find_canonical_rule(code: &str) -> Option<CanonicalRule<'static>> {
+	find_canonical_rule_for_phase(code, ValidationPhase::CaseValidate).or_else(|| {
+		CANONICAL_RULES
+			.iter()
+			.find(|rule| rule.code == code)
+			.map(to_canonical_rule)
+	})
 }
 
 pub fn canonical_rules_for_profile(
@@ -1085,8 +1431,27 @@ pub fn canonical_rules_for_profile(
 		.collect()
 }
 
+pub fn canonical_rules_for_profile_phase(
+	profile: ValidationProfile,
+	phase: ValidationPhase,
+) -> Vec<CanonicalRule<'static>> {
+	canonical_rules_for_profile(profile)
+		.into_iter()
+		.filter(|rule| rule_applies_in_phase(*rule, phase))
+		.collect()
+}
+
 pub fn canonical_rules_all() -> Vec<CanonicalRule<'static>> {
 	CANONICAL_RULES.iter().map(to_canonical_rule).collect()
+}
+
+pub fn canonical_rules_for_phase(
+	phase: ValidationPhase,
+) -> Vec<CanonicalRule<'static>> {
+	canonical_rules_all()
+		.into_iter()
+		.filter(|rule| rule_applies_in_phase(*rule, phase))
+		.collect()
 }
 
 fn fnv1a_update(mut hash: u64, bytes: &[u8]) -> u64 {
@@ -1113,7 +1478,14 @@ pub fn canonical_rules_version(profile: Option<ValidationProfile>) -> String {
 		hash = fnv1a_update(hash, b"|");
 		hash = fnv1a_update(hash, rule.section.as_bytes());
 		hash = fnv1a_update(hash, b"|");
-		hash = fnv1a_update(hash, if rule.blocking { b"1" } else { b"0" });
+		hash = fnv1a_update(hash, rule.severity.as_str().as_bytes());
+		hash = fnv1a_update(hash, b"|");
+		hash = fnv1a_update(hash, rule.category.as_str().as_bytes());
+		hash = fnv1a_update(hash, b"|");
+		for phase in rule.phases {
+			hash = fnv1a_update(hash, phase.as_str().as_bytes());
+			hash = fnv1a_update(hash, b",");
+		}
 		hash = fnv1a_update(hash, b"|");
 		hash = fnv1a_update(hash, rule.message.as_bytes());
 		hash = fnv1a_update(hash, b"|");
@@ -1196,31 +1568,25 @@ pub fn is_rule_value_valid(
 	null_flavor: Option<&str>,
 	facts: RuleFacts,
 ) -> bool {
-	match code {
-		// ICH core required value checks
-		"ICH.C.1.3.REQUIRED"
-		| "ICH.C.2.r.4.REQUIRED"
-		| "ICH.D.1.REQUIRED"
-		| "ICH.E.i.1.1a.REQUIRED"
-		| "ICH.E.i.7.REQUIRED"
-		| "ICH.G.k.1.REQUIRED"
-		| "ICH.G.k.2.2.REQUIRED"
-		| "ICH.H.1.REQUIRED" => value_code.map(|v| !v.trim().is_empty()).unwrap_or(false),
-		"FDA.C.1.12.REQUIRED"
-		| "FDA.C.1.7.1.REQUIRED.MISSING_CODE"
-		| "FDA.D.11.REQUIRED"
-		| "FDA.D.12.REQUIRED"
-		| "FDA.E.i.3.2h.REQUIRED" => {
+	let policy = VALUE_POLICY_BINDINGS
+		.iter()
+		.find(|binding| binding.code == code)
+		.map(|binding| binding.policy);
+	match policy {
+		Some(ValuePolicy::NonEmpty) => {
+			value_code.map(|v| !v.trim().is_empty()).unwrap_or(false)
+		}
+		Some(ValuePolicy::NonEmptyOrNullFlavor) => {
 			let has_value =
 				value_code.map(|v| !v.trim().is_empty()).unwrap_or(false);
 			has_value || null_flavor.is_some()
 		}
-		"FDA.G.k.10a.REQUIRED" => {
+		Some(ValuePolicy::FdaGk10aCodeOrNa) => {
 			let code_ok = value_code.map(|v| v == "1" || v == "2").unwrap_or(false);
 			let null_ok = null_flavor.map(|v| v == "NA").unwrap_or(false);
 			code_ok || null_ok
 		}
-		"FDA.C.1.7.1.REQUIRED" => {
+		Some(ValuePolicy::FdaLocalCriteriaCodeByFacts) => {
 			let comb_true = facts.fda_combination_product_true.unwrap_or(false);
 			let criteria_true = facts.fda_fulfil_expedited_criteria.unwrap_or(false);
 			let allowed: &[&str] = if comb_true && criteria_true {
@@ -1232,11 +1598,9 @@ pub fn is_rule_value_valid(
 			} else {
 				&["2"]
 			};
-			value_code
-				.map(|code| allowed.contains(&code))
-				.unwrap_or(false)
+			value_code.map(|code| allowed.contains(&code)).unwrap_or(false)
 		}
-		"ICH.C.1.3.CONDITIONAL" => {
+		Some(ValuePolicy::IchC13ConditionalMustBeTwo) => {
 			let applies =
 				is_rule_condition_satisfied("ICH.C.1.3.CONDITIONAL", facts);
 			if !applies {
@@ -1244,22 +1608,18 @@ pub fn is_rule_value_valid(
 			}
 			value_code.map(|v| v == "2").unwrap_or(false)
 		}
-		"MFDS.KR.DOMESTIC.PRODUCTCODE.REQUIRED"
-		| "MFDS.KR.FOREIGN.WHOMPID.RECOMMENDED"
-		| "MFDS.KR.DOMESTIC.INGREDIENTCODE.REQUIRED"
-		| "MFDS.G.k.9.i.2.r.1.REQUIRED"
-		| "MFDS.G.k.9.i.2.r.2.KR.1.REQUIRED"
-		| "MFDS.G.k.9.i.2.r.3.KR.1.REQUIRED" => {
-			value_code.map(|v| !v.trim().is_empty()).unwrap_or(false)
-		}
-		_ => true,
+		None => true,
 	}
 }
 
 pub fn is_rule_presence_valid(code: &str, present: bool, _facts: RuleFacts) -> bool {
-	match code {
-		"FDA.N.1.4.REQUIRED" | "FDA.C.2.r.2.EMAIL.REQUIRED" => present,
-		_ => true,
+	if REQUIRED_PRESENCE_BINDINGS
+		.iter()
+		.any(|binding| binding.code == code)
+	{
+		present
+	} else {
+		true
 	}
 }
 
@@ -1356,6 +1716,7 @@ pub fn export_attribute_strip_spec_for_rule(
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use std::collections::HashSet;
 
 	#[test]
 	fn canonical_lookup_covers_validation_rules() {
@@ -1363,6 +1724,47 @@ mod tests {
 			let canonical = find_canonical_rule(rule.code);
 			assert!(canonical.is_some(), "missing canonical rule: {}", rule.code);
 		}
+	}
+
+	#[test]
+	fn no_duplicate_rule_triples() {
+		let mut seen = HashSet::new();
+		for rule in VALIDATION_RULES {
+			let key = (rule.code, rule.profile.as_str(), rule.section);
+			assert!(seen.insert(key), "duplicate rule triple: {:?}", key);
+		}
+	}
+
+	#[test]
+	fn duplicate_codes_resolve_by_phase() {
+		let case_rule = find_canonical_rule_for_phase(
+			"FDA.C.1.7.1.REQUIRED",
+			ValidationPhase::CaseValidate,
+		)
+		.expect("case-phase rule should exist");
+		let import_rule = find_canonical_rule_for_phase(
+			"FDA.C.1.7.1.REQUIRED",
+			ValidationPhase::Import,
+		)
+		.expect("import-phase rule should exist");
+		assert_eq!(case_rule.section, "case-identification");
+		assert_eq!(import_rule.section, "xml");
+		assert!(!case_rule.blocking);
+		assert!(import_rule.blocking);
+	}
+
+	#[test]
+	fn export_only_rules_do_not_apply_to_import_phase() {
+		let import_rule = find_canonical_rule_for_phase(
+			"ICH.XML.STRUCTURAL.EMPTY.PRUNE",
+			ValidationPhase::Import,
+		);
+		let export_rule = find_canonical_rule_for_phase(
+			"ICH.XML.STRUCTURAL.EMPTY.PRUNE",
+			ValidationPhase::Export,
+		);
+		assert!(import_rule.is_none());
+		assert!(export_rule.is_some());
 	}
 
 	#[test]

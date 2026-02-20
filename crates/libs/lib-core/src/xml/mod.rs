@@ -28,5 +28,5 @@ pub use types::ParsedE2b;
 pub use types::{XmlImportResult, XmlValidationError, XmlValidationReport};
 pub use xml_validation::{
 	should_skip_xml_validation, validate_e2b_xml, validate_e2b_xml_basic,
-	XmlValidatorConfig,
+	validate_e2b_xml_business, XmlValidatorConfig,
 };
