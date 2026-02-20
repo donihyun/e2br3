@@ -13,6 +13,22 @@ use std::sync::Arc;
 use tracing::{debug, error};
 use uuid::Uuid;
 
+fn normalize_detail_for_client(detail: serde_json::Value) -> serde_json::Value {
+	match detail {
+		serde_json::Value::Object(map) => {
+			if let Some(required_permission) =
+				map.get("required_permission").and_then(|v| v.as_str())
+			{
+				return serde_json::Value::String(format!(
+					"Missing permission: {required_permission}"
+				));
+			}
+			serde_json::Value::Object(map)
+		}
+		other => other,
+	}
+}
+
 fn map_pg_constraint(code: &str) -> Option<(StatusCode, String)> {
 	// Postgres SQLSTATE reference:
 	// - 23502: not_null_violation
@@ -260,8 +276,14 @@ pub async fn mw_response_map(
 				let client_error = to_value(client_error).ok();
 				let message = client_error.as_ref().and_then(|v| v.get("message"));
 				let detail = debug_detail
-					.as_ref()
-					.or_else(|| client_error.as_ref().and_then(|v| v.get("detail")));
+					.clone()
+					.or_else(|| {
+						client_error
+							.as_ref()
+							.and_then(|v| v.get("detail"))
+							.cloned()
+					})
+					.map(normalize_detail_for_client);
 
 				let client_error_body = json!({
 						"error": {

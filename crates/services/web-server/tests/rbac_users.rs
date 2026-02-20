@@ -73,6 +73,11 @@ async fn test_viewer_cannot_create_user() -> Result<()> {
 		.body(Body::from(body.to_string()))?;
 	let res = app.oneshot(req).await?;
 	assert_eq!(res.status(), StatusCode::FORBIDDEN);
+	let body = axum::body::to_bytes(res.into_body(), usize::MAX).await?;
+	let json: serde_json::Value = serde_json::from_slice(&body)?;
+	json["error"]["data"]["detail"]
+		.as_str()
+		.ok_or("expected string detail for PERMISSION_DENIED")?;
 	Ok(())
 }
 
@@ -168,6 +173,42 @@ async fn test_create_user_duplicate_email_returns_conflict_with_detail() -> Resu
 				.contains("duplicate"),
 		"expected safe conflict detail, body={json}"
 	);
+	Ok(())
+}
+
+#[serial]
+#[tokio::test]
+async fn test_admin_create_user_nil_org_id_uses_request_context_org() -> Result<()> {
+	let mm = init_test_mm().await?;
+	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
+	let token = generate_web_token(&seed.admin.email, seed.admin.token_salt)?;
+
+	let app = web_server::app(mm);
+	let suffix = Uuid::new_v4();
+	let body = json!({
+		"data": {
+			"organization_id": Uuid::nil(),
+			"email": format!("rbac-nil-org-{suffix}@example.com"),
+			"username": format!("rbac_nil_org_{suffix}"),
+			"pwd_clear": "p@ssw0rd",
+			"role": "user"
+		}
+	});
+	let req = Request::builder()
+		.method("POST")
+		.uri("/api/users")
+		.header("cookie", cookie_header(&token.to_string()))
+		.header("content-type", "application/json")
+		.body(Body::from(body.to_string()))?;
+	let res = app.oneshot(req).await?;
+	assert_eq!(res.status(), StatusCode::CREATED);
+
+	let body = axum::body::to_bytes(res.into_body(), usize::MAX).await?;
+	let json: serde_json::Value = serde_json::from_slice(&body)?;
+	let created_org = json["data"]["organization_id"]
+		.as_str()
+		.ok_or("missing created user organization_id")?;
+	assert_eq!(created_org, seed.org_id.to_string());
 	Ok(())
 }
 

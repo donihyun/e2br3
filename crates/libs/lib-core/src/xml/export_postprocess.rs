@@ -1,7 +1,16 @@
 use crate::xml::validate::{
 	export_attribute_strip_spec_for_rule, export_normalization_spec_for_rule,
 	export_xpath_for_rule, export_xpaths_for_rule, has_export_directive,
-	is_rule_condition_satisfied, ExportDirective, ExportNormalizeKind, RuleFacts,
+	is_rule_condition_satisfied, ExportDirective, ExportNormalizeKind,
+	RuleFacts, EXPORT_NORMALIZE_INVALID_CODE_RULES,
+	EXPORT_RULE_DOCUMENT_TEXT_COMPRESSION_FORBIDDEN,
+	EXPORT_RULE_FDA_REQUIRED_INTERVENTION, EXPORT_RULE_GK11_EMPTY_PRUNE,
+	EXPORT_RULE_OPTIONAL_PATH_EMPTY_PRUNE,
+	EXPORT_RULE_PLACEHOLDER_CODESYSTEMVERSION_PRUNE,
+	EXPORT_RULE_PLACEHOLDER_VALUE_PRUNE, EXPORT_RULE_RACE_EMPTY_PRUNE,
+	EXPORT_RULE_RACE_NI_PRUNE, EXPORT_RULE_STRUCTURAL_EMPTY_PRUNE,
+	EXPORT_RULE_SUMMARY_LANGUAGE_JA_FORBIDDEN,
+	EXPORT_RULE_XSI_TYPE_NORMALIZE,
 };
 use libxml::tree::{Document, Node, NodeType};
 use libxml::xpath::Context;
@@ -12,10 +21,7 @@ pub(crate) fn postprocess_export_doc(doc: &mut Document, xpath: &mut Context) {
 }
 
 fn normalize_export_values(xpath: &mut Context) {
-	for rule_code in [
-		"ICH.XML.MEDDRA.CODE.FORMAT.REQUIRED",
-		"ICH.XML.COUNTRY.CODE.FORMAT.REQUIRED",
-	] {
+	for rule_code in EXPORT_NORMALIZE_INVALID_CODE_RULES {
 		if !has_export_directive(
 			rule_code,
 			ExportDirective::NormalizeInvalidCodeToNullFlavorNi,
@@ -38,7 +44,7 @@ fn normalize_export_values(xpath: &mut Context) {
 	}
 
 	if has_export_directive(
-		"ICH.XML.XSI_TYPE.NORMALIZE",
+		EXPORT_RULE_XSI_TYPE_NORMALIZE,
 		ExportDirective::NormalizeTypeAttributeToXsiType,
 	) {
 		if let Ok(nodes) = xpath.findnodes("//*[@type]", None) {
@@ -65,7 +71,7 @@ fn matches_normalization_kind(value: &str, kind: ExportNormalizeKind) -> bool {
 
 fn prune_optional_nodes(_doc: &mut Document, xpath: &mut Context) {
 	if has_export_directive(
-		"ICH.XML.OPTIONAL.PATH.EMPTY.PRUNE",
+		EXPORT_RULE_OPTIONAL_PATH_EMPTY_PRUNE,
 		ExportDirective::RemoveOptionalPathEmptyNodes,
 	) {
 		let optional_paths = include_str!("fda_optional_paths.txt");
@@ -99,7 +105,7 @@ fn prune_optional_nodes(_doc: &mut Document, xpath: &mut Context) {
 
 	prune_placeholder_nodes(xpath);
 	if has_export_directive(
-		"ICH.XML.STRUCTURAL.EMPTY.PRUNE",
+		EXPORT_RULE_STRUCTURAL_EMPTY_PRUNE,
 		ExportDirective::RemoveEmptyStructuralNodes,
 	) {
 		prune_empty_structural_nodes(xpath);
@@ -108,78 +114,79 @@ fn prune_optional_nodes(_doc: &mut Document, xpath: &mut Context) {
 
 fn prune_placeholder_nodes(xpath: &mut Context) {
 	if has_export_directive(
-		"ICH.XML.PLACEHOLDER.VALUE.PRUNE",
+		EXPORT_RULE_PLACEHOLDER_VALUE_PRUNE,
 		ExportDirective::RemovePlaceholderValueNodes,
 	) {
-		for path in export_xpaths_for_rule("ICH.XML.PLACEHOLDER.VALUE.PRUNE") {
+		for path in export_xpaths_for_rule(EXPORT_RULE_PLACEHOLDER_VALUE_PRUNE) {
 			unlink_nodes(xpath, path, true);
 		}
 	}
 
 	if has_export_directive(
-		"ICH.XML.PLACEHOLDER.CODESYSTEMVERSION.PRUNE",
+		EXPORT_RULE_PLACEHOLDER_CODESYSTEMVERSION_PRUNE,
 		ExportDirective::RemovePlaceholderCodeSystemVersion,
 	) {
 		if let Some(spec) = export_attribute_strip_spec_for_rule(
-			"ICH.XML.PLACEHOLDER.CODESYSTEMVERSION.PRUNE",
+			EXPORT_RULE_PLACEHOLDER_CODESYSTEMVERSION_PRUNE,
 		) {
 			remove_attribute_on_nodes(xpath, spec.xpath, spec.attribute);
 		}
 	}
 
 	if has_export_directive(
-		"ICH.XML.RACE.NI.PRUNE",
+		EXPORT_RULE_RACE_NI_PRUNE,
 		ExportDirective::RemoveRaceNiNodes,
 	) {
-		if let Some(path) = export_xpath_for_rule("ICH.XML.RACE.NI.PRUNE") {
+		if let Some(path) = export_xpath_for_rule(EXPORT_RULE_RACE_NI_PRUNE) {
 			unlink_nodes(xpath, path, true);
 		}
 	}
 	if has_export_directive(
-		"ICH.XML.RACE.EMPTY.PRUNE",
+		EXPORT_RULE_RACE_EMPTY_PRUNE,
 		ExportDirective::RemoveRaceEmptyNodes,
 	) {
-		if let Some(path) = export_xpath_for_rule("ICH.XML.RACE.EMPTY.PRUNE") {
+		if let Some(path) = export_xpath_for_rule(EXPORT_RULE_RACE_EMPTY_PRUNE) {
 			unlink_nodes(xpath, path, true);
 		}
 	}
 
 	if has_export_directive(
-		"ICH.XML.GK11.EMPTY.PRUNE",
+		EXPORT_RULE_GK11_EMPTY_PRUNE,
 		ExportDirective::RemoveEmptyGk11Relationships,
 	) {
-		if let Some(path) = export_xpath_for_rule("ICH.XML.GK11.EMPTY.PRUNE") {
+		if let Some(path) = export_xpath_for_rule(EXPORT_RULE_GK11_EMPTY_PRUNE) {
 			unlink_nodes(xpath, path, false);
 		}
 	}
 
 	if has_export_directive(
-		"ICH.XML.DOCUMENT.TEXT.COMPRESSION.FORBIDDEN",
+		EXPORT_RULE_DOCUMENT_TEXT_COMPRESSION_FORBIDDEN,
 		ExportDirective::RemoveDocumentTextCompression,
 	) {
 		if let Some(spec) = export_attribute_strip_spec_for_rule(
-			"ICH.XML.DOCUMENT.TEXT.COMPRESSION.FORBIDDEN",
+			EXPORT_RULE_DOCUMENT_TEXT_COMPRESSION_FORBIDDEN,
 		) {
 			remove_attribute_on_nodes(xpath, spec.xpath, spec.attribute);
 		}
 	}
 
 	if has_export_directive(
-		"ICH.XML.SUMMARY.LANGUAGE.JA.FORBIDDEN",
+		EXPORT_RULE_SUMMARY_LANGUAGE_JA_FORBIDDEN,
 		ExportDirective::RemoveSummaryLanguageJa,
 	) {
 		if let Some(spec) = export_attribute_strip_spec_for_rule(
-			"ICH.XML.SUMMARY.LANGUAGE.JA.FORBIDDEN",
+			EXPORT_RULE_SUMMARY_LANGUAGE_JA_FORBIDDEN,
 		) {
 			remove_attribute_on_nodes(xpath, spec.xpath, spec.attribute);
 		}
 	}
 
 	if has_export_directive(
-		"FDA.E.i.3.2h.REQUIRED",
+		EXPORT_RULE_FDA_REQUIRED_INTERVENTION,
 		ExportDirective::RequiredInterventionNullFlavorNi,
 	) {
-		if let Some(path) = export_xpath_for_rule("FDA.E.i.3.2h.REQUIRED") {
+		if let Some(path) = export_xpath_for_rule(EXPORT_RULE_FDA_REQUIRED_INTERVENTION)
+		{
 			if let Ok(nodes) = xpath.findnodes(path, None) {
 				for mut node in nodes {
 					if !required_intervention_rule_applies(&node) {
@@ -199,7 +206,7 @@ fn prune_placeholder_nodes(xpath: &mut Context) {
 }
 
 fn prune_empty_structural_nodes(xpath: &mut Context) {
-	for path in export_xpaths_for_rule("ICH.XML.STRUCTURAL.EMPTY.PRUNE") {
+	for path in export_xpaths_for_rule(EXPORT_RULE_STRUCTURAL_EMPTY_PRUNE) {
 		if let Ok(nodes) = xpath.findnodes(path, None) {
 			for node in nodes {
 				let has_element_children = node
@@ -329,7 +336,7 @@ fn required_intervention_rule_applies(value_node: &Node) -> bool {
 		.unwrap_or(false);
 
 	is_rule_condition_satisfied(
-		"FDA.E.i.3.2h.REQUIRED",
+		EXPORT_RULE_FDA_REQUIRED_INTERVENTION,
 		RuleFacts {
 			fda_reaction_other_medically_important: Some(other_medically_important),
 			..RuleFacts::default()

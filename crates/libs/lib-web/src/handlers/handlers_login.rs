@@ -30,6 +30,10 @@ pub async fn api_login_handler(
 		.ok_or(Error::LoginFailEmailNotFound)?;
 	let user_id = user.id;
 
+	// Reject malformed/legacy accounts that cannot build an authenticated context.
+	Ctx::new(user.id, user.organization_id, user.role.clone())
+		.map_err(|_| Error::LoginFailUserCtxCreate { user_id })?;
+
 	// -- Validate the password.
 	let Some(pwd) = user.pwd else {
 		return Err(Error::LoginFailUserHasNoPwd { user_id });

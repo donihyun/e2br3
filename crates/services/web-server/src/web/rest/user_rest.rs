@@ -34,7 +34,15 @@ pub async fn create_user(
 		});
 	}
 
-	let ParamsForCreate { data } = params;
+	let ParamsForCreate { mut data } = params;
+	if data.organization_id.is_nil() {
+		if ctx.organization_id().is_nil() {
+			return Err(WebError::AccessDenied {
+				required_role: "organization_id is required".to_string(),
+			});
+		}
+		data.organization_id = ctx.organization_id();
+	}
 	let id = UserBmc::create(&ctx, &mm, data)
 		.await
 		.map_err(WebError::Model)?;

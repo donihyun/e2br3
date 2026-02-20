@@ -887,8 +887,9 @@ fn manager_permissions() -> &'static [Permission] {
 		// User - read only
 		USER_READ,
 		USER_LIST,
-		// Organization - read own
+		// Organization - read and list
 		ORG_READ,
+		ORG_LIST,
 		// AuditLog - can view
 		AUDIT_READ,
 		AUDIT_LIST,
@@ -1207,8 +1208,10 @@ mod tests {
 		// Manager can read users but not create
 		assert!(has_permission(ROLE_MANAGER, USER_READ));
 		assert!(!has_permission(ROLE_MANAGER, USER_CREATE));
-		// Manager cannot manage organizations
+		// Manager cannot manage organizations, but can list/read them
 		assert!(!has_permission(ROLE_MANAGER, ORG_CREATE));
+		assert!(has_permission(ROLE_MANAGER, ORG_READ));
+		assert!(has_permission(ROLE_MANAGER, ORG_LIST));
 	}
 
 	#[test]

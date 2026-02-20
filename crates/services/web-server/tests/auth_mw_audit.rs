@@ -136,6 +136,71 @@ async fn test_auth_login_unknown_email() -> Result<()> {
 
 #[serial]
 #[tokio::test]
+async fn test_auth_login_user_with_nil_org_fails() -> Result<()> {
+	let mm = init_test_mm().await?;
+	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;
+	let admin_token = generate_web_token(&seed.admin.email, seed.admin.token_salt)?;
+	let app = web_server::app(mm.clone());
+	let suffix = Uuid::new_v4();
+	let email = format!("nil-org-login-{suffix}@example.com");
+
+	let create_body = json!({
+		"data": {
+			"organization_id": system_org_id(),
+			"email": email,
+			"username": format!("nil_org_login_{suffix}"),
+			"pwd_clear": "NilOrgPwd123!",
+			"role": "user"
+		}
+	});
+	let create_req = Request::builder()
+		.method("POST")
+		.uri("/api/users")
+		.header("cookie", cookie_header(&admin_token.to_string()))
+		.header("content-type", "application/json")
+		.body(Body::from(create_body.to_string()))?;
+	let create_res = app.clone().oneshot(create_req).await?;
+	assert_eq!(create_res.status(), StatusCode::CREATED);
+
+	// Simulate a legacy malformed row where organization_id is nil UUID.
+	let create_body = to_bytes(create_res.into_body(), usize::MAX).await?;
+	let created: Value = serde_json::from_slice(&create_body)?;
+	let created_user_id = Uuid::parse_str(
+		created["data"]["id"]
+			.as_str()
+			.ok_or("missing created user id")?,
+	)?;
+	let dbx = mm.dbx();
+	dbx.begin_txn().await?;
+	let root_ctx = Ctx::root_ctx();
+	set_full_context_dbx(
+		dbx,
+		root_ctx.user_id(),
+		root_ctx.organization_id(),
+		ROLE_ADMIN,
+	)
+	.await?;
+	dbx.execute(
+		query("UPDATE users SET organization_id = $1 WHERE id = $2")
+			.bind(system_org_id())
+			.bind(created_user_id),
+	)
+	.await?;
+	dbx.commit_txn().await?;
+
+	let login_body = json!({ "email": email, "pwd": "NilOrgPwd123!" });
+	let login_req = Request::builder()
+		.method("POST")
+		.uri("/auth/v1/login")
+		.header("content-type", "application/json")
+		.body(Body::from(login_body.to_string()))?;
+	let login_res = app.oneshot(login_req).await?;
+	assert_eq!(login_res.status(), StatusCode::FORBIDDEN);
+	Ok(())
+}
+
+#[serial]
+#[tokio::test]
 async fn test_auth_login_created_user_email_case_insensitive() -> Result<()> {
 	let mm = init_test_mm().await?;
 	let seed = seed_org_with_users(&mm, "adminpwd", "viewpwd").await?;

@@ -6,6 +6,7 @@ mod case_detector_registry;
 mod catalog;
 mod d_patient_policy;
 mod e_reaction_policy;
+mod export_transform_registry;
 mod f_test_result_policy;
 mod g_drug_policy;
 mod h_narrative_policy;
@@ -41,6 +42,7 @@ pub use e_reaction_policy::{
 	should_case_validator_require_required_intervention,
 	should_emit_required_intervention_null_flavor_ni,
 };
+pub use export_transform_registry::*;
 pub use xml_detector_registry::*;
 pub use f_test_result_policy::{has_test_name, has_test_payload};
 pub use g_drug_policy::{
