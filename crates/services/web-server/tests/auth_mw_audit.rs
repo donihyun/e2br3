@@ -307,17 +307,14 @@ async fn test_auth_login_upgrades_legacy_hash_for_non_admin_user() -> Result<()>
 	assert_eq!(create_res.status(), StatusCode::CREATED);
 
 	// Force legacy scheme-01 hash for this user to exercise upgrade-on-login.
-	let legacy_salt =
-		Uuid::parse_str("f05e8961-d6ad-4086-9e78-a6de065e5453")?;
+	let legacy_salt = Uuid::parse_str("f05e8961-d6ad-4086-9e78-a6de065e5453")?;
 	let pwd_key = std::env::var("SERVICE_PWD_KEY")?;
 	let pwd_key = b64u_decode(&pwd_key)?;
 	let mut hmac_sha512 = Hmac::<Sha512>::new_from_slice(&pwd_key)?;
 	hmac_sha512.update(password.as_bytes());
 	hmac_sha512.update(legacy_salt.as_bytes());
-	let legacy_hash = format!(
-		"#01#{}",
-		b64u_encode(hmac_sha512.finalize().into_bytes())
-	);
+	let legacy_hash =
+		format!("#01#{}", b64u_encode(hmac_sha512.finalize().into_bytes()));
 	let dbx = mm.dbx();
 	dbx.begin_txn().await?;
 	let root_ctx = Ctx::root_ctx();

@@ -2,7 +2,9 @@
 
 use lib_auth::pwd::{self, ContentToHash};
 use lib_core::_dev_utils;
-use lib_core::ctx::{ROLE_ADMIN, ROLE_VIEWER, SYSTEM_ORG_ID, SYSTEM_USER_ID};
+use lib_core::ctx::{
+	ROLE_ADMIN, ROLE_MANAGER, ROLE_USER, ROLE_VIEWER, SYSTEM_ORG_ID, SYSTEM_USER_ID,
+};
 use lib_core::model::store::set_full_context_dbx;
 use lib_core::model::ModelManager;
 use uuid::Uuid;
@@ -18,6 +20,14 @@ pub struct SeedUser {
 pub struct SeedOrgUsers {
 	pub org_id: Uuid,
 	pub admin: SeedUser,
+	pub viewer: SeedUser,
+}
+
+pub struct SeedOrgAllRoles {
+	pub org_id: Uuid,
+	pub admin: SeedUser,
+	pub manager: SeedUser,
+	pub user: SeedUser,
 	pub viewer: SeedUser,
 }
 
@@ -90,6 +100,29 @@ pub async fn seed_org_with_users(
 	Ok(SeedOrgUsers {
 		org_id,
 		admin,
+		viewer,
+	})
+}
+
+pub async fn seed_org_with_all_roles(mm: &ModelManager) -> Result<SeedOrgAllRoles> {
+	let dbx = mm.dbx();
+	dbx.begin_txn().await?;
+	set_full_context_dbx(dbx, system_user_id(), system_org_id(), ROLE_ADMIN).await?;
+
+	let org_id = insert_org(mm, system_user_id()).await?;
+	let admin = insert_user(mm, org_id, ROLE_ADMIN, system_user_id(), None).await?;
+	let manager =
+		insert_user(mm, org_id, ROLE_MANAGER, system_user_id(), None).await?;
+	let user = insert_user(mm, org_id, ROLE_USER, system_user_id(), None).await?;
+	let viewer =
+		insert_user(mm, org_id, ROLE_VIEWER, system_user_id(), None).await?;
+	dbx.commit_txn().await?;
+
+	Ok(SeedOrgAllRoles {
+		org_id,
+		admin,
+		manager,
+		user,
 		viewer,
 	})
 }

@@ -43,7 +43,6 @@ pub use e_reaction_policy::{
 	should_emit_required_intervention_null_flavor_ni,
 };
 pub use export_transform_registry::*;
-pub use xml_detector_registry::*;
 pub use f_test_result_policy::{has_test_name, has_test_payload};
 pub use g_drug_policy::{
 	drug_characterization_display_name, has_drug_characterization,
@@ -54,6 +53,7 @@ pub use h_narrative_policy::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::types::Uuid;
+pub use xml_detector_registry::*;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -103,23 +103,6 @@ pub struct CaseValidationReport {
 
 pub fn has_text(value: Option<&str>) -> bool {
 	value.map(|v| !v.trim().is_empty()).unwrap_or(false)
-}
-
-pub fn push_issue(
-	issues: &mut Vec<ValidationIssue>,
-	code: &str,
-	message: &str,
-	path: impl Into<String>,
-	section: &str,
-	blocking: bool,
-) {
-	issues.push(ValidationIssue {
-		code: code.to_string(),
-		message: message.to_string(),
-		path: path.into(),
-		section: section.to_string(),
-		blocking,
-	});
 }
 
 pub fn push_issue_by_code(

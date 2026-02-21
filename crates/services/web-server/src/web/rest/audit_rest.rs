@@ -14,7 +14,6 @@ use lib_web::middleware::mw_auth::CtxW;
 use lib_web::{Error as WebError, Result};
 use uuid::Uuid;
 
-/// Verifies that the current user has audit list permission
 fn require_audit_permission(ctx: &lib_core::ctx::Ctx) -> Result<()> {
 	if !has_permission(ctx.role(), AUDIT_LIST) {
 		return Err(WebError::PermissionDenied {
@@ -47,7 +46,7 @@ pub async fn list_audit_logs(
 
 /// GET /api/audit-logs/by-record/{table_name}/{record_id}
 /// List audit logs for a specific record
-/// **Requires AuditLog.Read permission (admin or manager)**
+/// **Requires AuditLog.List permission (admin or manager)**
 pub async fn list_audit_logs_by_record(
 	State(mm): State<ModelManager>,
 	ctx_w: CtxW,

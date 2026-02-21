@@ -453,9 +453,7 @@ fn validate_e2b_xml_rules(
 					push_rule_error_with_detail(
 						&mut errors,
 						"ICH.XML.ROOT.SCHEMALOCATION.REQUIRED",
-						&format!(
-							"schemaLocation missing expected '{expected}'"
-						),
+						&format!("schemaLocation missing expected '{expected}'"),
 					);
 				}
 			}
@@ -567,7 +565,7 @@ fn push_rule_error_internal(
 fn should_emit_rule_error(code: &str) -> bool {
 	match find_canonical_rule_for_phase(code, ValidationPhase::Import) {
 		Some(rule) => rule.blocking,
-		None => true,
+		None => false,
 	}
 }
 

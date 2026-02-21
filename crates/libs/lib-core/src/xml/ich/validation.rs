@@ -10,13 +10,13 @@ use crate::model::{ModelManager, Result};
 use crate::xml::validate::{
 	build_report, has_any_primary_source_content, has_patient_initials,
 	push_issue_by_code, push_issue_if_rule_invalid, should_require_case_narrative,
-	should_require_patient_initials, CaseValidationReport,
-	CASE_RULE_ICH_C13_REQUIRED, CASE_RULE_ICH_C1_REQUIRED,
-	CASE_RULE_ICH_C2R4_REQUIRED, CASE_RULE_ICH_D1_REQUIRED,
-	CASE_RULE_ICH_EI11A_REQUIRED, CASE_RULE_ICH_EI7_REQUIRED,
-	CASE_RULE_ICH_GK1_REQUIRED, CASE_RULE_ICH_GK22_REQUIRED,
-	CASE_RULE_ICH_H1_REQUIRED, CASE_RULE_ICH_N_REQUIRED, RuleFacts,
-	ValidationIssue, ValidationProfile,
+	should_require_patient_initials, CaseValidationReport, RuleFacts,
+	ValidationIssue, ValidationProfile, CASE_RULE_ICH_C13_REQUIRED,
+	CASE_RULE_ICH_C1_REQUIRED, CASE_RULE_ICH_C2R4_REQUIRED,
+	CASE_RULE_ICH_D1_REQUIRED, CASE_RULE_ICH_EI11A_REQUIRED,
+	CASE_RULE_ICH_EI7_REQUIRED, CASE_RULE_ICH_GK1_REQUIRED,
+	CASE_RULE_ICH_GK22_REQUIRED, CASE_RULE_ICH_H1_REQUIRED,
+	CASE_RULE_ICH_N_REQUIRED,
 };
 use sqlx::types::Uuid;
 

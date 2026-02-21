@@ -5294,19 +5294,16 @@ fn parse_relatedness_assessments(xml: &[u8]) -> Result<Vec<RelatednessImport>> {
 				"code",
 			)
 		});
-		let result_of_assessment = first_text(
-			&mut xpath,
-			&node,
-			"hl7:causalityAssessment/hl7:value",
-		)
-		.or_else(|| {
-			first_attr(
-				&mut xpath,
-				&node,
-				"hl7:causalityAssessment/hl7:value",
-				"code",
-			)
-		});
+		let result_of_assessment =
+			first_text(&mut xpath, &node, "hl7:causalityAssessment/hl7:value")
+				.or_else(|| {
+					first_attr(
+						&mut xpath,
+						&node,
+						"hl7:causalityAssessment/hl7:value",
+						"code",
+					)
+				});
 		let reaction_xml_id = parse_uuid_opt(first_attr(
 			&mut xpath,
 			&node,

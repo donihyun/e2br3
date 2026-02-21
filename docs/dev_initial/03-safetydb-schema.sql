@@ -313,6 +313,16 @@ CREATE POLICY audit_logs_read_for_auditors ON audit_logs
     TO e2br3_auditor_role
     USING (true);
 
+-- Policy 4: Allow SELECT for app role only when current user is admin/manager
+-- App connections run with SET ROLE e2br3_app_role and carry logical role in
+-- app.current_user_role via set_org_context().
+CREATE POLICY audit_logs_read_for_admin_manager ON audit_logs
+    FOR SELECT
+    TO e2br3_app_role
+    USING (
+        COALESCE(current_setting('app.current_user_role', true), '') IN ('admin', 'manager')
+    );
+
 -- Grant necessary permissions
 GRANT INSERT ON audit_logs TO e2br3_app_role;
 GRANT SELECT ON audit_logs TO e2br3_auditor_role;

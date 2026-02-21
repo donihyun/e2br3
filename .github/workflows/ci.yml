@@ -123,6 +123,23 @@ jobs:
           SERVICE_WEB_FOLDER: "web-folder/"
         run: cargo test --all
 
+      - name: Release Validation Gates
+        env:
+          SKIP_DEV_INIT: "1"
+          SERVICE_DB_URL: postgres://app_user:dev_only_pwd@localhost/app_db
+          SERVICE_PWD_KEY: CKUGFOD9_2Qf6Pn3ZFRYgPYb8ht4vKqEG9PGMXTB7497bT0367DjoaD6ydFnEVaIRda0kKeBZVCT5Hb62m2sCA
+          SERVICE_TOKEN_KEY: 9FoHBmkyxbgu_xFoQK7e0jz3RMNVJWgfvbVn712FBNH9LLaAWS3CS6Zpcg6RveiObvCUb6a2z-uAiLjhLh2igw
+          SERVICE_TOKEN_DURATION_SEC: "1800"
+          SERVICE_WEB_FOLDER: "web-folder/"
+          E2BR3_SKIP_XML_VALIDATE: "0"
+          E2BR3_XSD_PATH: deploy/ec2/schemas/multicacheschemas/MCCI_IN200100UV01.xsd
+          E2BR3_MFDS_EXAMPLES_DIR: docs/refs/instances
+          E2BR3_MFDS_REQUIRE_VALIDATION_OK: "0"
+        run: |
+          cargo test -p lib-core --test xml_schema_business_ci
+          cargo test -p web-server --test roundtrip_profiles_web
+          cargo test -p web-server --test mfds_import_samples_web
+
   # ============================================
   # Job 4: Build Docker image (main branch only)
   # ============================================

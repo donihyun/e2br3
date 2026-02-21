@@ -1,16 +1,15 @@
 use crate::xml::validate::{
 	export_attribute_strip_spec_for_rule, export_normalization_spec_for_rule,
 	export_xpath_for_rule, export_xpaths_for_rule, has_export_directive,
-	is_rule_condition_satisfied, ExportDirective, ExportNormalizeKind,
-	RuleFacts, EXPORT_NORMALIZE_INVALID_CODE_RULES,
+	is_rule_condition_satisfied, ExportDirective, ExportNormalizeKind, RuleFacts,
+	EXPORT_NORMALIZE_INVALID_CODE_RULES,
 	EXPORT_RULE_DOCUMENT_TEXT_COMPRESSION_FORBIDDEN,
 	EXPORT_RULE_FDA_REQUIRED_INTERVENTION, EXPORT_RULE_GK11_EMPTY_PRUNE,
 	EXPORT_RULE_OPTIONAL_PATH_EMPTY_PRUNE,
 	EXPORT_RULE_PLACEHOLDER_CODESYSTEMVERSION_PRUNE,
 	EXPORT_RULE_PLACEHOLDER_VALUE_PRUNE, EXPORT_RULE_RACE_EMPTY_PRUNE,
 	EXPORT_RULE_RACE_NI_PRUNE, EXPORT_RULE_STRUCTURAL_EMPTY_PRUNE,
-	EXPORT_RULE_SUMMARY_LANGUAGE_JA_FORBIDDEN,
-	EXPORT_RULE_XSI_TYPE_NORMALIZE,
+	EXPORT_RULE_SUMMARY_LANGUAGE_JA_FORBIDDEN, EXPORT_RULE_XSI_TYPE_NORMALIZE,
 };
 use libxml::tree::{Document, Node, NodeType};
 use libxml::xpath::Context;
@@ -185,7 +184,8 @@ fn prune_placeholder_nodes(xpath: &mut Context) {
 		EXPORT_RULE_FDA_REQUIRED_INTERVENTION,
 		ExportDirective::RequiredInterventionNullFlavorNi,
 	) {
-		if let Some(path) = export_xpath_for_rule(EXPORT_RULE_FDA_REQUIRED_INTERVENTION)
+		if let Some(path) =
+			export_xpath_for_rule(EXPORT_RULE_FDA_REQUIRED_INTERVENTION)
 		{
 			if let Ok(nodes) = xpath.findnodes(path, None) {
 				for mut node in nodes {

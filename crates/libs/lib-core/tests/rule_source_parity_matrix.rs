@@ -1,7 +1,8 @@
 use lib_core::xml::validate::{
-	find_canonical_rule, is_rule_condition_satisfied, is_rule_value_valid,
-	normalize_drug_characterization, normalize_outcome_code, outcome_display_name,
-	should_emit_required_intervention_null_flavor_ni, ExportDirective, RuleFacts,
+	find_canonical_rule, find_canonical_rule_for_phase, is_rule_condition_satisfied,
+	is_rule_value_valid, normalize_drug_characterization, normalize_outcome_code,
+	outcome_display_name, should_emit_required_intervention_null_flavor_ni,
+	ExportDirective, RuleFacts, ValidationPhase,
 };
 
 #[test]
@@ -64,4 +65,24 @@ fn cross_profile_rule_source_parity_matrix() {
 		None,
 		RuleFacts::default()
 	));
+}
+
+#[test]
+fn import_direct_rule_codes_are_catalog_backed_with_blocking_severity() {
+	let direct_codes = [
+		"ICH.XML.ROOT.ITSVERSION.REQUIRED",
+		"ICH.XML.ROOT.SCHEMALOCATION.REQUIRED",
+		"ICH.XML.PLACEHOLDER.VALUE.FORBIDDEN",
+	];
+
+	for code in direct_codes {
+		let rule = find_canonical_rule_for_phase(code, ValidationPhase::Import)
+			.unwrap_or_else(|| {
+				panic!("missing import-phase canonical rule: {code}")
+			});
+		assert!(
+			rule.blocking,
+			"direct import rule must be blocking via catalog severity: {code}"
+		);
+	}
 }

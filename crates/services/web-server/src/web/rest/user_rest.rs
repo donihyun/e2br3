@@ -16,6 +16,15 @@ use lib_web::middleware::mw_auth::CtxW;
 use lib_web::{Error as WebError, Result};
 use uuid::Uuid;
 
+fn require_admin_role(ctx: &lib_core::ctx::Ctx) -> Result<()> {
+	if !ctx.is_admin() {
+		return Err(WebError::AccessDenied {
+			required_role: "admin".to_string(),
+		});
+	}
+	Ok(())
+}
+
 /// POST /api/users
 /// Create a new user
 /// **Requires User.Create permission (admin only)**
@@ -26,6 +35,7 @@ pub async fn create_user(
 ) -> Result<(StatusCode, Json<DataRestResult<User>>)> {
 	let ctx = ctx_w.0;
 	tracing::debug!("{:<12} - rest create_user", "HANDLER");
+	require_admin_role(&ctx)?;
 
 	// Check permission
 	if !has_permission(ctx.role(), USER_CREATE) {
@@ -61,6 +71,7 @@ pub async fn get_user(
 ) -> Result<(StatusCode, Json<DataRestResult<User>>)> {
 	let ctx = ctx_w.0;
 	tracing::debug!("{:<12} - rest get_user id={}", "HANDLER", id);
+	require_admin_role(&ctx)?;
 
 	// Check permission
 	if !has_permission(ctx.role(), USER_READ) {
@@ -86,6 +97,7 @@ pub async fn list_users(
 ) -> Result<(StatusCode, Json<DataRestResult<Vec<User>>>)> {
 	let ctx = ctx_w.0;
 	tracing::debug!("{:<12} - rest list_users", "HANDLER");
+	require_admin_role(&ctx)?;
 
 	// Check permission
 	if !has_permission(ctx.role(), USER_LIST) {
@@ -113,6 +125,7 @@ pub async fn update_user(
 ) -> Result<(StatusCode, Json<DataRestResult<User>>)> {
 	let ctx = ctx_w.0;
 	tracing::debug!("{:<12} - rest update_user id={}", "HANDLER", id);
+	require_admin_role(&ctx)?;
 
 	// Check permission
 	if !has_permission(ctx.role(), USER_UPDATE) {
@@ -140,6 +153,7 @@ pub async fn delete_user(
 ) -> Result<StatusCode> {
 	let ctx = ctx_w.0;
 	tracing::debug!("{:<12} - rest delete_user id={}", "HANDLER", id);
+	require_admin_role(&ctx)?;
 
 	// Check permission
 	if !has_permission(ctx.role(), USER_DELETE) {

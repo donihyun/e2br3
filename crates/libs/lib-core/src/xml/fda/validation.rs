@@ -7,11 +7,10 @@ use crate::xml::validate::{
 	build_report, has_any_primary_source_content,
 	push_issue_if_conditioned_value_invalid,
 	should_case_validator_require_required_intervention, CaseValidationReport,
-	CASE_RULE_FDA_C112_RECOMMENDED, CASE_RULE_FDA_C112_REQUIRED,
-	CASE_RULE_FDA_C171_REQUIRED,
+	RuleFacts, ValidationIssue, ValidationProfile, CASE_RULE_FDA_C112_RECOMMENDED,
+	CASE_RULE_FDA_C112_REQUIRED, CASE_RULE_FDA_C171_REQUIRED,
 	CASE_RULE_FDA_C2R2_EMAIL_REQUIRED, CASE_RULE_FDA_D11_REQUIRED,
-	CASE_RULE_FDA_D12_REQUIRED, CASE_RULE_FDA_EI32H_REQUIRED, RuleFacts,
-	ValidationIssue, ValidationProfile,
+	CASE_RULE_FDA_D12_REQUIRED, CASE_RULE_FDA_EI32H_REQUIRED,
 };
 use sqlx::types::Uuid;
 

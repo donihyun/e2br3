@@ -187,18 +187,35 @@ impl AuditLogBmc {
 		table_name: &str,
 		record_id: Uuid,
 	) -> Result<Vec<AuditLog>> {
-		let sql = format!(
-			"SELECT * FROM {} WHERE table_name = $1 AND record_id = $2 ORDER BY created_at DESC",
-			Self::TABLE
-		);
-		let logs = mm
-			.dbx()
-			.fetch_all(
-				sqlx::query_as::<_, AuditLog>(&sql)
-					.bind(table_name)
-					.bind(record_id),
-			)
-			.await?;
+		let logs = if table_name == "cases" {
+			let sql = format!(
+				"SELECT * FROM {}
+				 WHERE (table_name = $1 AND record_id = $2)
+				    OR COALESCE(new_values->>'case_id', old_values->>'case_id') = $3
+				 ORDER BY created_at DESC",
+				Self::TABLE
+			);
+			mm.dbx()
+				.fetch_all(
+					sqlx::query_as::<_, AuditLog>(&sql)
+						.bind(table_name)
+						.bind(record_id)
+						.bind(record_id.to_string()),
+				)
+				.await?
+		} else {
+			let sql = format!(
+				"SELECT * FROM {} WHERE table_name = $1 AND record_id = $2 ORDER BY created_at DESC",
+				Self::TABLE
+			);
+			mm.dbx()
+				.fetch_all(
+					sqlx::query_as::<_, AuditLog>(&sql)
+						.bind(table_name)
+						.bind(record_id),
+				)
+				.await?
+		};
 		Ok(logs)
 	}
 }

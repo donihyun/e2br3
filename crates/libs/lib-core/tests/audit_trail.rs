@@ -7,6 +7,7 @@ use common::{
 };
 use lib_core::model::audit::AuditLogBmc;
 use lib_core::model::case::{CaseBmc, CaseForUpdate};
+use lib_core::model::patient::{PatientInformationBmc, PatientInformationForCreate};
 use serial_test::serial;
 
 #[serial]
@@ -40,6 +41,22 @@ async fn test_audit_trail_cases() -> Result<()> {
 
 	assert_eq!(audit_log_count(&mm, "cases", case_id, "UPDATE").await?, 1);
 
+	let patient_id = PatientInformationBmc::create(
+		&ctx,
+		&mm,
+		PatientInformationForCreate {
+			case_id,
+			patient_initials: Some("AT".to_string()),
+			sex: Some("1".to_string()),
+			concomitant_therapy: None,
+		},
+	)
+	.await?;
+	assert_eq!(
+		audit_log_count(&mm, "patient_information", patient_id, "CREATE").await?,
+		1
+	);
+
 	CaseBmc::delete(&ctx, &mm, case_id).await?;
 	assert_eq!(audit_log_count(&mm, "cases", case_id, "DELETE").await?, 1);
 
@@ -49,6 +66,12 @@ async fn test_audit_trail_cases() -> Result<()> {
 	assert!(logs.iter().any(|l| l.action == "CREATE"));
 	assert!(logs.iter().any(|l| l.action == "UPDATE"));
 	assert!(logs.iter().any(|l| l.action == "DELETE"));
+	assert!(
+		logs.iter()
+			.any(|l| l.table_name == "patient_information"
+				&& l.record_id == patient_id),
+		"case audit query should include case-linked table audit rows"
+	);
 
 	// -- Verify user attribution: all audit logs should reference the correct user
 	for log in &logs {

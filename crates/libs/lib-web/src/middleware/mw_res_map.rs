@@ -278,10 +278,7 @@ pub async fn mw_response_map(
 				let detail = debug_detail
 					.clone()
 					.or_else(|| {
-						client_error
-							.as_ref()
-							.and_then(|v| v.get("detail"))
-							.cloned()
+						client_error.as_ref().and_then(|v| v.get("detail")).cloned()
 					})
 					.map(normalize_detail_for_client);
 

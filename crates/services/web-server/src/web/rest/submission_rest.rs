@@ -10,8 +10,8 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::submission::{
-	apply_mock_ack, create_fda_submission, get_submission, list_by_case, MockAckInput,
-	SubmissionRecord,
+	apply_mock_ack, create_fda_submission, get_submission, list_by_case,
+	MockAckInput, SubmissionRecord,
 };
 
 #[derive(Debug, Serialize)]
@@ -56,9 +56,11 @@ pub async fn get_case_submission(
 ) -> Result<(StatusCode, Json<DataRestResult<SubmissionRecord>>)> {
 	let ctx = ctx_w.0;
 	require_permission(&ctx, CASE_READ)?;
-	let record = get_submission(submission_id).await.ok_or(Error::BadRequest {
-		message: format!("submission not found: {submission_id}"),
-	})?;
+	let record = get_submission(submission_id)
+		.await
+		.ok_or(Error::BadRequest {
+			message: format!("submission not found: {submission_id}"),
+		})?;
 	Ok((StatusCode::OK, Json(DataRestResult { data: record })))
 }
 

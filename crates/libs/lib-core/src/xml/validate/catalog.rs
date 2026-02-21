@@ -1063,8 +1063,11 @@ pub struct CanonicalRule<'a> {
 
 const PHASES_IMPORT_AND_EXPORT: &[ValidationPhase] =
 	&[ValidationPhase::Import, ValidationPhase::Export];
+const PHASES_CASE_VALIDATE_AND_EXPORT: &[ValidationPhase] =
+	&[ValidationPhase::CaseValidate, ValidationPhase::Export];
 const PHASES_CASE_VALIDATE: &[ValidationPhase] = &[ValidationPhase::CaseValidate];
 const PHASES_EXPORT_ONLY: &[ValidationPhase] = &[ValidationPhase::Export];
+const PHASES_IMPORT_ONLY: &[ValidationPhase] = &[ValidationPhase::Import];
 
 #[derive(Debug, Clone, Copy)]
 struct ConditionBinding {
@@ -1350,17 +1353,29 @@ fn phases_for_rule(
 	rule: &ValidationRuleMetadata,
 	export_directive: Option<ExportDirective>,
 ) -> &'static [ValidationPhase] {
-	if export_directive.is_some() && is_export_only_rule(rule.code) {
-		return PHASES_EXPORT_ONLY;
+	if export_directive.is_some() {
+		if is_export_only_rule(rule.code) {
+			return PHASES_EXPORT_ONLY;
+		}
+		if is_xml_structure_rule(rule) {
+			return PHASES_IMPORT_AND_EXPORT;
+		}
+		return PHASES_CASE_VALIDATE_AND_EXPORT;
 	}
 	if is_xml_structure_rule(rule) {
-		return PHASES_IMPORT_AND_EXPORT;
+		return PHASES_IMPORT_ONLY;
 	}
 	PHASES_CASE_VALIDATE
 }
 
 fn is_export_only_rule(code: &str) -> bool {
-	code.contains(".PRUNE") || code.contains(".NORMALIZE")
+	code.contains(".PRUNE")
+		|| code.contains(".NORMALIZE")
+		|| matches!(
+			code,
+			"ICH.XML.DOCUMENT.TEXT.COMPRESSION.FORBIDDEN"
+				| "ICH.XML.SUMMARY.LANGUAGE.JA.FORBIDDEN"
+		)
 }
 
 fn is_xml_structure_rule(rule: &ValidationRuleMetadata) -> bool {
@@ -1411,12 +1426,14 @@ pub fn find_canonical_rule_for_phase(
 }
 
 pub fn find_canonical_rule(code: &str) -> Option<CanonicalRule<'static>> {
-	find_canonical_rule_for_phase(code, ValidationPhase::CaseValidate).or_else(|| {
-		CANONICAL_RULES
-			.iter()
-			.find(|rule| rule.code == code)
-			.map(to_canonical_rule)
-	})
+	find_canonical_rule_for_phase(code, ValidationPhase::CaseValidate).or_else(
+		|| {
+			CANONICAL_RULES
+				.iter()
+				.find(|rule| rule.code == code)
+				.map(to_canonical_rule)
+		},
+	)
 }
 
 pub fn canonical_rules_for_profile(
@@ -1598,7 +1615,9 @@ pub fn is_rule_value_valid(
 			} else {
 				&["2"]
 			};
-			value_code.map(|code| allowed.contains(&code)).unwrap_or(false)
+			value_code
+				.map(|code| allowed.contains(&code))
+				.unwrap_or(false)
 		}
 		Some(ValuePolicy::IchC13ConditionalMustBeTwo) => {
 			let applies =

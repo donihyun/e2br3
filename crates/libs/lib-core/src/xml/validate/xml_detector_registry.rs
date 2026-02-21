@@ -113,13 +113,14 @@ pub struct ValueNodeRuleSpec {
 	pub fallback_message: &'static str,
 }
 
-pub const ICH_IDENTITY_ATTR_PREFIX_RULES: &[AttrPrefixRuleSpec] = &[AttrPrefixRuleSpec {
-	node_xpath: "//hl7:telecom",
-	value_attr: "value",
-	allowed_prefixes: &["tel:", "fax:", "mailto:"],
-	rule_code: "ICH.XML.TELECOM.FORMAT.REQUIRED",
-	value_label: "telecom value",
-}];
+pub const ICH_IDENTITY_ATTR_PREFIX_RULES: &[AttrPrefixRuleSpec] =
+	&[AttrPrefixRuleSpec {
+		node_xpath: "//hl7:telecom",
+		value_attr: "value",
+		allowed_prefixes: &["tel:", "fax:", "mailto:"],
+		rule_code: "ICH.XML.TELECOM.FORMAT.REQUIRED",
+		value_label: "telecom value",
+	}];
 
 pub const ICH_IDENTITY_ATTR_NULL_FLAVOR_RULES: &[AttrNullFlavorPairRuleSpec] = &[
 	AttrNullFlavorPairRuleSpec {
@@ -350,14 +351,17 @@ pub const ICH_PROFILE_ATTR_OR_NULL_RULES: &[AttrOrNullFlavorRequiredRuleSpec] = 
 	},
 ];
 
-pub const ICH_PROFILE_ATTR_OR_TEXT_OR_NULL_RULES: &[AttrOrTextOrNullRequiredRuleSpec] = &[AttrOrTextOrNullRequiredRuleSpec {
+pub const ICH_PROFILE_ATTR_OR_TEXT_OR_NULL_RULES:
+	&[AttrOrTextOrNullRequiredRuleSpec] = &[AttrOrTextOrNullRequiredRuleSpec {
 	node_xpath: "//hl7:routeCode",
 	value_attr: "code",
 	required_code: "ICH.G.k.4.r.11.NULLFLAVOR.REQUIRED",
-	required_message: "routeCode missing code; originalText or nullFlavor is required",
+	required_message:
+		"routeCode missing code; originalText or nullFlavor is required",
 }];
 
-pub const ICH_PROFILE_CODE_OR_CODESYSTEM_OR_TEXT_OR_NULL_RULES: &[CodeOrCodeSystemOrTextOrNullRequiredRuleSpec] =
+pub const ICH_PROFILE_CODE_OR_CODESYSTEM_OR_TEXT_OR_NULL_RULES:
+	&[CodeOrCodeSystemOrTextOrNullRequiredRuleSpec] =
 	&[CodeOrCodeSystemOrTextOrNullRequiredRuleSpec {
 		node_xpath: "//hl7:formCode",
 		required_code: "ICH.G.k.4.r.10.NULLFLAVOR.REQUIRED",
@@ -376,7 +380,8 @@ pub const ICH_PROFILE_CODE_OR_CODESYSTEM_OR_TEXT_REQUIRED_WITH_FORBIDDEN_NULLFLA
 			"code has value and nullFlavor; nullFlavor must be absent when value present",
 	}];
 
-pub const ICH_STRUCTURAL_WHEN_CHILD_PRESENT_RULES: &[WhenChildPresentRequireAnyChildrenRuleSpec] =
+pub const ICH_STRUCTURAL_WHEN_CHILD_PRESENT_RULES:
+	&[WhenChildPresentRequireAnyChildrenRuleSpec] =
 	&[WhenChildPresentRequireAnyChildrenRuleSpec {
 		node_xpath: "//hl7:effectiveTime",
 		trigger_child_name: "width",
@@ -427,7 +432,8 @@ pub const ICH_STRUCTURAL_REQUIRED_ATTRS_RULES: &[RequiredAttrsRuleSpec] = &[
 	},
 ];
 
-pub const ICH_STRUCTURAL_WHEN_ATTR_EQUALS_RULES: &[WhenAttrEqualsRequireAnyChildrenRuleSpec] =
+pub const ICH_STRUCTURAL_WHEN_ATTR_EQUALS_RULES:
+	&[WhenAttrEqualsRequireAnyChildrenRuleSpec] =
 	&[WhenAttrEqualsRequireAnyChildrenRuleSpec {
 		node_xpath: "//hl7:comp[@xsi:type='IVL_TS']",
 		attr_name: "operator",
@@ -553,8 +559,7 @@ pub const ICH_MEDICAL_HISTORY_RULE_MESSAGE: &str =
 pub const FDA_BATCH_RECEIVER_RULE_CODE: &str = "FDA.N.1.4.REQUIRED";
 pub const FDA_BATCH_RECEIVER_RULE_MESSAGE: &str =
 	"FDA.N.1.4 batch receiver identifier missing";
-pub const FDA_LOCAL_CRITERIA_CONDITIONAL_RULE_CODE: &str =
-	"FDA.C.1.7.1.REQUIRED";
+pub const FDA_LOCAL_CRITERIA_CONDITIONAL_RULE_CODE: &str = "FDA.C.1.7.1.REQUIRED";
 pub const FDA_LOCAL_CRITERIA_CONDITIONAL_RULE_MESSAGE: &str =
 	"FDA.C.1.7.1 local criteria report type is invalid for current expedited/combination product facts";
 pub const FDA_GK10A_RULE_CODE: &str = "FDA.G.k.10a.REQUIRED";
