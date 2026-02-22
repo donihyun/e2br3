@@ -283,6 +283,8 @@ BEGIN
     END IF;
 END $$;
 
+GRANT e2br3_app_role TO app_user;
+
 -- Create auditor role (read-only access to audit logs)
 DO $$
 BEGIN
